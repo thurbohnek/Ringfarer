@@ -21,3 +21,12 @@
 - Hold «Åpne punkter» oppdatert: fjern det som er løst, legg til nye ting
   som venter på brukeren.
 - Skriv på vanlig norsk, slik at det er lett å lese uten å kunne kode.
+
+## Lenke til spillet etter hver endring
+
+- Etter hver endring i spillet: publiser spillsiden på nytt og legg ved
+  lenken i svaret, så brukeren kan teste med en gang.
+- Spillsiden er https://claude.ai/artifact/RbYcgGXBSatEDSGDCXe756 . Oppdater
+  den samme siden (samme lenke) i stedet for å lage en ny.
+- Når endringene er på `main` og GitHub Pages er slått på, legg også ved
+  https://thurbohnek.github.io/Ringfarer/ .
