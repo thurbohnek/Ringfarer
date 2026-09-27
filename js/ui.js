@@ -46,23 +46,39 @@
       root = $('#panel');
       touchRoot = $('#touch');
       root.addEventListener('click', onClick);
-      if (game.touchUI) {
-        touchRoot.hidden = false;
-        RF.Input.bindTouch(touchRoot);
-        document.body.classList.add('touch');
-      }
+      // Støytekstur til de metalliske panelene.
+      try {
+        document.documentElement.style.setProperty('--noise', `url(${RF.noiseCanvas(128, 99, '#000000', '#e8dcc0').toDataURL()})`);
+      } catch (_) { /* uten tekstur går også fint */ }
+      RF.Input.bindTouch(touchRoot);
+      RF.Input.bindStick($('#stick'), $('#stick .base'), $('#stick .knob'));
+      if (game.touchUI) UI.setTouch(true);
+      // Slå på berøringskontroller automatisk første gang skjermen blir berørt.
+      window.addEventListener('touchstart', () => { if (!game.touchUI) UI.setTouch(true); }, { passive: true });
       UI.openTitle();
+    },
+
+    setTouch(on) {
+      game.touchUI = on;
+      document.body.classList.toggle('touch', on);
+      if (on && game.cam.zoom > 2.2) game.cam.zoom = 2.2;
     },
 
     tick() {
       if (game.touchUI) {
         const ctx = $('#tc-ctx');
         const act = game.action;
-        ctx.textContent = act === 'dock' ? 'DOKK' : act === 'dial' ? 'RING PORT' : act === 'tow' ? 'SLEP' : '—';
+        const label = act === 'dock' ? 'DOKK' : act === 'dial' ? 'RING PORT' : act === 'tow' ? 'SLEP' : '—';
+        if (ctx.textContent !== label) ctx.textContent = label;
         ctx.classList.toggle('ready', !!act);
-        $('#tc-tractor').classList.toggle('on', game.ship && game.ship.tractor.on);
-        touchRoot.hidden = game.state !== 'play' || UI.isOpen();
+        const sh = game.ship;
+        $('#tc-tractor').classList.toggle('on', !!(sh && sh.tractor.on));
+        $('#tc-light').classList.toggle('on', !!(sh && sh.lightOn));
+        $('#tc-anchor').classList.toggle('on', !!(sh && sh.anchor));
+        $('#tc-anchor').style.opacity = sh && sh.stats.anchorRange ? '' : '0.35';
+        $('#tc-winch').style.visibility = sh && sh.anchor ? '' : 'hidden';
       }
+      touchRoot.hidden = !game.touchUI || game.state !== 'play' || UI.isOpen();
     },
 
     openTitle() {
@@ -86,7 +102,7 @@
     openHelp() {
       const back = game.state === 'play' ? 'close' : 'title';
       show('help', `
-        <div class="card">
+        <div class="card plate"><div class="hazard"></div>
           <h2>Kontroller og tips</h2>
           ${keyList()}
           <h3>Slik tjener du penger</h3>
@@ -94,6 +110,10 @@
             <li><b>Utvinning:</b> hold laseren på en asteroide. Den skjærer av biter og sprekker til slutt. Slå på traktorstrålen og fly rolig mot bitene, så suges de inn i nesen og prosesseres.</li>
             <li><b>Frakt:</b> ta oppdrag på stasjonen. Skjør last tåler bare små støt, så fly pent.</li>
             <li><b>Handel:</b> is er billig i Vanaheim og dyrt på Surtr Borestasjon i Muspelheim.</li>
+            <li><b>Anker:</b> kjøp ankerkabel på stasjonen. Pek nesen mot en stor stein og trykk X. Kabelen holder deg på plass mens du borer, og med vinsjen (C) trekker du deg helt inn og lander på steinen.</li>
+            <li><b>Lys:</b> rommet er mørkt. Arbeidslyset (L) lyser opp det du borer i, og kan oppgraderes til lengre rekkevidde.</li>
+            <li><b>Arbeidsskip:</b> gruvedroner og frakteskip flyr på egen hånd. De bruker samme fysikk som deg, og de tåler ikke å bli rammet.</li>
+            <li><b>Mobil:</b> dra hvor som helst på venstre side av skjermen for å styre. Skipet snur seg dit du drar, og drar du langt, gir det gass.</li>
             <li><b>Porten:</b> ring den med G, vent på virvelen (ikke stå foran!) og fly inn i horisonten forfra.</li>
             <li><b>Fysikk:</b> jo mer last, jo tyngre skip. Større masse betyr lengre bremselengde og hardere støt. Et støt over ca. 1,6 m/s gir skade når skjoldet er tomt.</li>
           </ul>
@@ -103,12 +123,13 @@
 
     openPause() {
       show('pause', `
-        <div class="card narrow">
+        <div class="card plate narrow"><div class="hazard"></div>
           <h2>Pause</h2>
           <div class="col">
             <button class="btn primary" data-act="close" data-autofocus>Fortsett</button>
             <button class="btn" data-act="help">Kontroller</button>
             <button class="btn" data-act="mute">${RF.Audio.muted ? 'Slå på lyd' : 'Slå av lyd'}</button>
+            <button class="btn" data-act="touch">${game.touchUI ? 'Skjul berøringskontroller' : 'Vis berøringskontroller'}</button>
             <button class="btn ghost" data-act="quit">Til tittelskjermen</button>
           </div>
         </div>`);
@@ -117,7 +138,7 @@
     openDead() {
       const fee = Math.min(game.credits, 300 + Math.round(game.credits * 0.1));
       show('dead', `
-        <div class="card narrow danger">
+        <div class="card plate narrow danger"><div class="hazard"></div>
           <p class="eyebrow">Skroget brøt sammen</p>
           <h2>Skipet er tapt</h2>
           <p>Redningskapselen din ble plukket opp. Forsikringen gir deg et nytt skrog ved
@@ -136,7 +157,7 @@
           <span class="muted">${esc(s.blurb)}</span>
         </button>`).join('');
       show('dial', `
-        <div class="card">
+        <div class="card plate"><div class="hazard"></div>
           <p class="eyebrow">Oppringingsenhet · ${esc(game.sys.def.name)}</p>
           <h2>Velg adresse</h2>
           <div class="dests">${rows}</div>
@@ -159,6 +180,9 @@
       ${k(['Q', 'E'], 'Sidestyring')}
       ${k(['Mellomrom'], 'Borelaser (hold)')}
       ${k(['F'], 'Traktorstråle av/på')}
+      ${k(['L'], 'Arbeidslys av/på')}
+      ${k(['X'], 'Anker: fest / løsne')}
+      ${k(['C'], 'Vinsj inn ankerkabelen (hold)')}
       ${k(['Z'], 'Flygeassistent: av, rotasjon, full')}
       ${k(['T'], 'Dokk ved stasjon')}
       ${k(['G'], 'Ring porten')}
@@ -180,7 +204,7 @@
     const scroll = root.querySelector('.tab-body');
     const y = scroll ? scroll.scrollTop : 0;
     show('station', `
-      <div class="card station">
+      <div class="card plate station"><div class="hazard"></div>
         <header class="st-head">
           <div>
             <p class="eyebrow">Dokket · ${esc(game.sys.def.name)}</p>
@@ -289,8 +313,9 @@
     const ship = game.ship, s = ship.s;
     return `<ul class="upgrades">${Object.keys(RF.UPGRADES).map((k) => {
       const U = RF.UPGRADES[k], lv = s.up[k], max = U.levels.length - 1;
-      const cur = U.fmt(U.levels[lv]) + ' ' + U.unit;
-      const next = lv < max ? U.fmt(U.levels[lv + 1]) + ' ' + U.unit : null;
+      const unit = (v) => (U.unitFor ? U.unitFor(v) : U.unit);
+      const cur = U.fmt(U.levels[lv]) + ' ' + unit(U.levels[lv]);
+      const next = lv < max ? U.fmt(U.levels[lv + 1]) + ' ' + unit(U.levels[lv + 1]) : null;
       const cost = lv < max ? U.cost[lv + 1] : 0;
       const pips = U.levels.map((_, i) => `<i class="${i <= lv ? 'on' : ''}"></i>`).join('');
       return `<li><div><b>${U.name}</b><span class="pips">${pips}</span>
@@ -317,6 +342,7 @@
         if (ship && ship.docked) UI.openStation(); else UI.closeAll();
         break;
       case 'mute': RF.Audio.setMuted(!RF.Audio.muted); UI.openPause(); break;
+      case 'touch': UI.setTouch(!game.touchUI); UI.openPause(); break;
       case 'quit': game.save(); game.state = 'title'; location.reload(); break;
       case 'respawn': game.respawn(); break;
       case 'dial': game.dial(id); break;

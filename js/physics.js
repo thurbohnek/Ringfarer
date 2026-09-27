@@ -201,6 +201,7 @@
       this.bodies = [];
       this.contacts = [];
       this.iterations = 8;
+      this.ropes = []; // { A, la, B, lb, length } — trekker bare, som en kabel
       this.onImpact = null; // (contact, J, vn0) => void
       this.shouldCollide = null; // (A, B) => bool
     }
@@ -262,8 +263,42 @@
         }
       }
 
+      // Kabler (ankeret): forbered.
+      this.ropes = this.ropes.filter((r) => !r.A.dead && !r.B.dead);
+      for (const r of this.ropes) {
+        const pa = r.A.toWorld(r.la.x, r.la.y), pb = r.B.toWorld(r.lb.x, r.lb.y);
+        const dx = pb.x - pa.x, dy = pb.y - pa.y;
+        const dist = G.len(dx, dy) || 1e-6;
+        r.dist = dist;
+        r.active = dist > r.length;
+        r.jn = 0;
+        if (!r.active) continue;
+        r.nx = dx / dist; r.ny = dy / dist;
+        r.rAx = pa.x - r.A.x; r.rAy = pa.y - r.A.y;
+        r.rBx = pb.x - r.B.x; r.rBy = pb.y - r.B.y;
+        const rnA = r.rAx * r.ny - r.rAy * r.nx, rnB = r.rBx * r.ny - r.rBy * r.nx;
+        r.mN = 1 / (r.A.invMass + r.B.invMass + r.A.invI * rnA * rnA + r.B.invI * rnB * rnB);
+        r.bias = (0.15 * (dist - r.length)) / dt;
+      }
+
       // Sekvensielle impulser.
       for (let it = 0; it < this.iterations; it++) {
+        for (const r of this.ropes) {
+          if (!r.active) continue;
+          const { A, B, nx, ny } = r;
+          const dvx = B.vx - B.w * r.rBy - A.vx + A.w * r.rAy;
+          const dvy = B.vy + B.w * r.rBx - A.vy - A.w * r.rAx;
+          const vn = dvx * nx + dvy * ny;
+          let dj = r.mN * (-vn - r.bias);
+          const j0 = r.jn;
+          r.jn = Math.min(j0 + dj, 0);
+          dj = r.jn - j0;
+          const Px = dj * nx, Py = dj * ny;
+          A.vx -= Px * A.invMass; A.vy -= Py * A.invMass;
+          A.w -= A.invI * (r.rAx * Py - r.rAy * Px);
+          B.vx += Px * B.invMass; B.vy += Py * B.invMass;
+          B.w += B.invI * (r.rBx * Py - r.rBy * Px);
+        }
         for (const c of contacts) {
           const { A, B, nx, ny } = c;
           const tx = -ny, ty = nx;

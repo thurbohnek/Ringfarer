@@ -169,6 +169,13 @@
     return G.convexHull(pts);
   };
 
+  // Klumpete, avrundet bit med nøyaktig gitt areal (m²).
+  G.lump = (area) => {
+    const v = G.convexHull(G.rockShape(1, G.randInt(7, 10)).map((p) => ({ x: p.x * G.rand(0.9, 1.1), y: p.y })));
+    const k = Math.sqrt(area / G.polyArea(v));
+    return v.map((p) => ({ x: p.x * k, y: p.y * k }));
+  };
+
   G.box = (x0, y0, x1, y1) => [
     { x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 },
   ];

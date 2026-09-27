@@ -52,6 +52,7 @@
       const st = RF.createSystemState(RF.systemById(id));
       st.world.onImpact = onImpact;
       st.world.shouldCollide = (A, B) => !(A.kind === 'gate' && B.kind === 'gate');
+      RF.spawnNPCs(st);
       game.systems[id] = st;
     }
     return game.systems[id];
@@ -152,6 +153,7 @@
   // --- Dokking ---
   function dock(silent) {
     const ship = game.ship, st = game.sys.station;
+    ship.releaseAnchor(game);
     removeShipFromWorld();
     ship.docked = st;
     ship.tractor.on = false;
@@ -196,6 +198,15 @@
   function onImpact(c, J, vn0) {
     const ship = game.ship, sb = ship && ship.body;
     const p = c.points[0];
+    for (const o of [c.A, c.B]) {
+      if (o.npc && o.npc.active) {
+        const dv = J * o.invMass;
+        if (dv > 2 && G.len(p.x - game.cam.x, p.y - game.cam.y) < 600) {
+          game.particles.burst(p.x, p.y, Math.min(20, Math.floor(dv * 2)), { sMin: 3, sMax: 8 + dv, color: '#ffd28a', zMin: 0.15, zMax: 0.35 });
+        }
+        o.npc.takeImpact(dv, p.x, p.y, game);
+      }
+    }
     if (sb && (c.A === sb || c.B === sb)) {
       const other = c.A === sb ? c.B : c.A;
       const dv = J * sb.invMass;
@@ -252,7 +263,9 @@
         game.particles.burst(w.x, w.y, 4, { type: 'debris', sMin: 1, sMax: 5, color: RF.MATERIALS[mat].light, zMin: 0.2, zMax: 0.5, lMin: 0.6, lMax: 1.4, vx: parentPose.vx, vy: parentPose.vy });
         continue;
       }
-      const b = RF.makeRock(G.simplify(pv, 0.05), mat, { x: parentPose.x, y: parentPose.y, a: parentPose.a, vx: parentPose.vx, vy: parentPose.vy, w: parentPose.w });
+      // Små biter blir runde klumper med samme areal (og dermed samme masse).
+      const shape = area <= RF.ORE_MAX_AREA ? G.lump(area).map((p) => ({ x: p.x + cx.x, y: p.y + cx.y })) : G.simplify(pv, 0.05);
+      const b = RF.makeRock(shape, mat, { x: parentPose.x, y: parentPose.y, a: parentPose.a, vx: parentPose.vx, vy: parentPose.vy, w: parentPose.w });
       if (parent && b.kind === 'rock') copyMarks(parent, b);
       if (kickDir) {
         const k = G.rand(1, 3.2);
@@ -300,7 +313,8 @@
     for (const b of made) { px += (b.vx - pose.vx) * b.mass; py += (b.vy - pose.vy) * b.mass; }
     t.vx -= px / t.mass; t.vy -= py / t.mass;
     game.particles.burst(hit.x, hit.y, 14, { sMin: 4, sMax: 16, dir: Math.atan2(-d.y, -d.x), spread: 1.1, color: '#ffc070', zMin: 0.15, zMax: 0.35, lMin: 0.2, lMax: 0.6 });
-    game.particles.burst(hit.x, hit.y, 5, { type: 'smoke', sMin: 1, sMax: 4, dir: Math.atan2(-d.y, -d.x), spread: 0.9, color: RF.MATERIALS[t.mat].light, zMin: 0.6, zMax: 1.2, grow: 2, lMin: 0.6, lMax: 1.3 });
+    game.particles.burst(hit.x, hit.y, 16, { type: 'smoke', sMin: 1, sMax: 6, dir: Math.atan2(-d.y, -d.x), spread: 1.3, color: RF.MATERIALS[t.mat].light, zMin: 0.8, zMax: 1.8, grow: 2.5, lMin: 1.2, lMax: 3 });
+    game.particles.burst(hit.x, hit.y, 10, { type: 'debris', sMin: 2, sMax: 9, dir: Math.atan2(-d.y, -d.x), spread: 1.2, color: RF.MATERIALS[t.mat].base, zMin: 0.15, zMax: 0.4, lMin: 1, lMax: 2.5 });
     Audio.thud(0.18, true);
   };
 
@@ -337,9 +351,20 @@
       m.vy += wn.y * side * kick * share;
     }
     game.particles.burst(hit.x, hit.y, 30, { sMin: 5, sMax: 22, color: '#ffd08a', zMin: 0.2, zMax: 0.5, lMin: 0.3, lMax: 0.9 });
-    game.particles.burst(pose.x, pose.y, 16, { type: 'smoke', sMin: 1, sMax: 5, color: RF.MATERIALS[t.mat].light, zMin: 1, zMax: 3, grow: 3, lMin: 0.8, lMax: 2 });
+    game.particles.burst(pose.x, pose.y, 45, { type: 'smoke', sMin: 1, sMax: 7, color: RF.MATERIALS[t.mat].light, zMin: 1.2, zMax: 3.5, grow: 3, lMin: 1.5, lMax: 4, vx: pose.vx, vy: pose.vy });
+    game.particles.burst(hit.x, hit.y, 25, { type: 'debris', sMin: 2, sMax: 12, color: RF.MATERIALS[t.mat].base, zMin: 0.2, zMax: 0.6, lMin: 1.5, lMax: 4, vx: pose.vx, vy: pose.vy });
     Audio.thud(0.7);
     if (t.area > 60) game.msg('Asteroiden sprakk', RF.HUD_COLORS.amber);
+  };
+
+  // Gnister og steinstøv som velter ut der laseren brenner.
+  game.laserDust = (h) => {
+    const t = h.body;
+    if (Math.random() < 0.6) game.particles.burst(h.x, h.y, 1, { sMin: 3, sMax: 12, dir: Math.atan2(h.ny, h.nx), spread: 1.2, color: '#ffb060', zMin: 0.12, zMax: 0.3, lMin: 0.15, lMax: 0.45 });
+    if (t && t.mat && Math.random() < 0.55) {
+      const a = Math.atan2(h.ny, h.nx) + G.rand(-1, 1), sp = G.rand(0.8, 4);
+      game.particles.add({ type: 'smoke', x: h.x, y: h.y, vx: t.vx + Math.cos(a) * sp, vy: t.vy + Math.sin(a) * sp, life: G.rand(1.5, 3.5), size: G.rand(0.4, 0.9), grow: G.rand(1.2, 2.2), color: RF.MATERIALS[t.mat].light });
+    }
   };
 
   game.tryIntake = (o) => {
@@ -409,17 +434,29 @@
               game.shake = 1;
               Audio.thud(1);
             }
+          } else if (b.npc) {
+            b.npc.explode(game);
           } else {
             b.dead = true;
             game.particles.burst(b.x, b.y, 10, { type: 'glow', sMin: 2, sMax: 8, color: '#9fd8ff', zMin: 0.2, zMax: 0.5 });
           }
         }
       }
-      if (g.t >= RF.KAWOOSH_TIME) { g.state = 'open'; g.t = 0; game._kawooshHit = false; }
+      if (g.t >= RF.KAWOOSH_TIME) {
+        g.state = 'open'; g.t = 0; game._kawooshHit = false;
+        // Et arbeidsskip som kommer hjem gjennom porten.
+        if (g.arrival) {
+          const n = g.arrival;
+          g.arrival = null;
+          n.spawnAt(g.x + Math.cos(g.a) * 8, g.y + Math.sin(g.a) * 8, g.a, Math.cos(g.a) * 8, Math.sin(g.a) * 8);
+          n.state = 'toStation';
+          n.timer = 0;
+        }
+      }
     } else if (g.state === 'open') {
       if (g.t > (g.incoming ? 5 : 38)) { g.state = 'closing'; g.t = 0; }
     } else if (g.state === 'closing') {
-      if (g.t > 0.6) { g.state = 'idle'; g.chevrons = 0; g.t = 0; g.incoming = false; }
+      if (g.t > 0.6) { g.state = 'idle'; g.chevrons = 0; g.t = 0; g.incoming = false; g.dialedBy = null; }
     }
 
     // Reise gjennom horisonten, bare forfra og bare utgående.
@@ -435,8 +472,33 @@
     game._gatePrevLx = lx;
   }
 
+  // Et arbeidsskip forsvinner gjennom porten og kommer tilbake senere.
+  game.npcTransit = (npc, g) => {
+    npc.despawn();
+    npc.state = 'away';
+    npc.timer = G.rand(50, 110);
+    g.t = Math.max(g.t, 30); // porten lukker seg snart etterpå
+    g.dialedBy = null;
+    if (game.sys === npc.sys) {
+      game.particles.burst(g.x, g.y, 20, { type: 'glow', sMin: 2, sMax: 10, color: '#9fd8ff', zMin: 0.2, zMax: 0.5 });
+      Audio.thud(0.4, true);
+    }
+  };
+
+  // Et arbeidsskip ringer inn fra et annet system.
+  game.npcArrival = (npc) => {
+    const g = npc.sys.gate;
+    if (g.state !== 'idle') return false;
+    g.state = 'dialing'; g.t = 0; g.chevrons = 0; g.incoming = true; g.dest = null;
+    g.arrival = npc;
+    const sb = game.ship.body;
+    if (game.sys === npc.sys && G.len(sb.x - g.x, sb.y - g.y) < 600) game.msg('Innkommende ormehull! Hold deg unna forsiden av porten', RF.HUD_COLORS.danger);
+    return true;
+  };
+
   function transit(g, lx, ly) {
     const ship = game.ship, b = ship.body;
+    ship.releaseAnchor(game);
     const cs = Math.cos(g.a), sn = Math.sin(g.a);
     const vlx = b.vx * cs + b.vy * sn, vly = -b.vx * sn + b.vy * cs;
     const al = b.a - g.a;
@@ -471,6 +533,7 @@
     const b = game.ship.body;
     game.dead = true;
     game.deadT = 0;
+    game.ship.releaseAnchor(game);
     removeShipFromWorld();
     game.particles.burst(b.x, b.y, 80, { sMin: 5, sMax: 40, color: '#ffcf80', zMin: 0.2, zMax: 0.6, lMin: 0.5, lMax: 1.6, vx: b.vx, vy: b.vy });
     game.particles.burst(b.x, b.y, 40, { type: 'glow', sMin: 2, sMax: 18, color: '#ff8a3a', zMin: 0.4, zMax: 1, lMin: 0.4, lMax: 1.2, vx: b.vx, vy: b.vy });
@@ -561,6 +624,7 @@
     ship.updateTractor(dt, game);
     ship.updateProcessing(dt, game);
     ship.updateShield(dt);
+    ship.updateAnchor(inp.winch, dt, game);
     if (ship.processing.length || game._massDirty) ship.updateMass();
   }
 
@@ -617,6 +681,11 @@
       ship.fa = (ship.fa + 1) % 3;
       game.msg('Flygeassistent: ' + ['av (ren Newton)', 'demper rotasjon', 'full (bremser også fart)'][ship.fa], RF.HUD_COLORS.gate);
     }
+    if (Input.hit('KeyX')) ship.toggleAnchor(game);
+    if (Input.hit('KeyL')) {
+      ship.lightOn = !ship.lightOn;
+      Audio.blip(ship.lightOn ? 900 : 600, 0.04, 'square', 0.06);
+    }
     if (Input.hit('KeyF')) {
       ship.tractor.on = !ship.tractor.on;
       Audio.blip(ship.tractor.on ? 300 : 200, 0.08, 'sine', 0.1);
@@ -635,6 +704,7 @@
     const inp = RF.UI.isOpen() || game.dead || ship.docked ? { thrust: 0, turn: 0, strafe: 0, laser: false } : Input.state();
     if (!ship.docked && !game.dead) updateFlight(dt, inp);
     else if (ship.docked) ship.updateShield(dt);
+    for (const n of game.sys.npcs) n.update(dt, game);
     updateGate(dt);
     game.sys.world.step(dt);
     if (!ship.docked && !game.dead && ship.s.hull <= 0) destroyShip();
@@ -672,10 +742,7 @@
             game.particles.add({ type: 'glow', x: p.x, y: p.y, vx: b.vx + d.x * 30 + G.rand(-2, 2), vy: b.vy + d.y * 30 + G.rand(-2, 2), life: 0.25, size: 0.25, color: '#7fb8ff' });
           }
         }
-        if (ship.laser.hit && Math.random() < 0.6) {
-          const h = ship.laser.hit;
-          game.particles.burst(h.x, h.y, 1, { sMin: 3, sMax: 12, dir: Math.atan2(h.ny, h.nx), spread: 1.2, color: '#ffb060', zMin: 0.12, zMax: 0.3, lMin: 0.15, lMax: 0.45 });
-        }
+        if (ship.laser.hit) game.laserDust(ship.laser.hit);
         // Halen til kometene peker bort fra sola.
         const sd = game.sys.def.sky.starDir + Math.PI;
         for (const c of game.sys.world.bodies) {
@@ -699,7 +766,7 @@
         ship.laser.on && !game.dead, ship.tractor.on && !ship.docked && !game.dead, !!ship.laser.hit);
     }
     Input.endFrame();
-    RF.renderer.draw(game);
+    RF.renderer.draw(game, dt);
     if (!game.dead) RF.drawHUD(RF.renderer, game);
     if (game.flash > 0) {
       const c = RF.renderer.ctx;

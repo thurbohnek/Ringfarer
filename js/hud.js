@@ -5,29 +5,68 @@
   const G = RF.G;
 
   const C = {
-    text: '#d9e4f2', muted: '#8398b3', line: 'rgba(120,160,210,0.28)', panel: 'rgba(8,13,24,0.72)',
-    gate: '#62d0ff', amber: '#ffb44a', danger: '#ff5b4f', ok: '#6fe3a0', naq: '#5dffc8',
+    text: '#e6dfcd', muted: '#958d7b', line: 'rgba(0,0,0,0.6)', panel: '#26241f',
+    gate: '#6cc4e0', amber: '#e3a03a', danger: '#e2553d', ok: '#95c46a', naq: '#6fe0bd', phosphor: '#9fdc8a',
   };
   const F = {
-    label: '600 11px "Chakra Petch", ui-sans-serif, system-ui, sans-serif',
-    title: '700 14px "Chakra Petch", ui-sans-serif, system-ui, sans-serif',
-    big: '600 22px "JetBrains Mono", ui-monospace, Menlo, monospace',
-    num: '500 12px "JetBrains Mono", ui-monospace, Menlo, monospace',
+    label: '600 12px "Saira Condensed", "Arial Narrow", ui-sans-serif, sans-serif',
+    title: '700 15px "Saira Condensed", "Arial Narrow", ui-sans-serif, sans-serif',
+    stencil: '400 17px "Saira Stencil One", "Saira Condensed", Impact, sans-serif',
+    big: '400 22px "Share Tech Mono", ui-monospace, Menlo, monospace',
+    num: '400 13px "Share Tech Mono", ui-monospace, Menlo, monospace',
   };
   RF.HUD_COLORS = C;
 
   const fmtDist = (m) => (m >= 1000 ? (m / 1000).toFixed(2) + ' km' : Math.round(m) + ' m');
 
+  let metal = null;
+  function rivet(ctx, x, y) {
+    const g = ctx.createRadialGradient(x - 1, y - 1, 0.3, x, y, 3);
+    g.addColorStop(0, '#bdb5a2');
+    g.addColorStop(0.5, '#6e675a');
+    g.addColorStop(1, '#1a1815');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Slitt stålplate med avfaset kant og nagler i hjørnene.
   function panel(ctx, x, y, w, h) {
-    ctx.fillStyle = C.panel;
-    ctx.strokeStyle = C.line;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    // Avskåret hjørne oppe til venstre, som på et instrumentpanel.
-    ctx.moveTo(x + 8, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.lineTo(x, y + 8);
-    ctx.closePath();
+    if (!metal) metal = ctx.createPattern(RF.noiseCanvas(128, 777, '#000000', '#e8dcc0'), 'repeat');
+    const path = () => {
+      ctx.beginPath();
+      ctx.moveTo(x + 10, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + h - 10); ctx.lineTo(x + w - 10, y + h);
+      ctx.lineTo(x, y + h); ctx.lineTo(x, y + 10);
+      ctx.closePath();
+    };
+    path();
+    const g = ctx.createLinearGradient(x, y, x + w * 0.3, y + h);
+    g.addColorStop(0, 'rgba(62,59,52,0.94)');
+    g.addColorStop(0.5, 'rgba(38,36,31,0.94)');
+    g.addColorStop(1, 'rgba(24,23,20,0.94)');
+    ctx.fillStyle = g;
     ctx.fill();
-    ctx.stroke();
+    ctx.save();
+    ctx.clip();
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = metal;
+    ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+    // Rustflekk nederst.
+    const rg = ctx.createRadialGradient(x + w * 0.8, y + h, 0, x + w * 0.8, y + h, h * 0.8);
+    rg.addColorStop(0, 'rgba(120,58,22,0.35)');
+    rg.addColorStop(1, 'rgba(120,58,22,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(x, y, w, h);
+    ctx.restore();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#0b0a08';
+    path(); ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,238,205,0.16)';
+    ctx.beginPath(); ctx.moveTo(x + 2, y + h - 2); ctx.lineTo(x + 2, y + 11); ctx.lineTo(x + 11, y + 2); ctx.lineTo(x + w - 2, y + 2); ctx.stroke();
+    rivet(ctx, x + 7, y + h - 7);
+    rivet(ctx, x + w - 7, y + 7);
+    rivet(ctx, x + 16, y + 7);
   }
 
   function bar(ctx, x, y, w, label, frac, color, valueText) {
@@ -41,13 +80,18 @@
     ctx.fillText(valueText, x + w, y);
     ctx.textAlign = 'left';
     const by = y + 5;
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    ctx.fillRect(x, by, w, 5);
+    // Innfelt spor.
+    ctx.fillStyle = '#0c0b09';
+    ctx.fillRect(x - 1, by - 1, w + 2, 8);
+    ctx.fillStyle = 'rgba(255,238,205,0.12)';
+    ctx.fillRect(x - 1, by + 7, w + 2, 1);
     ctx.fillStyle = color;
-    ctx.fillRect(x, by, w * G.clamp(frac, 0, 1), 5);
+    ctx.fillRect(x, by, w * G.clamp(frac, 0, 1), 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x, by, w * G.clamp(frac, 0, 1), 2);
     // Segmentstreker.
-    ctx.fillStyle = 'rgba(8,13,24,0.8)';
-    for (let i = 1; i < 10; i++) ctx.fillRect(x + (w * i) / 10 - 0.5, by, 1, 5);
+    ctx.fillStyle = '#0c0b09';
+    for (let i = 1; i < 10; i++) ctx.fillRect(x + (w * i) / 10 - 1, by, 2, 6);
   }
 
   const sysColor = (v) => (v > 66 ? C.ok : v > 33 ? C.amber : C.danger);
@@ -93,7 +137,7 @@
       return;
     }
     // Pilen holdes innenfor et rektangel som unngår berøringsknappene.
-    const ml = m, mr = game.touchUI ? 76 : m, mt = m, mb = game.touchUI ? 170 : m;
+    const ml = m, mr = game.touchUI ? 76 : m, mt = m, mb = game.touchUI ? 200 : m;
     const cx = R.w / 2, cy = R.h / 2;
     const dx = s.x - cx, dy = s.y - cy;
     const kx = dx > 0 ? (R.w - mr - cx) / dx : dx < 0 ? (ml - cx) / dx : Infinity;
@@ -122,22 +166,36 @@
   function radar(ctx, game, x, y, r) {
     const ship = game.ship.body, range = 1500;
     ctx.save();
+    // Messingramme rundt en grønn radarskjerm.
+    const bz = ctx.createLinearGradient(x - r, y - r, x + r, y + r);
+    bz.addColorStop(0, '#8a7a55');
+    bz.addColorStop(0.5, '#4a4130');
+    bz.addColorStop(1, '#221d14');
+    ctx.fillStyle = bz;
+    ctx.beginPath(); ctx.arc(x, y, r + 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#0b0a08'; ctx.lineWidth = 2; ctx.stroke();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3;
+      rivet(ctx, x + Math.cos(a) * (r + 3.5), y + Math.sin(a) * (r + 3.5));
+    }
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(6,12,22,0.78)';
+    const scr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    scr.addColorStop(0, 'rgba(14,30,16,0.95)');
+    scr.addColorStop(1, 'rgba(4,9,5,0.97)');
+    ctx.fillStyle = scr;
     ctx.fill();
-    ctx.strokeStyle = C.line;
-    ctx.stroke();
+    ctx.lineWidth = 1;
     ctx.clip();
-    ctx.strokeStyle = 'rgba(120,160,210,0.12)';
+    ctx.strokeStyle = 'rgba(159,220,138,0.14)';
     for (const f of [0.33, 0.66]) { ctx.beginPath(); ctx.arc(x, y, r * f, 0, Math.PI * 2); ctx.stroke(); }
     ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); ctx.stroke();
     // Sveip.
     const sw = (game.time * 1.4) % (Math.PI * 2);
     const sg = ctx.createConicGradient ? ctx.createConicGradient(sw, x, y) : null;
     if (sg) {
-      sg.addColorStop(0, 'rgba(98,208,255,0.18)');
-      sg.addColorStop(0.08, 'rgba(98,208,255,0)');
-      sg.addColorStop(1, 'rgba(98,208,255,0)');
+      sg.addColorStop(0, 'rgba(159,220,138,0.25)');
+      sg.addColorStop(0.08, 'rgba(159,220,138,0)');
+      sg.addColorStop(1, 'rgba(159,220,138,0)');
       ctx.fillStyle = sg;
       ctx.fillRect(x - r, y - r, r * 2, r * 2);
     }
@@ -174,7 +232,7 @@
     ctx.font = F.label;
     ctx.fillStyle = C.muted;
     ctx.textAlign = 'center';
-    ctx.fillText('RADAR 1,5 KM', x, y + r + 14);
+    ctx.fillText('RADAR 1,5 KM', x, y + r + 20);
     ctx.textAlign = 'left';
   }
 
@@ -219,12 +277,13 @@
     const missions = game.missions.filter((m) => m.status === 'aktiv');
     const ph = 58 + missions.length * 16;
     panel(ctx, 12, top, pw, ph);
-    ctx.font = F.title;
+    ctx.font = F.stencil;
     ctx.fillStyle = C.text;
-    ctx.fillText(game.sys.def.name.toUpperCase(), 24, top + 20);
+    ctx.fillText(game.sys.def.name.toUpperCase(), 26, top + 22);
+    const nw = ctx.measureText(game.sys.def.name.toUpperCase()).width;
     ctx.font = F.label;
     ctx.fillStyle = C.muted;
-    ctx.fillText('SYSTEM', 24 + ctx.measureText(game.sys.def.name.toUpperCase()).width + 30, top + 20);
+    ctx.fillText('SYSTEM', 26 + nw + 10, top + 22);
     ctx.font = F.big;
     ctx.fillStyle = C.amber;
     ctx.fillText(Math.floor(game.credits).toLocaleString('nb-NO'), 24, top + 46);
@@ -242,30 +301,52 @@
 
     // Statuspanel.
     const sw = compact ? 200 : 240;
-    const sh = 150;
+    const sh = 172;
     const sx = 12;
     const sy = touch ? top + ph + 10 : h - sh - 12;
     panel(ctx, sx, sy, sw, sh);
-    shipSchematic(ctx, sx + 32, sy + 58, 3.2, s.sys, s.hull, st.hullMax);
+    shipSchematic(ctx, sx + 32, sy + 60, 3.2, s.sys, s.hull, st.hullMax);
     const bx = sx + 64, bw = sw - 76;
-    bar(ctx, bx, sy + 20, bw, 'Skrog', s.hull / st.hullMax, sysColor((s.hull / st.hullMax) * 100), Math.ceil(s.hull) + '/' + st.hullMax);
-    bar(ctx, bx, sy + 48, bw, 'Skjold', ship.shield / st.shieldMax, C.gate, Math.floor(ship.shield) + '');
-    bar(ctx, bx, sy + 76, bw, 'Drivstoff', s.fuel / 100, s.fuel < 15 ? C.danger : C.amber, s.fuel.toFixed(0) + '%');
+    bar(ctx, bx, sy + 22, bw, 'Skrog', s.hull / st.hullMax, sysColor((s.hull / st.hullMax) * 100), Math.ceil(s.hull) + '/' + st.hullMax);
+    bar(ctx, bx, sy + 50, bw, 'Skjold', ship.shield / st.shieldMax, C.gate, Math.floor(ship.shield) + '');
+    bar(ctx, bx, sy + 78, bw, 'Drivstoff', s.fuel / 100, s.fuel < 15 ? C.danger : C.amber, s.fuel.toFixed(0) + '%');
     const cm = RF.cargoMass(s);
-    bar(ctx, bx, sy + 104, bw, 'Last', cm / st.hold, C.naq, cm.toFixed(1) + '/' + st.hold + ' t');
+    bar(ctx, bx, sy + 106, bw, 'Last', cm / st.hold, '#c9a24a', cm.toFixed(1) + '/' + st.hold + ' t');
+    // Varsellamper for utstyret.
+    const lamps = [
+      ['LYS', ship.lightOn, C.amber],
+      ['TRAKTOR', ship.tractor.on, C.naq],
+      ['ANKER', !!ship.anchor, st.anchorRange ? C.ok : null],
+      ['LASER', ship.laser.on, C.danger],
+    ];
+    const lw = (sw - 20) / lamps.length;
+    lamps.forEach(([name, on, col], i) => {
+      const lx = sx + 10 + i * lw + lw / 2, ly = sy + 128;
+      ctx.fillStyle = '#0c0b09';
+      ctx.beginPath(); ctx.arc(lx, ly, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = on && col ? col : col ? '#2e2b25' : '#1a1815';
+      ctx.beginPath(); ctx.arc(lx, ly, 3.2, 0, Math.PI * 2); ctx.fill();
+      if (on && col) {
+        const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, 10);
+        g.addColorStop(0, col + '88');
+        g.addColorStop(1, col + '00');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(lx, ly, 10, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.font = '600 10px "Saira Condensed", "Arial Narrow", sans-serif';
+      ctx.fillStyle = col ? C.muted : '#4a463e';
+      ctx.textAlign = 'center';
+      ctx.fillText(name, lx, ly + 16);
+      ctx.textAlign = 'left';
+    });
     ctx.font = F.label;
     ctx.fillStyle = C.muted;
     const spd = G.len(b.vx, b.vy);
     const fa = ['AV', 'ROTASJON', 'FULL'][ship.fa];
     let proc = ship.processing.length ? 'PROSESSERER ' + (ship.procMass() / 1000).toFixed(1) + ' T' : 'MASSE ' + (b.mass / 1000).toFixed(1) + ' T';
     if (touch) proc = spd.toFixed(1) + ' M/S · ASSIST ' + ['AV', 'ROT', 'FULL'][ship.fa];
-    ctx.fillText(proc, sx + 12, sy + 138);
-    if (!touch) {
-      ctx.textAlign = 'right';
-      ctx.fillStyle = ship.tractor.on ? C.naq : C.muted;
-      ctx.fillText(ship.tractor.on ? 'TRAKTOR PÅ' : 'TRAKTOR AV', sx + sw - 12, sy + 138);
-      ctx.textAlign = 'left';
-    }
+    if (ship.anchor) proc = 'KABEL ' + ship.anchor.rope.length.toFixed(0) + ' M' + (touch ? ' · ' + spd.toFixed(1) + ' M/S' : '');
+    ctx.fillText(proc, sx + 14, sy + 162);
 
     // Fart og flygeassistent (på berøringsskjerm står farten i statuspanelet).
     if (!touch) {
@@ -288,14 +369,13 @@
     // Handlingshint.
     if (game.prompt) {
       ctx.font = F.title;
+      if (ctx.measureText(game.prompt).width > w - 60) ctx.font = '600 12px "Saira Condensed", "Arial Narrow", sans-serif';
       ctx.textAlign = 'center';
-      const py = touch ? h - 170 : h - 96;
+      const py = touch ? h / 2 + 90 : h - 96;
       const tw = ctx.measureText(game.prompt).width + 28;
-      ctx.fillStyle = 'rgba(8,13,24,0.8)';
-      ctx.fillRect(w / 2 - tw / 2, py - 18, tw, 28);
-      ctx.strokeStyle = C.gate;
-      ctx.strokeRect(w / 2 - tw / 2 + 0.5, py - 17.5, tw - 1, 27);
-      ctx.fillStyle = C.text;
+      panel(ctx, w / 2 - tw / 2 - 8, py - 21, tw + 16, 34);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = C.amber;
       ctx.fillText(game.prompt, w / 2, py + 1);
       ctx.textAlign = 'left';
     }
@@ -306,6 +386,8 @@
       const a = Math.min(1, m.t);
       ctx.globalAlpha = a;
       ctx.font = F.title;
+      ctx.fillStyle = '#000';
+      ctx.fillText(m.text, w / 2 + 1, (touch ? sy + sh + 28 : 36) + i * 22 + 1);
       ctx.fillStyle = m.color || C.text;
       ctx.fillText(m.text, w / 2, (touch ? sy + sh + 28 : 36) + i * 22);
     });

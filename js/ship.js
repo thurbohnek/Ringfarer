@@ -23,10 +23,13 @@
     laser: { name: 'Borelaser', unit: 'MW', levels: [1, 1.6, 2.4], cost: [0, 1500, 4000], fmt: (v) => (v * 4).toFixed(1) },
     last: { name: 'Lasterom', unit: 't', levels: [12, 20, 32], cost: [0, 1400, 3800], fmt: (v) => v },
     traktor: { name: 'Traktorstråle', unit: 'kN', levels: [60, 100, 160], cost: [0, 900, 2600], fmt: (v) => v },
+    lys: { name: 'Arbeidslys', unit: 'm', levels: [70, 120, 180], cost: [0, 700, 1900], fmt: (v) => v },
+    anker: { name: 'Ankerkabel og vinsj', unit: 'm', levels: [0, 60, 120], cost: [0, 1200, 2600],
+      fmt: (v) => v || 'ikke installert', unitFor: (v) => (v ? 'm' : '') },
   };
 
   RF.newShipState = () => ({
-    up: { motor: 0, skjold: 0, skrog: 0, laser: 0, last: 0, traktor: 0 },
+    up: { motor: 0, skjold: 0, skrog: 0, laser: 0, last: 0, traktor: 0, lys: 0, anker: 0 },
     hull: 100,
     sys: { motor: 100, rcs: 100, laser: 100, traktor: 100 },
     fuel: 100,
@@ -48,6 +51,9 @@
       laser: U.laser.levels[u.laser],
       hold: U.last.levels[u.last],
       tractor: U.traktor.levels[u.traktor] * 1000,
+      light: U.lys.levels[u.lys],
+      anchorRange: U.anker.levels[u.anker],
+      winch: u.anker >= 2 ? 6 : 3.5,
     };
   };
 
@@ -76,6 +82,8 @@
       this.shieldHitDir = 0;
       this.impactLog = [];
       this.docked = null;
+      this.lightOn = true;
+      this.anchor = null; // { rope }
       this.updateMass();
     }
 
@@ -119,7 +127,13 @@
 
       // Flygeassistent: demper rotasjon (ROT) og også fart (FULL).
       const maxT = st.torque * rcsEff;
-      if (input.turn !== 0) {
+      // Berøringsspak: pek i en retning, skipet dreier dit og gir gass.
+      if (input.aim != null) {
+        const err = G.wrapAngle(input.aim - b.a);
+        const target = G.clamp(err * 3, -st.maxW, st.maxW);
+        torque = G.clamp((target - b.w) * b.I * 6, -maxT, maxT);
+        if (input.aimThrust > 0 && Math.cos(err) > 0.8) main = input.aimThrust;
+      } else if (input.turn !== 0) {
         if (this.fa > 0) {
           const target = input.turn * st.maxW;
           torque = G.clamp((target - b.w) * b.I * 6, -maxT, maxT);
@@ -129,7 +143,7 @@
         if (Math.abs(b.w) < 0.002) torque = 0;
       }
 
-      if (this.fa === 2 && input.thrust === 0 && input.strafe === 0) {
+      if (this.fa === 2 && input.thrust === 0 && input.strafe === 0 && !(input.aimThrust > 0)) {
         const sp = G.len(b.vx, b.vy);
         if (sp > 0.03) {
           // Ønsket akselerasjon motsatt av farten, fordelt på skipets akser.
@@ -161,6 +175,42 @@
       fx.right = G.lerp(fx.right, strafe > 0 ? strafe : 0, 0.3);
       fx.rotL = G.lerp(fx.rotL, torque < 0 ? -torque / st.torque : 0, 0.3);
       fx.rotR = G.lerp(fx.rotR, torque > 0 ? torque / st.torque : 0, 0.3);
+    }
+
+    // Anker: en kabel fra nesen som fester seg i en stein. Holder skipet på
+    // plass mens man borer, og vinsjen kan trekke skipet helt inn for å lande.
+    toggleAnchor(game) {
+      if (this.anchor) { this.releaseAnchor(game); return; }
+      const range = this.stats.anchorRange;
+      if (!range) { game.msg('Ankeret er ikke installert. Kjøp det på en stasjon', RF.HUD_COLORS.amber); return; }
+      const b = this.body;
+      const nose = b.toWorld(RF.SHIP_NOSE.x - 0.4, 0), d = b.dirWorld(1, 0);
+      const hit = game.sys.world.raycast(nose.x, nose.y, d.x, d.y, range, (o) => o !== b && (o.kind === 'rock' || o.kind === 'ore') && o.mass > 20000);
+      if (!hit) { game.msg(`Ingen stein innen ${range} m rett foran`, RF.HUD_COLORS.amber); return; }
+      const rope = { A: b, la: { x: RF.SHIP_NOSE.x - 0.4, y: 0 }, B: hit.body, lb: hit.body.toLocal(hit.x, hit.y), length: hit.t + 0.5 };
+      game.sys.world.ropes.push(rope);
+      this.anchor = { rope };
+      RF.Audio.thud(0.4, true);
+      game.msg('Ankeret sitter', RF.HUD_COLORS.ok);
+    }
+
+    releaseAnchor(game) {
+      if (!this.anchor) return;
+      const ws = game.sys.world;
+      ws.ropes = ws.ropes.filter((r) => r !== this.anchor.rope);
+      this.anchor = null;
+      RF.Audio.blip(180, 0.1, 'square', 0.08);
+    }
+
+    updateAnchor(winch, dt, game) {
+      const A = this.anchor;
+      if (!A) return;
+      if (A.rope.B.dead || !game.sys.world.ropes.includes(A.rope)) {
+        this.anchor = null;
+        game.msg('Ankeret mistet feste', RF.HUD_COLORS.amber);
+        return;
+      }
+      if (winch) A.rope.length = Math.max(0.6, Math.min(A.rope.length, A.rope.dist || A.rope.length) - this.stats.winch * dt);
     }
 
     // Borelaser. Varmer opp steinen, skjærer av biter og får den til å sprekke.
