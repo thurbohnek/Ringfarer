@@ -12,3 +12,12 @@
   er synlig for alle som spiller. En nøkkel som spillet selv trenger å bruke
   kan derfor ikke gjemmes der, heller ikke via GitHub secrets. Den må ligge
   bak en egen server eller tjeneste.
+
+## Endringslogg
+
+- Hver gang spillet endres, skal `ENDRINGER.md` oppdateres i samme commit.
+  Ny oppføring øverst (under «Åpne punkter»), med dato, hva som ble bedt om,
+  hva som ble gjort (med filnavn) og hva som er testet.
+- Hold «Åpne punkter» oppdatert: fjern det som er løst, legg til nye ting
+  som venter på brukeren.
+- Skriv på vanlig norsk, slik at det er lett å lese uten å kunne kode.

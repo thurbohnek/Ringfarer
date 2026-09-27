@@ -8,6 +8,8 @@ av en eldgammel ringport.
 Spillet er ren HTML5 + JavaScript uten byggesteg og uten avhengigheter. Det
 kjører i nettleseren på PC og mobil.
 
+Se `ENDRINGER.md` for hva som er endret og hva som gjenstår.
+
 ## Starte spillet
 
 - **Lokalt:** åpne `index.html` i en nettleser. Ingen server trengs.
