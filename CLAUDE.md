@@ -26,6 +26,8 @@
 
 - Etter hver endring i spillet: publiser spillsiden på nytt og legg ved
   lenken i svaret, så brukeren kan teste med en gang.
+- Lenkene til spillet skal alltid stå helt sist i svaret, etter all annen
+  tekst, så brukeren ikke trenger å bla opp for å finne dem.
 - Øk `window.RF_VERSION` øverst i skriptet nederst i `index.html` ved hver
   endring, og nevn versjonsnummeret i svaret. Det vises på startskjermen og
   brukes i adressen til skriptfilene (`?v=…`), så ingen får gamle filer fra
