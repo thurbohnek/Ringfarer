@@ -86,6 +86,7 @@
       show('title', `
         <div class="card title-card">
           <p class="eyebrow">Hoppeskip MK-I · én pilot · 24 tonn tørrvekt</p>
+          <p class="version num">Versjon ${esc(RF.VERSION)}</p>
           <h1>Ringfarer</h1>
           <p class="lede">Bor ut asteroider, fang bitene med traktorstrålen og prosesser dem om bord.
           Ta fraktoppdrag mellom stasjonene og reis gjennom den eldgamle ringporten.

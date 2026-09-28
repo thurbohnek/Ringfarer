@@ -15,6 +15,15 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Er ikke prøvd på en ekte telefon.** All testing er gjort i en nettleser
   uten skjerm, i PC- og mobilstørrelse.
 
+## 2026-09-28: Versjonsnummer på startskjermen
+
+Brukeren så en eldre versjon av spillet via lenken, selv om siden var
+oppdatert. Mest sannsynlig var det en lagret kopi i nettleseren.
+
+- Startskjermen viser nå versjonsnummeret (`RF.VERSION` i `js/game.js`), så
+  det er lett å se om man har den nyeste. Nummeret økes ved hver endring.
+- Nåværende versjon: **v0.3 · 2026-09-28**.
+
 ## 2026-09-27: Regel om hemmeligheter
 
 Ønske: «Aldri publiser secrets eller API-er på GitHub. Da kan vi bruke GitHub
