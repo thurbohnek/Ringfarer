@@ -9,9 +9,6 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Nettversjonen på GitHub Pages er ikke slått på.** Gå til
   Settings → Pages og velg «GitHub Actions» som kilde. Et privat repo på en
   gratis GitHub-konto kan ikke bruke Pages. Da må repoet gjøres offentlig først.
-- **Endringene er ikke på `main` ennå.** De ligger på grenen
-  `claude/stargate-spaceship-game-dv8wq3`. Nettversjonen oppdateres først når
-  de er slått sammen til `main`.
 - **Er ikke prøvd på en ekte telefon.** All testing er gjort i en nettleser
   uten skjerm, i PC- og mobilstørrelse.
 - **Alt er åpent med vilje, for testing.** Ingenting skal låses før brukeren
