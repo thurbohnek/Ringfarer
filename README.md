@@ -23,7 +23,8 @@ Se `ENDRINGER.md` for hva som er endret og hva som gjenstår.
 
 | Tast | Handling |
 | --- | --- |
-| W / S (piltaster) | Hovedmotor / brems |
+| W (pil opp) | Hovedmotor |
+| S (pil ned) | Brems: stopper skipet i fartsretningen |
 | A / D | Drei skipet |
 | Q / E | Sidestyring |
 | Mus | Sikt; venstreklikk bruker valgt verktøy |
@@ -122,6 +123,7 @@ med malm eller betaling, men omtrent én av ti går tapt.
 | `js/geom.js` | Polygonmatematikk: areal, tyngdepunkt, treghet, klipping, oppdeling |
 | `js/physics.js` | Fysikkmotoren: legemer, kollisjon, impulsløser, wire, stråle-test |
 | `js/world.js` | Mineraler, bergarter, varer, systemer, stasjoner, port, asteroidefelt |
+| `js/voxel.js` | Asteroider og kometer av småbiter: boring, huler, sprekker, kratre og nye steiner |
 | `js/modules.js` | Moduler, skip å kjøpe, geometri og egenskaper fra et oppsett |
 | `js/ship.js` | Spillerens skip: flyging, laser, traktor, prosessering, skade per modul |
 | `js/weapons.js` | Kanonkuler, raketter med sprengning, ankerkrok |

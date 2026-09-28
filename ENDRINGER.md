@@ -6,16 +6,77 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 
 ## Åpne punkter
 
-- **Nettversjonen på GitHub Pages er ikke slått på.** Gå til
-  Settings → Pages og velg «GitHub Actions» som kilde. Et privat repo på en
-  gratis GitHub-konto kan ikke bruke Pages. Da må repoet gjøres offentlig først.
 - **Er ikke prøvd på en ekte telefon.** All testing er gjort i en nettleser
   uten skjerm, i PC- og mobilstørrelse.
 - **Alt er åpent med vilje, for testing.** Ingenting skal låses før brukeren
   sier fra. Moduler og skip har et `unlock`-nivå i `js/modules.js` som kan
   brukes når progresjonen skal bygges senere.
+- **Skygger fra asteroider følger ytterkanten.** Lyset fra skipet kaster
+  skygge etter det ytre omrisset av steinen, ikke etter hulene inni. Når man
+  er inne i en hule, kastes ingen skygge fra den steinen.
+- **Kjempeasteroider tar tid å bore i.** En tunnel stor nok til skipet krever
+  mange biter. Raketter går mye raskere. Farten kan justeres etter testing.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-28: v0.6.0 · Asteroider av småbiter, huler, brems, sikting og testskip
+
+Ønsker fra brukeren:
+- kom seg ikke ut av kontrollmenyen
+- noe rart med siktet for laser og anker, og kunne ikke skyte på en stein som
+  lå der man styrer skipet på mobilen
+- skipet skal ha alt utstyret om bord for testing
+- asteroidene skal gå i stykker mer som i første versjon, ikke plutselig i
+  tusen biter, og bitene som løsner skal passe med det som er igjen
+- mulig å lage hull i store asteroider og fly inn i hulen
+- mer realistisk form og farge, kratre og flere sammensetninger
+- brems skal stoppe skipet i fartsretningen, ikke bare rygge
+
+Hva som ble gjort:
+- **Nye asteroider og kometer** (`js/voxel.js`, ny fil): hver stein er et
+  rutenett av små biter, hver med sitt eget mineral. Laseren slår løs én bit om
+  gangen, og biten har nøyaktig formen til hullet den etterlater. Steinen deler
+  seg bare når en del faktisk mister kontakten med resten, eller når en sprekk
+  går tvers gjennom. Da blir den to deler som passer sammen. Store steiner får
+  bare en revne. Mineraler som er for harde for laseren blir stående igjen som
+  årer.
+- **Huler:** man kan bore tunneler og fly inn i store asteroider. Hvert
+  asteroidefelt har 2–3 kjempeasteroider (50–70 m), og noen av dem har
+  allerede en hule. Raketter og kanon slår ut kratre som blir til noen få biter
+  (`js/weapons.js`).
+- **Sammensetning og utseende:** steinene har klumper og årer av andre
+  mineraler (for eksempel kobberårer i nikkel-jern og is i karbonstein), og
+  islagte steiner har en kjerne av et annet mineral. Mineralene glir over i
+  hverandre, overflaten er ru, kantene er mørkere, og steinen har fasetter i
+  sollyset og kratre både i kanten og på flaten. Formen er ujevn, med utspring
+  og innhakk (`js/world.js`, `js/render.js`).
+- **Fysikken** takler nå legemer satt sammen av mange biter (kollisjon,
+  stråler, støt telles som ett) (`js/physics.js`).
+- **Brems** (BREMS-knappen eller S) stopper skipet i den retningen det faktisk
+  beveger seg, med all kraft, og stopper også snurring (`js/ship.js`,
+  `js/input.js`). W er hovedmotor.
+- **Sikting:** trykker man på en stein, låses siktet til det punktet på
+  steinen og følger den (klammer rundt trådkorset). På mobil står siktet der
+  man sist trykket. Også korte trykk virker nå (`js/game.js`, `js/hud.js`).
+  Varselet om for hard stein kommer bare når ingen laser biter (`js/ship.js`).
+- **Styrespaken** er en fast sirkel nede til venstre. Resten av skjermen
+  brukes til å sikte, så man kan skyte på steiner som ligger der
+  (`index.html`, `js/input.js`).
+- **Kontrollmenyen** kan rulles, og har en «✕ Lukk»-knapp øverst (`js/ui.js`,
+  `index.html`).
+- **Testskip:** «Test alt» starter med Fjellbryter bygget med alle modultyper
+  (alle fire lasere, kanon, raketter, begge ankere, lys, skjold, prosessorer og
+  to dronehangarer) og en gruvedrone og en reparasjonsdrone (`js/modules.js`,
+  `js/game.js`).
+
+Testet (nettleser uten skjerm, PC og Pixel 7):
+- testskipet har alle 24 modultypene, ingen er blokkert, 4 lasere og 2 droner
+- laser i 8 sekunder mot en kjempeasteroide: 12–19 løse biter, hullet vokser
+- tre raketter mot samme stein: kratre og flere biter, ingen feil
+- brems fra 15 m/s sidelengs: stopper helt på 3 sekunder uten å snu skipet
+- kontrollmenyen lukkes både fra tittelskjermen og fra pausemenyen
+- mobil: trykk på en stein nede til venstre låser siktet, styrespaken styrer
+- ingen feil i nettleserkonsollen
 
 ## 2026-09-28: v0.5.2 · Alle får nyeste versjon på github.io
 

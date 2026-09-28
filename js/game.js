@@ -104,9 +104,12 @@
     game.priceMod = {};
     game.lastStation = 'midgard';
     RF.Weapons.reset();
-    game.ship = new RF.Ship(RF.newShipState('hopper'));
+    // I testmodus starter man med et skip som har alt utstyret om bord.
+    const st = test ? RF.newShipState('fjell', RF.TEST_LAYOUT) : RF.newShipState('hopper');
+    if (test) st.drones = [{ type: 'gruve' }, { type: 'rep' }];
+    game.ship = new RF.Ship(st);
     spawnDocked('midgard');
-    game.msg(test ? 'Testmodus: alt er åpent og pengene tar aldri slutt' : 'Velkommen om bord i Hoppeskip MK-I', RF.HUD_COLORS.gate);
+    game.msg(test ? 'Testmodus: fullt utstyrt skip, alt er åpent og pengene tar aldri slutt' : 'Velkommen om bord i Hoppeskip MK-I', RF.HUD_COLORS.gate);
     game.save();
   };
 
@@ -309,130 +312,62 @@
     }
   }
 
-  // --- Gruvedrift ---
-  function copyMarks(from, to) {
-    const map = (c) => to.toLocal(from.toWorld(c.x, c.y).x, from.toWorld(c.x, c.y).y);
-    to.craters = from.craters.map((c) => Object.assign(map(c), { r: c.r })).filter((c) => G.len(c.x, c.y) < to.radius + c.r);
-    to.veins = from.veins.map((v) => v.map(map));
-  }
-
-  // parent: steinen bitene kommer fra (for kratre og kjerne), src: for årer.
-  function spawnPieces(parentPose, pieces, mat, kickDir, parent, src) {
-    src = src || parent;
-    const out = [];
-    for (const pv of pieces) {
-      if (pv.length < 3) continue;
-      const area = G.polyArea(pv);
-      const cx = G.polyCentroid(pv);
-      const w = parentPose.toWorld(cx.x, cx.y);
-      if (area < RF.DUST_AREA) {
-        game.particles.burst(w.x, w.y, 4, { type: 'debris', sMin: 1, sMax: 5, color: RF.MATERIALS[mat].light, zMin: 0.2, zMax: 0.5, lMin: 0.6, lMax: 1.4, vx: parentPose.vx, vy: parentPose.vy });
-        continue;
-      }
-      // Små biter blir runde klumper med samme areal (og dermed samme masse).
-      const shape = area <= RF.ORE_MAX_AREA ? G.lump(area).map((p) => ({ x: p.x + cx.x, y: p.y + cx.y })) : G.simplify(pv, 0.05);
-      // Noen biter er av mineralet i årene.
-      let pm = mat;
-      if (src && src.vein && area <= RF.ORE_MAX_AREA && Math.random() < (src.veinP || 0)) pm = src.vein;
-      const extra = {};
-      if (parent && parent.core && area > RF.ORE_MAX_AREA) {
-        extra.core = parent.core;
-        extra.coreArea = parent.coreArea * (area / parent.area);
-      }
-      if (src && src.vein) { extra.vein = src.vein; extra.veinP = src.veinP; }
-      const b = RF.makeRock(shape, pm, { x: parentPose.x, y: parentPose.y, a: parentPose.a, vx: parentPose.vx, vy: parentPose.vy, w: parentPose.w }, extra);
-      if (parent && b.kind === 'rock') copyMarks(parent, b);
-      if (kickDir) {
-        const k = G.rand(1, 3.2);
-        const sx = kickDir.x * k + G.rand(-1.2, 1.2), sy = kickDir.y * k + G.rand(-1.2, 1.2);
-        b.vx += sx; b.vy += sy;
-        b.w += G.rand(-1.2, 1.2) / (1 + b.radius);
-      }
-      game.sys.world.add(b);
-      out.push(b);
+  // --- Sikting ---
+  // Trykker man på en stein (eller et annet legeme), låses siktet til det
+  // punktet på steinen og følger den mens den driver og snurrer. På mobil blir
+  // siktet stående der man sist trykket, også etter at fingeren er løftet.
+  function pickBody(x, y) {
+    const tol = 14 / game.cam.zoom;
+    let best = null, bd = Infinity;
+    for (const b of game.sys.world.bodies) {
+      if (b.dead || b === game.ship.body || b.ghost) continue;
+      if (b.kind !== 'rock' && b.kind !== 'ore' && b.kind !== 'wreck' && b.kind !== 'npc') continue;
+      const d = G.len(b.x - x, b.y - y);
+      if (d > b.radius + tol) continue;
+      if (b.containsPoint(x, y)) return b;
+      // Små biter: godta et trykk like ved.
+      if (b.radius < 4 && d < bd) { bd = d; best = b; }
     }
-    return out;
+    return best;
   }
 
-  function poseOf(b) {
-    const p = { x: b.x, y: b.y, a: b.a, vx: b.vx, vy: b.vy, w: b.w };
-    p.toWorld = RF.Body.prototype.toWorld;
-    return p;
-  }
-
-  // Skjærer av en tynn skive der laseren treffer og deler den i malmbiter.
-  game.chipRock = (t, hit, d) => {
-    const cs = Math.cos(-t.a), sn = Math.sin(-t.a);
-    const dl = { x: d.x * cs - d.y * sn, y: d.x * sn + d.y * cs };
-    const hl = t.toLocal(hit.x, hit.y);
-    const depth = 0.75;
-    const cut = dl.x * hl.x + dl.y * hl.y + depth;
-    const slice = G.clipPoly(t.verts, dl.x, dl.y, cut);
-    const rest = G.clipPoly(t.verts, -dl.x, -dl.y, -cut);
-    if (rest.length < 3 || G.polyArea(rest) < RF.ORE_MAX_AREA * 1.3) {
-      game.crackRock(t, hit, d);
+  function updateAim() {
+    const P = Input.pointer, R = RF.renderer, ship = game.ship;
+    if (!P.has || ship.docked) {
+      game.aim = ship.body.toWorld(ship.noseX + 80, 0);
+      game.aimLock = null;
       return;
     }
-    if (slice.length < 3 || G.polyArea(slice) < 0.05) return;
-    const pose = poseOf(t);
-    const pieces = G.fragment(slice, RF.ORE_MAX_AREA * 0.8, []);
-    const c = t.setShape(G.simplify(rest, 0.08));
-    for (const cr of t.craters) { cr.x -= c.x; cr.y -= c.y; }
-    for (const v of t.veins) for (const p of v) { p.x -= c.x; p.y -= c.y; }
-    RF.classifyRock(t);
-    t.stress = Math.min(t.stress, t.integrity * 0.9);
-    // Bitene spruter ut til siden, ut av laserstrålen.
-    const sgn = Math.random() < 0.5 ? -1 : 1;
-    const back = { x: -d.x * 0.35 - d.y * sgn, y: -d.y * 0.35 + d.x * sgn };
-    const made = spawnPieces(pose, pieces, t.mat, back, null, t);
-    // Bevar bevegelsesmengde: steinen får motsatt dytt av bitene.
-    let px = 0, py = 0;
-    for (const b of made) { px += (b.vx - pose.vx) * b.mass; py += (b.vy - pose.vy) * b.mass; }
-    t.vx -= px / t.mass; t.vy -= py / t.mass;
-    game.particles.burst(hit.x, hit.y, 14, { sMin: 4, sMax: 16, dir: Math.atan2(-d.y, -d.x), spread: 1.1, color: '#ffc070', zMin: 0.15, zMax: 0.35, lMin: 0.2, lMax: 0.6 });
-    game.particles.burst(hit.x, hit.y, 16, { type: 'smoke', sMin: 1, sMax: 6, dir: Math.atan2(-d.y, -d.x), spread: 1.3, color: RF.MATERIALS[t.mat].light, zMin: 0.8, zMax: 1.8, grow: 2.5, lMin: 1.2, lMax: 3 });
-    game.particles.burst(hit.x, hit.y, 10, { type: 'debris', sMin: 2, sMax: 9, dir: Math.atan2(-d.y, -d.x), spread: 1.2, color: RF.MATERIALS[t.mat].base, zMin: 0.15, zMax: 0.4, lMin: 1, lMax: 2.5 });
-    Audio.thud(0.18, true);
-  };
+    const wp = { x: game.cam.x + (P.x - R.w / 2) / game.cam.zoom, y: game.cam.y + (P.y - R.h / 2) / game.cam.zoom };
+    // Nytt trykk (også et kort trykk som var over før denne rammen).
+    if (P.presses !== game._aimPress) {
+      game._aimPress = P.presses;
+      const w0 = { x: game.cam.x + (P.x0 - R.w / 2) / game.cam.zoom, y: game.cam.y + (P.y0 - R.h / 2) / game.cam.zoom };
+      const b = pickBody(w0.x, w0.y);
+      game.aimLock = b ? { body: b, l: b.toLocal(w0.x, w0.y) } : null;
+      game.aimWorld = w0;
+    }
+    // Drar man fingeren/musa bort mens man holder, følger siktet fingeren.
+    if (P.down && game.aimLock && G.len(P.x - P.x0, P.y - P.y0) > 30) game.aimLock = null;
+    if (!P.down && P.type === 'mouse' && game.aimLock && G.len(P.x - P.x0, P.y - P.y0) > 6) game.aimLock = null;
+    const L = game.aimLock;
+    if (L && L.body.dead) game.aimLock = null;
+    if (game.aimLock) {
+      const b = L.body;
+      // Punktet på steinen kan ha blitt boret bort. Sikt da mot midten.
+      const p = b.toWorld(L.l.x, L.l.y);
+      game.aim = b.vox && !b.containsPoint(p.x, p.y) && G.len(L.l.x, L.l.y) > b.radius ? { x: b.x, y: b.y } : p;
+    } else if (P.down || P.type === 'mouse') {
+      game.aim = wp;
+      game.aimWorld = wp;
+    } else game.aim = game.aimWorld || wp;
+  }
 
-  // Steinen sprekker i to langs laserens retning.
-  game.crackRock = (t, hit, d) => {
-    const hl = t.toLocal(hit.x, hit.y);
-    const cs = Math.cos(-t.a), sn = Math.sin(-t.a);
-    const dl = { x: d.x * cs - d.y * sn, y: d.x * sn + d.y * cs };
-    const ang = Math.atan2(dl.y, dl.x) + G.rand(-0.3, 0.3);
-    let [a, b] = G.splitPoly(t.verts, hl.x, hl.y, Math.cos(ang), Math.sin(ang));
-    if (a.length < 3 || b.length < 3 || Math.min(G.polyArea(a), G.polyArea(b)) < t.area * 0.12) {
-      [a, b] = G.splitPoly(t.verts, 0, 0, Math.cos(ang), Math.sin(ang));
-    }
-    const pose = poseOf(t);
-    t.dead = true;
-    const parts = [];
-    for (const pv of [a, b]) {
-      if (pv.length < 3) continue;
-      // Små halvdeler knuses videre til malmbiter.
-      if (G.polyArea(pv) < RF.ORE_MAX_AREA * 3) G.fragment(pv, RF.ORE_MAX_AREA * 0.8, parts);
-      else parts.push(pv);
-    }
-    const made = spawnPieces(pose, parts, t.mat, null, t);
-    // Skill bitene fra hverandre vinkelrett på sprekken, med bevart bevegelsesmengde.
-    const nx = -Math.sin(ang), ny = Math.cos(ang);
-    const wn = { x: nx * Math.cos(t.a) - ny * Math.sin(t.a), y: nx * Math.sin(t.a) + ny * Math.cos(t.a) };
-    let tot = 0;
-    for (const m of made) tot += m.mass;
-    const kick = G.rand(0.6, 1.4);
-    for (const m of made) {
-      const side = (m.x - pose.x) * wn.x + (m.y - pose.y) * wn.y >= 0 ? 1 : -1;
-      const share = (tot - m.mass) / tot;
-      m.vx += wn.x * side * kick * share;
-      m.vy += wn.y * side * kick * share;
-    }
-    game.particles.burst(hit.x, hit.y, 30, { sMin: 5, sMax: 22, color: '#ffd08a', zMin: 0.2, zMax: 0.5, lMin: 0.3, lMax: 0.9 });
-    game.particles.burst(pose.x, pose.y, 45, { type: 'smoke', sMin: 1, sMax: 7, color: RF.MATERIALS[t.mat].light, zMin: 1.2, zMax: 3.5, grow: 3, lMin: 1.5, lMax: 4, vx: pose.vx, vy: pose.vy });
-    game.particles.burst(hit.x, hit.y, 25, { type: 'debris', sMin: 2, sMax: 12, color: RF.MATERIALS[t.mat].base, zMin: 0.2, zMax: 0.6, lMin: 1.5, lMax: 4, vx: pose.vx, vy: pose.vy });
-    Audio.thud(0.7);
-    if (t.area > 60) game.msg('Asteroiden sprakk', RF.HUD_COLORS.amber);
-  };
+  // --- Gruvedrift ---
+  // Steinene er bygget av voksler (voxel.js). Laseren slår løs biter som passer
+  // i hullet de etterlater, og sprekker deler steinen der den faktisk sprekker.
+  game.chipRock = (t, hit, d) => RF.Vox.chip(t, hit, d, game, 1);
+  game.crackRock = (t, hit, d) => RF.Vox.crack(t, hit, d, game);
 
   // Gnister og steinstøv som velter ut der laseren brenner.
   game.laserDust = (h) => {
@@ -915,12 +850,7 @@
     let dt = Math.min(0.05, (ts - last) / 1000 || 0);
     last = ts;
     // Siktepunktet i verden: der musen eller fingeren er, ellers rett frem.
-    if (game.ship) {
-      const P = Input.pointer, R = RF.renderer;
-      game.aim = P.has && !game.ship.docked
-        ? { x: game.cam.x + (P.x - R.w / 2) / game.cam.zoom, y: game.cam.y + (P.y - R.h / 2) / game.cam.zoom }
-        : game.ship.body.toWorld(game.ship.noseX + 80, 0);
-    }
+    if (game.ship) updateAim();
     handleKeys();
     if (!game.paused) {
       acc += dt;

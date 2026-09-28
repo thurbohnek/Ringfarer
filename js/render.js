@@ -504,9 +504,168 @@
       ctx.drawImage(this.light, 0, 0, this.w, this.h);
     }
 
+    // Fargebilde med én piksel per node. Tegnes forstørret med utjevning, så
+    // mineralene glir over i hverandre.
+    voxImage(V) {
+      const { NX, NY, f, m, t } = V;
+      const im = document.createElement('canvas');
+      im.width = NX; im.height = NY;
+      const x = im.getContext('2d');
+      const id = x.createImageData(NX, NY), d = id.data;
+      const MATS = RF.Vox.MATS;
+      // Hovedmineralet: innslag av andre mineraler blandes litt mot det, så
+      // steinen ser ut som én stein med flekker og ikke et kamuflasjemønster.
+      const main = RF.MATERIALS[V.mainMat || 'kondritt'];
+      const mainRgb = main._rgb || (main._rgb = { base: hexRgb(main.base), dark: hexRgb(main.dark), light: hexRgb(main.light) });
+      const col = (k) => {
+        const M = RF.MATERIALS[MATS[m[k]]];
+        const own = M === main;
+        const rgb = M._rgb || (M._rgb = { base: hexRgb(M.base), dark: hexRgb(M.dark), light: hexRgb(M.light) });
+        if (M.vein && !rgb.vein) rgb.vein = hexRgb(M.vein);
+        const tn = 0.2 + 0.6 * (t[k] / 255);
+        let c = tn < 0.5 ? mix(rgb.dark, rgb.base, tn * 2) : mix(rgb.base, rgb.light, (tn - 0.5) * 2);
+        // Glitrende korn i malm med edle mineraler.
+        if (rgb.vein && ((k * 2654435761) >>> 0) % 7 === 0) c = mix(c, rgb.vein, 0.65);
+        if (!own) c = mix(c, tn < 0.5 ? mix(mainRgb.dark, mainRgb.base, tn * 2) : mix(mainRgb.base, mainRgb.light, (tn - 0.5) * 2), 0.35);
+        return c;
+      };
+      for (let k = 0; k < NX * NY; k++) {
+        let src = k;
+        if (f[k] <= 0) {
+          src = -1;
+          const i = k % NX, j = (k / NX) | 0;
+          for (let dj = -1; dj <= 1 && src < 0; dj++) for (let di = -1; di <= 1; di++) {
+            const ii = i + di, jj = j + dj;
+            if (ii < 0 || jj < 0 || ii >= NX || jj >= NY) continue;
+            if (f[jj * NX + ii] > 0) { src = jj * NX + ii; break; }
+          }
+          if (src < 0) continue;
+        }
+        const c = col(src);
+        d[k * 4] = c[0]; d[k * 4 + 1] = c[1]; d[k * 4 + 2] = c[2]; d[k * 4 + 3] = 255;
+      }
+      x.putImageData(id, 0, 0);
+      return im;
+    }
+
+    // Ferdig tegnet stein (uten lys), laget på nytt når steinen endrer seg.
+    voxCache(b) {
+      const V = b.vox;
+      const now = performance.now();
+      if (V.cache && (!V.dirty || now - (V.cacheT || 0) < 120)) return V.cache;
+      V.dirty = false;
+      V.cacheT = now;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const l of b.loops) for (const p of l) {
+        if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x;
+        if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
+      }
+      const ext = Math.max(x1 - x0, y1 - y0, 0.5);
+      const ppm = Math.min(10, 1000 / ext);
+      const pad = 2;
+      const cw = Math.ceil((x1 - x0) * ppm) + pad * 2, ch = Math.ceil((y1 - y0) * ppm) + pad * 2;
+      const c = V.cache || document.createElement('canvas');
+      c.width = cw; c.height = ch;
+      const x = c.getContext('2d');
+      x.setTransform(ppm, 0, 0, ppm, -x0 * ppm + pad, -y0 * ppm + pad);
+      const path = new Path2D();
+      let big = null;
+      for (const l of b.loops) {
+        path.moveTo(l[0].x, l[0].y);
+        for (let i = 1; i < l.length; i++) path.lineTo(l[i].x, l[i].y);
+        path.closePath();
+        if (!big || l.length > big.length) big = l;
+      }
+      V.path = path;
+      x.save();
+      x.clip(path);
+      x.imageSmoothingEnabled = true;
+      x.imageSmoothingQuality = 'high';
+      V.mainMat = b.mat;
+      x.drawImage(this.voxImage(V), V.ox - V.s / 2, V.oy - V.s / 2, V.NX * V.s, V.NY * V.s);
+      // Ru overflate.
+      if (!this.grimeCv) this.grimeCv = noiseCanvas(96, 4242, '#000000', '#d8cfb8');
+      const pat = x.createPattern(this.grimeCv, 'repeat');
+      if (pat.setTransform) pat.setTransform(new DOMMatrix().scale(0.09));
+      x.globalAlpha = 0.3;
+      x.fillStyle = pat;
+      x.fillRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
+      x.globalAlpha = 1;
+      // Mørkere mot kantene, så steinen ser rund og tung ut.
+      x.lineJoin = 'round';
+      const s = V.s;
+      for (const [w, a] of [[s * 3.2, 0.1], [s * 2, 0.12], [s * 1.1, 0.16], [s * 0.45, 0.2]]) {
+        x.strokeStyle = `rgba(0,0,0,${a})`;
+        x.lineWidth = w;
+        x.stroke(path);
+      }
+      x.restore();
+      V.cx0 = x0 - pad / ppm; V.cy0 = y0 - pad / ppm; V.cw = cw / ppm; V.ch = ch / ppm;
+      // Fasetter til lys og skygge: forenklet ytre omriss.
+      if (big) {
+        const f = G.simplify(big.map((p) => ({ x: p.x, y: p.y })), Math.max(0.5, b.radius * 0.12));
+        const sgn = G.polyArea(f) >= 0 ? 1 : -1;
+        V.facets = f.map((p, i) => {
+          const q = f[(i + 1) % f.length];
+          const ex = q.x - p.x, ey = q.y - p.y, l = G.len(ex, ey) || 1;
+          return { p, q, nx: (sgn * ey) / l, ny: (-sgn * ex) / l, sh: G.rand(-0.1, 0.1) };
+        });
+      }
+      V.cache = c;
+      return c;
+    }
+
+    drawVox(b, sunDir) {
+      const ctx = this.ctx, V = b.vox, M = RF.MATERIALS[b.mat];
+      if (b.comet) {
+        const cg = ctx.createRadialGradient(b.x, b.y, b.radius * 0.6, b.x, b.y, b.radius * 2.2);
+        cg.addColorStop(0, 'rgba(190,200,210,0.14)');
+        cg.addColorStop(1, 'rgba(190,200,210,0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+      const cache = this.voxCache(b);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.a);
+      ctx.drawImage(cache, V.cx0, V.cy0, V.cw, V.ch);
+      const la = sunDir - b.a, lx = Math.cos(la), ly = Math.sin(la);
+      ctx.save();
+      ctx.clip(V.path);
+      // Flater som vender mot sola er lyse, de andre i skygge.
+      if (V.facets) {
+        for (const F of V.facets) {
+          const k = F.nx * lx + F.ny * ly + F.sh;
+          ctx.fillStyle = k > 0 ? `rgba(255,238,215,${Math.min(0.14, k * 0.14)})` : `rgba(0,0,0,${Math.min(0.38, -k * 0.34)})`;
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(F.p.x, F.p.y); ctx.lineTo(F.q.x, F.q.y); ctx.closePath(); ctx.fill();
+        }
+      }
+      // Kratre: mørke groper med lys kant på siden som vender bort fra sola.
+      for (const c of b.craters) {
+        if (RF.Vox.sample(V, c.x, c.y) < 0.5) continue;
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.rot || 0);
+        ctx.scale(1, c.e || 1);
+        ctx.fillStyle = M.light + '38';
+        ctx.beginPath(); ctx.arc(-lx * c.r * 0.22, -ly * c.r * 0.22, c.r * 1.1, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(8,8,9,0.7)';
+        ctx.beginPath(); ctx.arc(0, 0, c.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(8,8,9,0.45)';
+        ctx.beginPath(); ctx.arc(lx * c.r * 0.25, ly * c.r * 0.25, c.r * 0.78, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      ctx.strokeStyle = '#0b0a09';
+      ctx.lineWidth = this.px * 1.3;
+      ctx.stroke(V.path);
+      ctx.restore();
+    }
+
     // Kantete stein: fasetter fra et toppunkt ut til hver kant, hver med sin
     // egen lysstyrke etter hvordan flaten vender mot sola.
     drawRock(b, sunDir) {
+      if (b.vox) return this.drawVox(b, sunDir);
       const ctx = this.ctx, M = RF.MATERIALS[b.mat];
       const rgb = M._rgb || (M._rgb = {
         base: hexRgb(M.base), dark: hexRgb(M.dark), light: hexRgb(M.light),

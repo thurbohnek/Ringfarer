@@ -153,6 +153,7 @@
     }
 
     containsPoint(px, py) {
+      if (this.vox) return RF.Vox.contains(this, px, py);
       const l = this.toLocal(px, py);
       for (let i = 0; i < this.verts.length; i++) {
         const v = this.verts[i], n = this.normals[i];
@@ -229,6 +230,71 @@
     return { A, B, nx: flip ? -n.x : n.x, ny: flip ? -n.y : n.y, points };
   }
 
+  // Legemer satt sammen av mange konvekse biter (steiner av voksler).
+  function partWorld(b, p, stamp) {
+    if (p.stamp === stamp) return p;
+    p.stamp = stamp;
+    const cs = Math.cos(b.a), sn = Math.sin(b.a);
+    for (let i = 0; i < p.verts.length; i++) {
+      const v = p.verts[i], q = p.normals[i];
+      p.wv[i].x = b.x + v.x * cs - v.y * sn;
+      p.wv[i].y = b.y + v.x * sn + v.y * cs;
+      p.wn[i].x = q.x * cs - q.y * sn;
+      p.wn[i].y = q.x * sn + q.y * cs;
+    }
+    p.x = b.x + p.cx * cs - p.cy * sn;
+    p.y = b.y + p.cx * sn + p.cy * cs;
+    return p;
+  }
+
+  // Bitene av A som kan røre B.
+  function nearShapes(A, B, stamp) {
+    if (!A.parts) return [A];
+    const l = A.toLocal(B.x, B.y);
+    const out = [];
+    for (const p of A.parts) {
+      const dx = p.cx - l.x, dy = p.cy - l.y, rr = p.r + B.radius;
+      if (dx * dx + dy * dy > rr * rr) continue;
+      out.push(p);
+    }
+    // To store sammensatte legemer: sjekk mot det konvekse omrisset til B.
+    if (B.parts && out.length > 24) {
+      const cs = Math.cos(A.a), sn = Math.sin(A.a);
+      const keep = [];
+      for (const p of out) {
+        const wx = A.x + p.cx * cs - p.cy * sn, wy = A.y + p.cx * sn + p.cy * cs;
+        const q = B.toLocal(wx, wy);
+        let sep = -Infinity;
+        for (let i = 0; i < B.verts.length; i++) {
+          const v = B.verts[i], n = B.normals[i];
+          sep = Math.max(sep, n.x * (q.x - v.x) + n.y * (q.y - v.y));
+        }
+        if (sep <= p.r) keep.push(p);
+      }
+      out.length = 0;
+      out.push(...keep);
+    }
+    for (const p of out) partWorld(A, p, stamp);
+    return out;
+  }
+
+  function collideCompound(A, B, stamp, out) {
+    const sa = nearShapes(A, B, stamp);
+    if (!sa.length) return;
+    const sb = nearShapes(B, A, stamp);
+    const pair = { n: 0 };
+    for (const x of sa) {
+      for (const y of sb) {
+        const rr = x.radius + y.radius, dx = y.x - x.x, dy = y.y - x.y;
+        if (dx * dx + dy * dy > rr * rr) continue;
+        const c = collide(x, y);
+        if (!c) continue;
+        c.A = A; c.B = B; c.pair = pair;
+        out.push(c);
+      }
+    }
+  }
+
   class World {
     constructor() {
       this.bodies = [];
@@ -237,6 +303,7 @@
       this.ropes = []; // { A, la, B, lb, length } — trekker bare, som en kabel
       this.onImpact = null; // (contact, J, vn0) => void
       this.shouldCollide = null; // (A, B) => bool
+      this.stamp = 0;
     }
 
     add(b) { this.bodies.push(b); return b; }
@@ -245,6 +312,7 @@
 
     step(dt) {
       const bodies = this.bodies;
+      this.stamp++;
       for (const b of bodies) b.updateWorld();
 
       // Bred fase: sorter og feie langs x (nesten sortert fra forrige steg).
@@ -267,6 +335,7 @@
           const dx = B.x - A.x, dy = B.y - A.y;
           if (dx * dx + dy * dy > rr * rr) continue;
           if (this.shouldCollide && !this.shouldCollide(A, B)) continue;
+          if (A.parts || B.parts) { collideCompound(A, B, this.stamp, contacts); continue; }
           const c = collide(A, B);
           if (c) contacts.push(c);
         }
@@ -367,21 +436,42 @@
       }
 
       if (this.onImpact) {
+        // Kontakter mellom de samme to legemene regnes som ett støt.
+        const seen = new Set();
         for (const c of contacts) {
           let J = 0;
           for (const p of c.points) J += p.jn;
+          if (c.pair) {
+            if (seen.has(c.pair)) continue;
+            seen.add(c.pair);
+            let best = c, bj = J, vn0 = c.vn0;
+            J = 0;
+            for (const d of contacts) {
+              if (d.pair !== c.pair) continue;
+              let j = 0;
+              for (const p of d.points) j += p.jn;
+              J += j;
+              if (j > bj) { bj = j; best = d; }
+              if (d.vn0 < vn0) vn0 = d.vn0;
+            }
+            if (J > 0) this.onImpact(best, J, vn0);
+            continue;
+          }
           if (J > 0) this.onImpact(c, J, c.vn0);
         }
       }
 
-      // Posisjonskorreksjon mot inntrengning.
+      // Posisjonskorreksjon mot inntrengning. Mange kontakter mellom de samme
+      // to legemene deler på korreksjonen så de ikke skyves for langt.
+      for (const c of contacts) if (c.pair) c.pair.n++;
       for (const c of contacts) {
         const { A, B, nx, ny } = c;
         const im = A.invMass + B.invMass;
         if (im <= 0) continue;
         let depth = 0;
         for (const p of c.points) depth = Math.max(depth, p.depth);
-        const corr = (Math.max(depth - 0.03, 0) * 0.45) / im;
+        const share = c.pair ? 1 / Math.sqrt(c.pair.n) : 1;
+        const corr = (Math.max(depth - 0.03, 0) * 0.45 * share) / im;
         A.x -= nx * corr * A.invMass; A.y -= ny * corr * A.invMass;
         B.x += nx * corr * B.invMass; B.y += ny * corr * B.invMass;
       }
@@ -407,6 +497,11 @@
         if (along < -b.radius || along > maxLen + b.radius) continue;
         const perp = Math.abs(cx * dy - cy * dx);
         if (perp > b.radius) continue;
+        if (b.parts) {
+          const h = rayParts(b, ox, oy, dx, dy, maxLen);
+          if (h && (!best || h.t < best.t)) best = h;
+          continue;
+        }
         b.updateWorld();
         let tIn = 0, tOut = maxLen, ni = -1;
         let miss = false;
@@ -430,6 +525,36 @@
       }
       return best;
     }
+  }
+
+  // Stråle mot et sammensatt legeme, i legemets egne koordinater.
+  function rayParts(b, ox, oy, dx, dy, maxLen) {
+    const o = b.toLocal(ox, oy);
+    const cs = Math.cos(-b.a), sn = Math.sin(-b.a);
+    const lx = dx * cs - dy * sn, ly = dx * sn + dy * cs;
+    let best = null;
+    for (const p of b.parts) {
+      const cx = p.cx - o.x, cy = p.cy - o.y;
+      const along = cx * lx + cy * ly;
+      if (along < -p.r || along > maxLen + p.r) continue;
+      if (Math.abs(cx * ly - cy * lx) > p.r) continue;
+      let tIn = 0, tOut = maxLen, ni = -1, miss = false;
+      for (let i = 0; i < p.verts.length; i++) {
+        const n = p.normals[i], v = p.verts[i];
+        const denom = n.x * lx + n.y * ly;
+        const num = n.x * (v.x - o.x) + n.y * (v.y - o.y);
+        if (Math.abs(denom) < 1e-9) { if (num < 0) { miss = true; break; } continue; }
+        const t = num / denom;
+        if (denom < 0) { if (t > tIn) { tIn = t; ni = i; } }
+        else if (t < tOut) tOut = t;
+        if (tIn > tOut) { miss = true; break; }
+      }
+      if (miss || ni < 0) continue;
+      if (!best || tIn < best.t) best = { t: tIn, n: p.normals[ni] };
+    }
+    if (!best) return null;
+    const wn = b.dirWorld(best.n.x, best.n.y);
+    return { body: b, t: best.t, x: ox + dx * best.t, y: oy + dy * best.t, nx: wn.x, ny: wn.y };
   }
 
   RF.Body = Body;

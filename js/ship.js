@@ -20,8 +20,8 @@
     return c;
   };
 
-  RF.newShipState = (hull = 'hopper') => {
-    const layout = RF.defaultLayout(hull);
+  RF.newShipState = (hull = 'hopper', list) => {
+    const layout = list ? RF.layoutFrom(list) : RF.defaultLayout(hull);
     const st = RF.layoutStats(layout);
     return {
       hull,
@@ -156,12 +156,26 @@
           const target = input.turn * st.maxW;
           torque = G.clamp((target - b.w) * b.I * 6, -maxT, maxT);
         } else torque = input.turn * maxT;
-      } else if (this.fa > 0) {
+      } else if (this.fa > 0 || input.brake) {
         torque = G.clamp(-b.w * b.I * 5, -maxT, maxT);
         if (Math.abs(b.w) < 0.002) torque = 0;
       }
 
-      if (this.fa === 2 && input.thrust === 0 && input.strafe === 0 && !(input.aimThrust > 0)) {
+      // Brems: alle motorer og styredyser jobber mot farten, så skipet
+      // stopper langs den veien det faktisk beveger seg (ikke bare rygger).
+      let brakeF = 0;
+      if (input.brake) {
+        main = 0; retro = 0; strafe = 0;
+        const sp = G.len(b.vx, b.vy);
+        if (sp > 0.02) {
+          brakeF = Math.min(Math.max(st.retro + st.strafe, (st.thrust || 0) * 0.6), (sp / 0.25) * b.mass);
+          // Hvilke dyser som lyser: etter hvordan farten ligger i forhold til skipet.
+          const vf = (b.vx * fwd.x + b.vy * fwd.y) / sp, vr = (b.vx * right.x + b.vy * right.y) / sp;
+          retro = Math.abs(vf);
+          strafe = -vr;
+        }
+      }
+      if (!input.brake && this.fa === 2 && input.thrust === 0 && input.strafe === 0 && !(input.aimThrust > 0)) {
         if (G.len(b.vx, b.vy) > 0.03) {
           const ax = -b.vx * 0.9, ay = -b.vy * 0.9;
           const af = ax * fwd.x + ay * fwd.y, ar = ax * right.x + ay * right.y;
@@ -182,11 +196,17 @@
       }
       Fx -= retro * st.retro;
       const Fy = strafe * st.strafe;
-      b.vx += ((fwd.x * Fx + right.x * Fy) / b.mass) * dt;
-      b.vy += ((fwd.y * Fx + right.y * Fy) / b.mass) * dt;
+      if (brakeF > 0) {
+        const sp = G.len(b.vx, b.vy) || 1;
+        b.vx -= (b.vx / sp) * (brakeF / b.mass) * dt;
+        b.vy -= (b.vy / sp) * (brakeF / b.mass) * dt;
+      } else {
+        b.vx += ((fwd.x * Fx + right.x * Fy) / b.mass) * dt;
+        b.vy += ((fwd.y * Fx + right.y * Fy) / b.mass) * dt;
+      }
       b.w += (torque + Tq) * b.invI * dt;
 
-      const use = (main * st.thrust + retro * st.retro + Math.abs(strafe) * st.strafe + Math.abs(torque) * 0.05) / VE;
+      const use = (brakeF > 0 ? brakeF : main * st.thrust + retro * st.retro + Math.abs(strafe) * st.strafe + Math.abs(torque) * 0.05) / VE;
       s.fuel = Math.max(0, s.fuel - use * dt);
 
       const fx = this.fx;
@@ -243,6 +263,7 @@
       this.laser.hit = null;
       this.beams = [];
       if (!on) return;
+      let hardMat = null, bit = false;
       for (const L of st.lasers) {
         if (!L.m.onTarget) continue;
         const { p: o, d, lx, ly, a } = this.muzzle(L.m);
@@ -270,18 +291,15 @@
         t.applyImpulse(d.x * 900 * L.power * dt, d.y * 900 * L.power * dt, hit.x, hit.y);
         t.heat = Math.min(1, (t.heat || 0) + dt * 2);
         t.hitX = hit.x; t.hitY = hit.y;
-        const hard = RF.MATERIALS[t.mat].hard;
-        if (L.tier < hard) {
-          if (!game._hardWarn || game.time - game._hardWarn > 5) {
-            game._hardWarn = game.time;
-            game.msg(`${RF.MATERIALS[t.mat].name} er for hard (${hard}). Trenger sterkere laser, kanon eller rakett`, RF.HUD_COLORS.amber);
-          }
-          continue;
-        }
-        t.stress += dt * L.power;
-        t._chip = (t._chip || 0) + dt * L.power;
-        if (t.stress >= t.integrity) game.crackRock(t, hit, d);
-        else if (t._chip >= 0.45) { t._chip = 0; game.chipRock(t, hit, d); }
+        // Mineralet der strålen treffer avgjør om laseren biter.
+        const tooHard = t.vox ? RF.Vox.laser(t, hit, d, L.power, L.tier, dt, game) : null;
+        if (tooHard) hardMat = tooHard; else bit = true;
+      }
+      // Varsle bare når ingen av laserne biter.
+      if (hardMat && !bit && (!game._hardWarn || game.time - game._hardWarn > 5)) {
+        const M = RF.MATERIALS[hardMat];
+        game._hardWarn = game.time;
+        game.msg(`${M.name} er for hard (${M.hard}). Trenger sterkere laser, kanon eller rakett`, RF.HUD_COLORS.amber);
       }
     }
 

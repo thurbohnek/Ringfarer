@@ -68,16 +68,35 @@
     for (const o of ws.bodies.slice()) {
       if (o.dead || o.isStatic) continue;
       const dx = o.x - x, dy = o.y - y;
-      const d = Math.max(0.5, G.len(dx, dy) - o.radius * 0.5);
+      const dl = G.len(dx, dy) || 1;
+      const ux = dx / dl, uy = dy / dl;
+      let d = Math.max(0.5, dl - o.radius * 0.5);
+      // Steiner av voksler: mål avstanden til overflaten, ikke til midten.
+      let hx = null, hy = null;
+      if (o.vox) {
+        if (dl > R + o.radius) continue;
+        if (RF.Vox.contains(o, x, y)) { hx = x; hy = y; d = 0.5; }
+        else {
+          const h = ws.raycast(x, y, ux, uy, dl + o.radius, (b) => b === o);
+          if (!h) continue;
+          hx = h.x; hy = h.y; d = Math.max(0.5, h.t);
+        }
+      }
       if (d > R) continue;
       const k = 1 - d / R;
       const J = 5e5 * k;
-      const ux = dx / (G.len(dx, dy) || 1), uy = dy / (G.len(dx, dy) || 1);
-      o.applyImpulse(ux * J, uy * J, o.x - ux * o.radius * 0.3, o.y - uy * o.radius * 0.3);
-      if (o.kind === 'rock') {
-        const hit = { x: o.x - ux * o.radius * 0.6, y: o.y - uy * o.radius * 0.6, nx: -ux, ny: -uy, body: o };
-        if (o.area < 900 || k > 0.6) game.crackRock(o, hit, { x: ux, y: uy });
-        else for (let i = 0; i < 3; i++) if (!o.dead && o.kind === 'rock') game.chipRock(o, hit, { x: ux, y: uy });
+      if (hx != null) o.applyImpulse(ux * J, uy * J, hx, hy);
+      else o.applyImpulse(ux * J, uy * J, o.x - ux * o.radius * 0.3, o.y - uy * o.radius * 0.3);
+      if (o.vox) {
+        // Slå ut et krater der smellet treffer.
+        if (d < R * 0.45) {
+          const kk = 1 - d / (R * 0.45);
+          RF.Vox.blast(o, hx + ux * 1.2, hy + uy * 1.2, 1.5 + 4 * kk, G.randInt(3, 5), game, 8);
+          if (!o.dead) {
+            o.stress += 2.5 * kk;
+            if (o.stress >= o.integrity) RF.Vox.crack(o, { x: hx, y: hy }, { x: ux, y: uy }, game);
+          }
+        }
       } else if (o.ship) {
         o.ship.takeImpact(0, x, y, game, 90 * k);
       } else if (o.npc) {
@@ -99,12 +118,14 @@
     o.applyImpulse(rvx * p.mass, rvy * p.mass, hit.x, hit.y);
     game.particles.burst(hit.x, hit.y, 10, { dir: Math.atan2(hit.ny, hit.nx), spread: 1.2, sMin: 5, sMax: 25, color: '#ffd28a', zMin: 0.15, zMax: 0.35, lMin: 0.2, lMax: 0.5 });
     const d = { x: p.vx / (G.len(p.vx, p.vy) || 1), y: p.vy / (G.len(p.vx, p.vy) || 1) };
-    if (o.kind === 'rock') {
+    if (o.kind === 'rock' && o.vox) {
       // Kuler bryr seg ikke om hardheten: de slår løs biter uansett.
-      o.stress += 0.35;
-      if (o.stress >= o.integrity) game.crackRock(o, hit, d);
-      else if (Math.random() < 0.55) game.chipRock(o, hit, d);
-      else game.laserDust(hit);
+      RF.Vox.blast(o, hit.x + d.x * 0.5, hit.y + d.y * 0.5, 1.4, G.randInt(1, 2), game, 3);
+      game.laserDust(hit);
+      if (!o.dead) {
+        o.stress += 0.35;
+        if (o.stress >= o.integrity) RF.Vox.crack(o, hit, d, game);
+      }
     } else if (o.npc) {
       o.npc.takeImpact(6, hit.x, hit.y, game);
     } else if (o.ship) {

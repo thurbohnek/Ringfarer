@@ -16,11 +16,13 @@
     press: (k) => pressed.add(k),
     state() {
       const d = (k) => keys.has(k);
-      const thrust = (d('KeyW') || d('ArrowUp') ? 1 : 0) - (d('KeyS') || d('ArrowDown') || touch.retro ? 1 : 0);
+      const thrust = d('KeyW') || d('ArrowUp') ? 1 : 0;
+      // Brems stopper skipet i fartsretningen, uansett hvor nesen peker.
+      const brake = d('KeyS') || d('ArrowDown') || !!touch.retro;
       const turn = (d('KeyD') || d('ArrowRight') ? 1 : 0) - (d('KeyA') || d('ArrowLeft') ? 1 : 0);
       const strafe = (d('KeyE') || touch.sr ? 1 : 0) - (d('KeyQ') || touch.sl ? 1 : 0);
       return {
-        thrust, turn, strafe,
+        thrust, turn, strafe, brake,
         fire: d('Space') || !!touch.fire,
         winch: d('KeyC') || !!touch.winch,
         winchOut: d('KeyV') || !!touch.winchOut,
@@ -80,23 +82,27 @@
 
   // Styrespak: legg tommelen hvor som helst i feltet og dra. Retningen du
   // drar er retningen skipet skal peke; drar du langt, gir det gass.
+  // Styrespaken står fast i sirkelen nede til venstre. Retningen man drar
+  // snur skipet, drar man langt ut gir den gass.
   Input.bindStick = (zone, base, knob) => {
     let id = null, ox = 0, oy = 0;
     const R = 64;
-    const place = (x, y, kx, ky) => {
+    const center = () => {
       const r = zone.getBoundingClientRect();
-      base.style.transform = `translate(${x - r.left - 70}px, ${y - r.top - 70}px)`;
-      knob.style.transform = `translate(${kx - r.left - 28}px, ${ky - r.top - 28}px)`;
+      ox = r.left + r.width / 2; oy = r.top + r.height / 2;
     };
+    // Sokkel og knott står midt i sirkelen (CSS); knotten flyttes relativt.
+    const place = (kx, ky) => { knob.style.transform = `translate(${kx - ox}px, ${ky - oy}px)`; };
+    const rest = () => { knob.style.transform = ''; };
     const move = (e) => {
       if (pinching) return;
       let dx = e.clientX - ox, dy = e.clientY - oy;
       const d = Math.hypot(dx, dy);
       if (d > R) { dx *= R / d; dy *= R / d; }
-      place(ox, oy, ox + dx, oy + dy);
-      if (d > 14) {
+      place(ox + dx, oy + dy);
+      if (d > 12) {
         touch.aim = Math.atan2(dy, dx);
-        touch.aimThrust = Math.max(0, Math.min(1, (d - 30) / (R - 30)));
+        touch.aimThrust = Math.max(0, Math.min(1, (d - 34) / (R - 34)));
       } else {
         touch.aim = null;
         touch.aimThrust = 0;
@@ -106,10 +112,9 @@
     zone.addEventListener('pointerdown', (e) => {
       if (id !== null) return;
       e.preventDefault();
+      e.stopPropagation();
       id = e.pointerId;
-      const r = zone.getBoundingClientRect();
-      ox = Math.min(Math.max(e.clientX, r.left + 70), r.right - 70);
-      oy = Math.min(Math.max(e.clientY, r.top + 70), r.bottom - 70);
+      center();
       zone.classList.add('active');
       try { zone.setPointerCapture(id); } catch (_) { /* ignorer */ }
       move(e);
@@ -125,6 +130,7 @@
       touch.aim = null;
       touch.aimThrust = 0;
       zone.classList.remove('active', 'thrust');
+      rest();
     };
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);
@@ -155,7 +161,7 @@
 
   // Siktepunkt: musen, eller en finger på skjermen utenfor styrespaken og knappene.
   // down = holdes inne (avfyrer verktøyet).
-  const pointer = (Input.pointer = { x: 0, y: 0, has: false, down: false, id: null });
+  const pointer = (Input.pointer = { x: 0, y: 0, x0: 0, y0: 0, has: false, down: false, id: null, type: 'mouse', presses: 0 });
   Input.bindAim = (canvas, onTapFirst) => {
     canvas.addEventListener('pointermove', (e) => {
       if (e.pointerType === 'mouse' || e.pointerId === pointer.id) {
@@ -167,8 +173,11 @@
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (pinching || pointer.id !== null) return;
       pointer.x = e.clientX; pointer.y = e.clientY; pointer.has = true;
+      pointer.x0 = e.clientX; pointer.y0 = e.clientY;
+      pointer.type = e.pointerType || 'mouse';
       pointer.down = true;
       pointer.id = e.pointerId;
+      pointer.presses++;
       pressed.add('Fire');
       try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* ignorer */ }
     });

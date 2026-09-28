@@ -129,13 +129,17 @@
     openHelp() {
       const back = game.state === 'play' ? 'close' : 'title';
       show('help', `
-        <div class="card plate"><div class="hazard"></div>
-          <h2>Kontroller og tips</h2>
+        <div class="card plate help-card"><div class="hazard"></div>
+          <div class="card-head"><h2>Kontroller og tips</h2><button class="btn ghost" data-act="${back}">✕ Lukk</button></div>
           ${keyList()}
           <h3>Slik fungerer det</h3>
           <ul class="tips">
             <li><b>Sikting:</b> verktøyene sitter i festepunkter på skrogets kant og dreier mot der du trykker eller peker. Hvert tårn når litt over 90° hver vei fra kanten det sitter på. Trådkorset er grønt når minst ett tårn når målet.</li>
-            <li><b>Mobil:</b> dra på venstre side for å styre og gi gass. Trykk og hold hvor som helst ellers på skjermen for å sikte og skyte. Knip med to fingre for å zoome. De små knappene bytter verktøy, ⋯ har lys, flygeassistent og droner.</li>
+            <li><b>Mobil:</b> styrespaken er sirkelen nede til venstre: dra for å snu, dra langt ut for å gi gass. Trykk og hold hvor som helst ellers på skjermen for å sikte og skyte, også på en stein som ligger bak spaken. Trykker du på en stein, følger siktet steinen.</li>
+            <li><b>Brems:</b> BREMS (eller S) bruker alle motorene til å stoppe skipet i den retningen det faktisk beveger seg, uansett hvor nesen peker.</li>
+            <li><b>Huler:</b> steinene er bygget av små biter. Laseren slår løs biter som passer i hullet de etterlater, så du kan bore tunneler og fly inn i store asteroider. Noen store asteroider har allerede en hule. Raketter slår ut store krater.</li>
+            <li><b>Zoom:</b> knip med to fingre på mobil, musehjul eller + og − på PC.</li>
+            <li><b>Knapper på mobil:</b> de små knappene bytter verktøy, ⋯ har lys, flygeassistent, droner og pause.</li>
             <li><b>Hardhet:</b> hver bergart har en hardhet fra 1 til 4. Laseren må ha minst samme nivå. Kanon og raketter knuser alt.</li>
             <li><b>Islag:</b> noen asteroider og kometer har is utenpå og et verdifullt mineral inni.</li>
             <li><b>Anker:</b> kroken skytes ut på en wire og fester seg i det den treffer. Vinsj inn for å lande, eller gi gass og slep kometen dit du vil.</li>
@@ -204,7 +208,8 @@
   function keyList() {
     const k = (keys, what) => `<div class="k"><span>${keys.map((x) => `<kbd>${x}</kbd>`).join('')}</span><span>${what}</span></div>`;
     return `<div class="keys">
-      ${k(['W', 'S'], 'Hovedmotor / brems')}
+      ${k(['W'], 'Hovedmotor')}
+      ${k(['S'], 'Brems (stopper i fartsretningen)')}
       ${k(['A', 'D'], 'Drei skipet')}
       ${k(['Q', 'E'], 'Sidestyring')}
       ${k(['1', '2', '3', '4'], 'Velg laser, kanon, rakett, anker')}

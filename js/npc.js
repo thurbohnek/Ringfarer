@@ -211,12 +211,8 @@
       this.laser.hit = hit;
       t.heat = Math.min(1, (t.heat || 0) + dt * 2);
       t.hitX = hit.x; t.hitY = hit.y;
-      if (RF.MATERIALS[t.mat].hard > 1) return true;
-      t.stress += dt * 0.6;
-      this.chipT += dt;
       if (game.sys === this.sys && Math.random() < 0.4) game.laserDust(hit);
-      if (t.stress >= t.integrity) game.crackRock(t, hit, dir);
-      else if (this.chipT > 0.8) { this.chipT = 0; game.chipRock(t, hit, dir); }
+      if (t.vox) RF.Vox.laser(t, hit, dir, 0.6, 1, dt, game);
       return true;
     }
 

@@ -69,7 +69,11 @@
     clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
     display: flex; flex-direction: column; gap: 14px; max-height: calc(100dvh - 32px);
     min-width: 0; box-sizing: border-box;
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   }
+  .card > * { flex-shrink: 0; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .card-head h2 { margin: 0; }
   .card.narrow { width: min(420px, 100%); }
   .card.danger { --steel-hi: #3a2520; --steel: #261915; }
   .title-card { background: transparent; border: 0; box-shadow: none; clip-path: none; width: min(580px, 100%); padding-left: clamp(8px, 5vw, 64px); }
@@ -205,13 +209,14 @@
     display: grid; place-items: center; padding: 0; text-shadow: 0 1px 0 #000;
   }
   #touch button.on { background: linear-gradient(180deg, rgba(233, 172, 72, 0.9), rgba(167, 107, 31, 0.9)); color: #1b1206; text-shadow: none; }
-  #stick { position: absolute; left: 0; bottom: 0; width: calc(100% - 190px); height: 60%; pointer-events: auto; touch-action: none; }
-  #stick .base, #stick .knob { position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none; transition: opacity 0.15s; }
-  #stick .base { width: 140px; height: 140px; border: 2px solid rgba(217, 154, 52, 0.4); background: radial-gradient(circle, rgba(0,0,0,0.05), rgba(0,0,0,0.35)); opacity: 0; }
-  #stick .knob { width: 56px; height: 56px; background: radial-gradient(circle at 35% 35%, #8a8374, #3a372f 60%, #16140f); border: 2px solid #000; opacity: 0; }
-  #stick.active .base, #stick.active .knob { opacity: 0.9; }
+  /* Fast styrespak nede til venstre. Alt utenfor sirkelen brukes til å sikte. */
+  #stick { position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom)); width: 176px; height: 176px; border-radius: 50%; pointer-events: auto; touch-action: none; }
+  #stick .base, #stick .knob { position: absolute; left: 50%; top: 50%; border-radius: 50%; pointer-events: none; transition: opacity 0.15s; }
+  #stick .base { width: 150px; height: 150px; margin: -75px 0 0 -75px; border: 2px solid rgba(217, 154, 52, 0.45); background: radial-gradient(circle, rgba(0,0,0,0.05), rgba(0,0,0,0.4)); opacity: 0.5; }
+  #stick .knob { width: 56px; height: 56px; margin: -28px 0 0 -28px; background: radial-gradient(circle at 35% 35%, #8a8374, #3a372f 60%, #16140f); border: 2px solid #000; opacity: 0.55; }
+  #stick.active .base, #stick.active .knob { opacity: 0.95; }
   #stick.thrust .knob { box-shadow: 0 0 18px rgba(233, 172, 72, 0.8); }
-  .stick-hint { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); font: 700 11px/1.35 var(--body); letter-spacing: 0.12em; color: rgba(230, 223, 205, 0.35); pointer-events: none; text-transform: uppercase; }
+  .stick-hint { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 184px); font: 700 10px/1.35 var(--body); letter-spacing: 0.12em; color: rgba(230, 223, 205, 0.35); pointer-events: none; text-transform: uppercase; }
   #stick.active + .stick-hint { display: none; }
   #touch .fire { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px); width: 92px; height: 92px; border-radius: 50%; font-size: 13px;
     background: radial-gradient(circle at 35% 30%, rgba(160, 70, 40, 0.85), rgba(70, 25, 12, 0.85)); }
@@ -227,7 +232,9 @@
   #tc-drawer { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 48px); display: flex; flex-direction: column; gap: 6px; padding: 12px; pointer-events: auto; z-index: 6; }
   #tc-drawer button { width: 170px; height: 40px; font-size: 13px; }
   @media (max-height: 520px) {
-    #stick { height: 75%; }
+    #stick { width: 150px; height: 150px; }
+    #stick .base { width: 130px; height: 130px; margin: -65px 0 0 -65px; }
+    .stick-hint { display: none; }
   }
 
   /* Skipsbygger */
@@ -258,7 +265,6 @@
 
 <div id="touch" hidden>
   <div id="stick"><div class="base"></div><div class="knob"></div></div>
-  <div class="stick-hint">Dra for å styre<br>dra langt for gass<br>knip for zoom</div>
   <button id="tc-ctx" class="ctx" data-tap="Interact" hidden></button>
   <div class="tc-winch">
     <button id="tc-winch" data-hold="winch" hidden>VINSJ INN</button>
@@ -289,10 +295,10 @@
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.5.2 · 2026-09-28';
+  window.RF_VERSION = 'v0.6.0 · 2026-09-28';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
-    var files = ['geom', 'physics', 'world', 'modules', 'ship', 'npc', 'missions', 'input', 'audio',
+    var files = ['geom', 'physics', 'world', 'voxel', 'modules', 'ship', 'npc', 'missions', 'input', 'audio',
       'render', 'shipdraw', 'weapons', 'hud', 'ui', 'game'];
     var i = 0;
     (function next() {

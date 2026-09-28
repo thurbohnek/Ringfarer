@@ -48,20 +48,20 @@
     skrap: { name: 'Skrapmetall', price: 60, color: '#a39c8c' },
   };
 
-  // Asteroidetyper. core = kjernen under et islag, vein = årer av et annet
-  // mineral som dukker opp i noen av bitene.
+  // Asteroidetyper. blobs = klumper av andre mineraler, veins = årer,
+  // core = kjernen under et islag. Tallene er omtrentlig andel.
   RF.ROCK_TYPES = {
-    kondritt: { mat: 'kondritt' },
-    silikat: { mat: 'silikat' },
-    karbon: { mat: 'karbon', vein: 'is', veinP: 0.12 },
-    is: { mat: 'is' },
-    metall: { mat: 'metall', vein: 'kobber', veinP: 0.15 },
-    kobber: { mat: 'kobber' },
-    titan: { mat: 'titan' },
-    gull: { mat: 'gull', vein: 'gull', veinP: 0 },
-    naquadah: { mat: 'naquadah' },
-    trinium: { mat: 'trinium' },
-    iskledd: { mat: 'is', core: { metall: 0.4, kobber: 0.3, titan: 0.2, gull: 0.1 }, coreFrac: 0.45 },
+    kondritt: { mat: 'kondritt', blobs: { silikat: 0.12, karbon: 0.06 }, veins: { metall: 0.05 } },
+    silikat: { mat: 'silikat', blobs: { kondritt: 0.14 }, veins: { metall: 0.03 } },
+    karbon: { mat: 'karbon', blobs: { is: 0.14, kondritt: 0.08 } },
+    is: { mat: 'is', blobs: { karbon: 0.1 } },
+    metall: { mat: 'metall', blobs: { kondritt: 0.1 }, veins: { kobber: 0.1 } },
+    kobber: { mat: 'kobber', blobs: { metall: 0.12, silikat: 0.08 } },
+    titan: { mat: 'titan', blobs: { silikat: 0.12, metall: 0.06 } },
+    gull: { mat: 'gull', blobs: { silikat: 0.15 } },
+    naquadah: { mat: 'naquadah', blobs: { metall: 0.12 }, veins: { trinium: 0.03 } },
+    trinium: { mat: 'trinium', blobs: { silikat: 0.15 } },
+    iskledd: { mat: 'is', blobs: { karbon: 0.08 }, core: { metall: 0.4, kobber: 0.3, titan: 0.2, gull: 0.1 }, coreFrac: 0.4 },
   };
 
   // Største bit (m²) som får plass i inntaket og kan prosesseres.
@@ -82,7 +82,7 @@
       gate: { x: 900, y: -1100, a: Math.PI * 0.6 },
       glyphs: [0, 3, 5, 1, 6, 2, 4],
       fields: [
-        { cx: 700, cy: 650, rx: 900, ry: 420, rot: 0.3, count: 62, rMin: 3, rMax: 26, drift: 1.2,
+        { cx: 700, cy: 650, rx: 900, ry: 420, rot: 0.3, count: 62, rMin: 3, rMax: 26, drift: 1.2, giants: 3,
           types: { kondritt: 0.3, silikat: 0.2, karbon: 0.15, metall: 0.2, iskledd: 0.1, kobber: 0.05 } },
         { cx: -900, cy: -500, rx: 450, ry: 300, rot: -0.6, count: 22, rMin: 2.5, rMax: 16, drift: 1.0,
           types: { kondritt: 0.5, silikat: 0.3, karbon: 0.2 } },
@@ -101,7 +101,7 @@
       gate: { x: -1200, y: 700, a: -0.4 },
       glyphs: [2, 6, 1, 4, 0, 5, 3],
       fields: [
-        { cx: 1100, cy: -300, rx: 700, ry: 500, rot: 0.9, count: 38, rMin: 3, rMax: 20, drift: 1.6,
+        { cx: 1100, cy: -300, rx: 700, ry: 500, rot: 0.9, count: 38, rMin: 3, rMax: 20, drift: 1.6, giants: 2,
           types: { is: 0.25, iskledd: 0.25, metall: 0.2, kobber: 0.15, titan: 0.1, silikat: 0.05 } },
       ],
       comets: 7,
@@ -120,7 +120,7 @@
       fields: [
         { cx: 1300, cy: -200, rx: 800, ry: 700, rot: 0.2, count: 70, rMin: 2.5, rMax: 22, drift: 7,
           stream: { x: -1, y: 0.35 }, types: { naquadah: 0.18, gull: 0.14, trinium: 0.08, titan: 0.15, metall: 0.25, karbon: 0.2 } },
-        { cx: -700, cy: -900, rx: 500, ry: 400, rot: 0.2, count: 26, rMin: 2.5, rMax: 18, drift: 3,
+        { cx: -700, cy: -900, rx: 500, ry: 400, rot: 0.2, count: 26, rMin: 2.5, rMax: 18, drift: 3, giants: 2,
           types: { metall: 0.35, kobber: 0.25, gull: 0.15, titan: 0.15, naquadah: 0.1 } },
       ],
       comets: 0,
@@ -191,22 +191,8 @@
     b.integrity = (0.8 + 0.12 * Math.sqrt(b.area)) * hard;
   };
 
-  // Lag en ny stein av en bestemt type.
-  RF.spawnRockType = (world, type, r, o, lumpy) => {
-    const T = RF.ROCK_TYPES[type];
-    // Kometer er klumpete og runde i omrisset, vanlige asteroider kantete.
-    let shape = lumpy ? G.rockShape(r, G.randInt(12, 16)) : G.shardShape(r, RF.MATERIALS[T.mat].crystal);
-    const extra = {};
-    if (T.core) {
-      extra.core = G.weighted(T.core);
-      extra.coreArea = Math.abs(G.polyArea(shape)) * T.coreFrac;
-    }
-    if (T.vein) { extra.vein = T.vein; extra.veinP = T.veinP; }
-    const rock = RF.makeRock(shape, T.mat, o, extra);
-    rock.rockType = type;
-    world.add(rock);
-    return rock;
-  };
+  // Lag en ny stein av en bestemt type (bygget av voksler, se voxel.js).
+  RF.spawnRockType = (world, type, r, o, opts) => RF.Vox.generate(world, type, r, o, opts || {});
 
   function makeGateBodies(g) {
     const R = RF.GATE_R;
@@ -260,6 +246,22 @@
       if (f.stream) { vx += f.stream.x * f.drift * 1.4; vy += f.stream.y * f.drift * 1.4; }
       RF.spawnRockType(world, type, r, { x, y, a: Math.random() * 6.28, vx, vy, w: G.rand(-0.25, 0.25) * (6 / (r + 3)) });
     }
+    // Noen få kjemper man kan bore seg inn i. Noen har allerede en hule.
+    for (let i = 0; i < (f.giants || 0); i++) {
+      let x, y, r, tries = 0;
+      do {
+        const t = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * 0.8;
+        const lx = Math.cos(t) * d * f.rx, ly = Math.sin(t) * d * f.ry;
+        x = f.cx + lx * cs - ly * sn;
+        y = f.cy + lx * sn + ly * cs;
+        r = G.rand(48, 68);
+        tries++;
+      } while (tries < 40 && placed.some((p) => G.len(p.x - x, p.y - y) < p.r + r + 20));
+      placed.push({ x, y, r });
+      const type = G.weighted(f.types);
+      RF.spawnRockType(world, type, r, { x, y, a: Math.random() * 6.28, vx: G.rand(-0.3, 0.3), vy: G.rand(-0.3, 0.3), w: G.rand(-0.01, 0.01) },
+        { cave: i === 0 || Math.random() < 0.5 });
+    }
   }
 
   function spawnComet(world, sys, near) {
@@ -269,19 +271,12 @@
     // Fart på tvers av systemet, omtrent mot sentrum med avvik.
     const dir = ang + Math.PI + G.rand(-0.5, 0.5);
     const sp = G.rand(12, 24);
-    const r = G.rand(18, 32);
+    const r = G.rand(20, 36);
     // Noen kometer har en verdifull kjerne under isen.
     const type = Math.random() < 0.45 ? 'iskledd' : 'is';
-    const c = RF.spawnRockType(world, type, r,
-      { x, y, a: Math.random() * 6.28, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, w: G.rand(-0.1, 0.1) }, true);
-    c.comet = true;
     // Kometer er grå og gropete, med mange kratre.
-    c.craters = [];
-    for (let i = 0; i < G.randInt(9, 15); i++) {
-      const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * c.radius * 0.7;
-      c.craters.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: c.radius * G.rand(0.05, 0.2), e: G.rand(0.55, 1), rot: Math.random() * 3 });
-    }
-    return c;
+    return RF.spawnRockType(world, type, r,
+      { x, y, a: Math.random() * 6.28, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, w: G.rand(-0.1, 0.1) }, { lumpy: true, comet: true });
   }
 
   // Et levende stjernesystem med egen fysikkverden. Tilstanden beholdes når

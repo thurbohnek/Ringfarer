@@ -122,6 +122,22 @@
     },
   };
 
+  // Testskip: Fjellbryter med én av hver modultype (og flere av de viktigste),
+  // slik at alt utstyret kan prøves med en gang.
+  RF.TEST_LAYOUT = [
+    ['light', 3, -5], ['light2', 4, -5],
+    ['armor', 3, -4], ['frame', 4, -4], ['rocket', 5, -4],
+    ['rcs', 2, -3], ['frame', 3, -3], ['frame', 4, -3], ['frame', 5, -3], ['anchor2', 6, -3], ['laser', 7, -3],
+    ['thruster2', 0, -2], ['fuel', 1, -2], ['cargo2', 2, -2], ['cargo', 3, -2], ['rcs', 4, -2], ['frame', 5, -2], ['frame', 6, -2], ['tractor', 7, -2],
+    ['thruster2', 0, -1], ['fuel', 1, -1], ['cargo2', 2, -1], ['cargo2', 3, -1], ['dronebay', 4, -1], ['armor2', 5, -1], ['frame', 6, -1], ['frame', 7, -1], ['laser4', 8, -1],
+    ['thruster', 0, 0], ['refinery', 1, 0], ['refinery', 2, 0], ['cargo2', 3, 0], ['frame', 4, 0], ['shield', 5, 0], ['shield', 6, 0], ['cockpit', 7, 0], ['laser3', 8, 0],
+    ['thruster2', 0, 1], ['fuel', 1, 1], ['cargo2', 2, 1], ['cargo2', 3, 1], ['dronebay', 4, 1], ['armor2', 5, 1], ['frame', 6, 1], ['frame', 7, 1], ['laser2', 8, 1],
+    ['thruster2', 0, 2], ['fuel', 1, 2], ['cargo2', 2, 2], ['cargo', 3, 2], ['rcs', 4, 2], ['frame', 5, 2], ['frame', 6, 2], ['tractor', 7, 2],
+    ['rcs', 2, 3], ['frame', 3, 3], ['frame', 4, 3], ['frame', 5, 3], ['cannon', 6, 3], ['anchor', 7, 3],
+    ['armor', 3, 4], ['frame', 4, 4], ['rocket', 5, 4],
+    ['light2', 4, 5],
+  ];
+
   // Små oppsett for de datastyrte skipene.
   RF.NPC_LAYOUTS = {
     drone: [['thruster', 0, 0], ['cockpit', 1, 0], ['laser', 2, 0], ['rcs', 1, 1], ['tractor', 2, -1], ['frame', 1, -1], ['light', 2, 1]],
