@@ -288,7 +288,15 @@
       const k = Math.sqrt((RF.ORE_MAX_AREA * 0.97) / A);
       hull = hull.map((p) => ({ x: p.x * k, y: p.y * k }));
     }
-    if (hull.length > 8) hull = G.simplify(hull, 0.12);
+    // Små biter blir ujevne, avrundede klumper (ikke firkanter) med samme
+    // areal og omtrent samme proporsjoner som biten som løsnet.
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const p of hull) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+    const asp = G.clamp(Math.sqrt((x1 - x0 + 0.1) / (y1 - y0 + 0.1)), 0.6, 1.6);
+    let blob = G.rockShape(1, G.randInt(9, 12)).map((p) => ({ x: p.x * asp, y: p.y / asp }));
+    const k = Math.sqrt(Math.min(G.polyArea(hull), RF.ORE_MAX_AREA * 0.97) / G.polyArea(blob));
+    blob = blob.map((p) => ({ x: p.x * k, y: p.y * k }));
+    hull = blob.length >= 3 ? blob : hull;
     const o = RF.makeRock(hull, vb.mat, { x: vb.x, y: vb.y, a: vb.a, vx: vb.vx, vy: vb.vy, w: vb.w });
     o.kind = 'ore';
     o.world = vb.world;

@@ -931,8 +931,11 @@
   }
 
   // Bilde av skipet i butikken (nesen mot høyre), med alt utstyret.
-  RF.drawShipPreview = (cv, ship) => {
-    const obj = { layout: ship.s.layout };
+  // hl: { x, y, kind: 'buy' | 'sell', t } – marker rundt en modul som nettopp
+  // ble montert (grønn) eller solgt (rød). t går fra 0 til 1.
+  RF.drawShipPreview = (cv, ship, hl) => {
+    const obj = ship._preview || (ship._preview = {});
+    obj.layout = ship.s.layout;
     const art = artOf(obj);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const W = cv.clientWidth || 320, H = cv.clientHeight || 240;
@@ -964,6 +967,22 @@
     const spr = glowSprite();
     for (const d of art.lights) ctx.drawImage(spr, d.x - 0.4, d.y - 0.4, 0.8, 0.8);
     ctx.globalCompositeOperation = 'source-over';
+    if (hl && obj.layout.length) {
+      const L = obj.layout, off = { x: L[0].x * CELL - L[0].lx, y: L[0].y * CELL - L[0].ly };
+      const x = hl.x * CELL - off.x, y = hl.y * CELL - off.y;
+      const col = hl.kind === 'sell' ? '226,85,61' : '149,196,106';
+      const pulse = 0.5 + 0.5 * Math.sin(hl.t * Math.PI * 8);
+      ctx.fillStyle = `rgba(${col},${0.25 + 0.25 * pulse})`;
+      ctx.beginPath(); ctx.arc(x, y, CELL * 0.75, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = `rgba(${col},${1 - hl.t * 0.5})`;
+      ctx.lineWidth = 0.25;
+      ctx.beginPath(); ctx.arc(x, y, CELL * (0.8 + hl.t * 1.6), 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 0.18;
+      ctx.beginPath(); ctx.arc(x, y, CELL * 0.8, 0, Math.PI * 2); ctx.stroke();
+      if (hl.kind === 'sell') {
+        ctx.beginPath(); ctx.moveTo(x - 0.8, y - 0.8); ctx.lineTo(x + 0.8, y + 0.8); ctx.moveTo(x + 0.8, y - 0.8); ctx.lineTo(x - 0.8, y + 0.8); ctx.stroke();
+      }
+    }
   };
 
   const P = RF.Renderer.prototype;

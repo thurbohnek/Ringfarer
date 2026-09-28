@@ -24,6 +24,61 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-28: v0.9.0 · Malmbiter hindrer ikke laseren, kjøpsbeskjed, ryddig HUD, snu skipet, bedre menyer
+
+Ønsker fra brukeren:
+- de minste bitene som løsner er veldig firkantete og blokkerer laser og våpen
+- når man kjøper og monterer noe, er eneste tilbakemelding at pengene
+  forsvinner
+- HUD-en er rotete
+- vanskelig å snu skipet uten å dra av gårde: hold fingeren nede og dra dit
+  skipet skal peke når det er fremme, og trykk og hold på skipet og dra for å
+  snu det
+- menyene bør ha en oversiktlig layout
+
+Hva som ble gjort:
+- **Malmbiter:** små biter er nå ujevne, avrundede klumper i stedet for
+  firkanter (`js/voxel.js`). Laser, borehode, kuler og raketter går rett
+  gjennom løse biter, så de ikke står i veien (`js/ship.js`,
+  `js/weapons.js`, `js/npc.js`). Ankerkroken kan fortsatt feste seg i dem.
+- **Kjøp og salg av utstyr** (`js/ui.js`, `js/shipdraw.js`, `index.html`):
+  - Et vindu glir inn nederst med et lite bilde av skipet, navnet på delen og
+    prisen.
+  - Delen som ble montert pulserer grønt på skipet. En solgt del markeres
+    med rødt kryss.
+  - Raden du kjøpte fra, blinker kort.
+- **HUD** (`js/hud.js`, `js/game.js`):
+  - Ett lite panel øverst til venstre med system, kreditter, fire tynne
+    målere (skrog, skjold, drivstoff, last), fart og antall oppdrag.
+  - Skadekartet vises bare når skipet er skadet.
+  - Maks to meldinger om gangen, og samme melding gjentas ikke.
+- **Styring:**
+  - **Trykk og hold på tomt rom:** målringen dukker opp. Dra videre for å
+    velge hvilken vei nesen skal peke når skipet er fremme. En grønn pil
+    viser retningen.
+  - **Trykk på skipet og dra:** skipet snur seg mot fingeren uten å flytte
+    seg.
+  - Kort trykk flytter som før, og dra på tomt rom flytter kameraet. Å holde
+    fingeren på tomt rom skyter ikke lenger. Skyt med avtrekkeren, eller hold
+    på en stein.
+  - (`js/game.js`, `js/render.js`, `js/ui.js`)
+- **Menyer:**
+  - Utstyrsfanen har kategoriknapper øverst (Structure, Protection, Engines,
+    Cargo, Mining, Weapons, Tools) og viser én kategori om gangen som kort
+    med ikon, pris, beskrivelse, «Fitted» og knapper.
+  - På mobil er toppen av stasjonen mer kompakt: målerne på én rad og
+    fanene som én rad med ikoner, så det blir mer plass til innholdet.
+
+Testet (nettleser uten skjerm, Pixel 7 og PC):
+- kjøp av tung laser: vinduet «✓ Heavy mining laser fitted» vises med
+  markering på skipet
+- trykk på skipet og dra nedover: skipet snudde fra 3,14 til 1,62 rad
+  (ønsket 1,57) uten å flytte seg
+- hold på tomt rom og dra til venstre: målet fikk retning 3,14, og skipet
+  kom frem (0,3 m unna) og pekte riktig vei
+- utstyrsfanen og stasjonen på mobil og PC ser ryddige ut
+- ingen feil i nettleserkonsollen
+
 ## 2026-09-28: v0.8.1 · Resten av spillet på engelsk
 
 Ønske: oversette alt i spillet til engelsk.

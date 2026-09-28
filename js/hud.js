@@ -252,48 +252,59 @@
       edgeMarker(ctx, game, R, game.sys.gate.x, game.sys.gate.y, 'Gate', C.gate);
     }
 
-    // Øverst til venstre: system og kreditter på én linje.
+    // Øverst til venstre: ett lite panel med alt om skipet.
+    // Linje 1: system og kreditter. Linje 2: fire tynne målere. Linje 3: fart.
     const name = game.sys.def.name.toUpperCase();
     const cred = Math.floor(game.credits).toLocaleString('en-US') + ' cr';
-    ctx.font = F.stencil;
-    const nw = ctx.measureText(name).width;
-    ctx.font = F.num;
-    const cw = ctx.measureText(cred).width;
-    panel(ctx, 8, top, nw + cw + 34, 26);
-    ctx.font = F.stencil;
+    const hf = ship.hullFrac();
+    const damaged = hf < 0.999;
+    const PW = 176, PH = ship.anchor ? 74 : 62;
+    panel(ctx, 8, top, PW + (damaged ? 44 : 0), PH, 0.82);
+    ctx.font = F.label;
     ctx.fillStyle = C.text;
-    ctx.fillText(name, 16, top + 19);
+    ctx.fillText(name, 16, top + 15);
     ctx.font = F.num;
     ctx.fillStyle = C.amber;
-    ctx.fillText(cred, 24 + nw, top + 18);
-    const active = game.missions.filter((m) => m.status === 'aktiv').length;
-    if (active && !touch) {
-      ctx.font = F.label;
-      ctx.fillStyle = C.muted;
-      ctx.fillText(`${active} ACTIVE CONTRACT${active > 1 ? 'S' : ''}`, 12, top + 42);
-    }
-
-    // Status: skadediagram og små stolper.
-    const sx = 10, sy = touch ? top + 40 : h - 108;
-    panel(ctx, sx - 2, sy - 6, 196, 96, 0.78);
-    const dm = damageMap(ctx, ship, sx + 4, sy, 46, 82);
-    const bx = sx + Math.max(40, dm.w) + 12;
-    const hf = ship.hullFrac();
-    miniBar(ctx, bx, sy + 2, 62, 'HP', hf, hpColor(hf), Math.round(hf * 100) + '%');
-    miniBar(ctx, bx, sy + 18, 62, 'SH', ship.shield / (st.shieldMax || 1), C.gate, Math.floor(ship.shield) + '');
-    miniBar(ctx, bx, sy + 34, 62, 'FU', s.fuel / (st.fuelCap || 1), s.fuel < st.fuelCap * 0.15 ? C.danger : C.amber, Math.round((s.fuel / (st.fuelCap || 1)) * 100) + '%');
+    ctx.textAlign = 'right';
+    ctx.fillText(cred, 8 + PW - 8, top + 15);
+    ctx.textAlign = 'left';
     const cm = RF.cargoMass(s);
-    miniBar(ctx, bx, sy + 50, 62, 'CG', cm / (st.hold || 1), '#c9a24a', cm.toFixed(0) + '/' + st.hold);
+    const bars = [
+      ['HULL', hf, hpColor(hf)],
+      ['SHLD', ship.shield / (st.shieldMax || 1), C.gate],
+      ['FUEL', s.fuel / (st.fuelCap || 1), s.fuel < st.fuelCap * 0.15 ? C.danger : C.amber],
+      ['CARGO', cm / (st.hold || 1), '#c9a24a'],
+    ];
+    const bw = (PW - 16 - 3 * 6) / 4;
+    bars.forEach(([lbl, f, col], i) => {
+      const x = 16 + i * (bw + 6), y = top + 22;
+      ctx.fillStyle = '#0c0b09';
+      ctx.fillRect(x, y + 10, bw, 4);
+      ctx.fillStyle = col;
+      ctx.fillRect(x, y + 10, bw * G.clamp(f, 0, 1), 4);
+      ctx.font = '600 9px "Saira Condensed", "Arial Narrow", sans-serif';
+      ctx.fillStyle = C.muted;
+      ctx.fillText(lbl, x, y + 7);
+    });
     ctx.font = F.num;
     ctx.fillStyle = C.text;
-    ctx.fillText(spd.toFixed(1) + ' m/s', bx, sy + 78);
+    ctx.fillText(spd.toFixed(1) + ' m/s', 16, top + 53);
     ctx.font = F.label;
     ctx.fillStyle = ship.fa ? C.gate : C.amber;
-    ctx.fillText('FA ' + ['OFF', 'ROT', 'FULL'][ship.fa], bx + 62, sy + 78);
+    ctx.fillText('ASSIST ' + ['OFF', 'ROT', 'FULL'][ship.fa], 84, top + 53);
+    const active = game.missions.filter((m) => m.status === 'aktiv').length;
+    if (active) {
+      ctx.fillStyle = C.muted;
+      ctx.textAlign = 'right';
+      ctx.fillText(active + ' JOB' + (active > 1 ? 'S' : ''), 8 + PW - 8, top + 53);
+      ctx.textAlign = 'left';
+    }
     if (ship.anchor) {
       ctx.fillStyle = C.ok;
-      ctx.fillText('CABLE ' + ship.anchor.rope.length.toFixed(0) + ' M', bx + 50, sy + 66);
+      ctx.fillText('CABLE ' + ship.anchor.rope.length.toFixed(0) + ' M', 16, top + 67);
     }
+    // Skadekart bare når noe er skadet.
+    if (damaged) damageMap(ctx, ship, 8 + PW + 4, top + 6, 34, PH - 12);
 
     // Verktøylinje nederst på PC. På mobil er verktøyene knapper.
     if (!touch && !ship.docked) {
@@ -333,8 +344,8 @@
     // Meldinger øverst på midten, små og korte.
     ctx.textAlign = 'center';
     ctx.font = F.title;
-    const my = touch ? top + 150 : top + 20;
-    game.messages.slice(-3).forEach((m, i) => {
+    const my = touch ? top + 96 : top + 18;
+    game.messages.slice(-2).forEach((m, i) => {
       ctx.globalAlpha = Math.min(1, m.t) * 0.95;
       ctx.fillStyle = '#000';
       ctx.fillText(m.text, w / 2 + 1, my + i * 17 + 1);

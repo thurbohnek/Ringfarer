@@ -290,7 +290,7 @@
         const mp = this.mountOf(Dr.m);
         Dr.m.active = true;
         const o = b.toWorld(mp.lx, mp.ly), d = b.dirWorld(Math.cos(mp.a), Math.sin(mp.a));
-        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, Dr.range, (x) => x !== b && !x.ghost);
+        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, Dr.range, (x) => x !== b && !x.ghost && x.kind !== 'ore');
         Dr.m.touch = hit ? hit.t : null;
         if (!hit) continue;
         const t = hit.body;
@@ -306,7 +306,8 @@
       for (const L of st.lasers) {
         if (!L.m.onTarget) continue;
         const { p: o, d, lx, ly, a } = this.muzzle(L.m);
-        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost);
+        // Løse malmbiter stopper ikke strålen, den går rett gjennom dem.
+        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost && x.kind !== 'ore');
         this.beams.push({ lx, ly, a, len: hit ? hit.t : L.range, hit, color: L.color, w: 0.35 + L.tier * 0.12 });
         this.laser.on = true;
         if (!hit) continue;

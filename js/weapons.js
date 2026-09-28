@@ -174,7 +174,8 @@
       const sp = G.len(p.vx, p.vy);
       const step = sp * dt;
       if (step > 0) {
-        const hit = ws.raycast(p.x, p.y, p.vx / sp, p.vy / sp, step, (o) => o !== p.owner && !o.ghost);
+        // Kuler og raketter flyr forbi løse malmbiter (kroken kan fortsatt treffe dem).
+        const hit = ws.raycast(p.x, p.y, p.vx / sp, p.vy / sp, step, (o) => o !== p.owner && !o.ghost && (o.kind !== 'ore' || p.type === 'harpoon'));
         if (hit) {
           if (p.type === 'shell') { hitShell(p, hit, game); p.dead = true; continue; }
           if (p.type === 'rocket') { if (p.arm <= 0 || hit.body.kind !== 'ship') { explode(hit.x, hit.y, game); p.dead = true; continue; } }

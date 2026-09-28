@@ -204,7 +204,7 @@
     drill(t, dt, game) {
       const b = this.body, ws = this.sys.world;
       const nose = b.toWorld(this.noseX, this.laserY), dir = b.dirWorld(1, 0);
-      const hit = ws.raycast(nose.x, nose.y, dir.x, dir.y, 80, (o) => o !== b && o.kind !== 'npc' && o.kind !== 'ship');
+      const hit = ws.raycast(nose.x, nose.y, dir.x, dir.y, 80, (o) => o !== b && o.kind !== 'npc' && o.kind !== 'ship' && o.kind !== 'ore');
       this.laser.on = true;
       this.laser.len = hit ? hit.t : 80;
       if (!hit || hit.body !== t) return false;

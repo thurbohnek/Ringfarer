@@ -8,6 +8,9 @@
   let game, root, touchRoot;
   let open = null;
   let tab = 'marked';
+  // Siste kjøp eller salg av utstyr, for å vise hva som skjedde.
+  let fitFx = null;
+  let gearCat = 'Mining';
 
   const $ = (sel) => document.querySelector(sel);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -131,8 +134,10 @@
           <ul class="tips">
             <li><b>Aiming:</b> tools sit in mounts on the edge of the hull and turn toward where you tap or point. Each turret reaches a little over 90° either way. The crosshair turns green when at least one turret can reach the target.</li>
             <li><b>Tap to move:</b> a short tap on empty space (for example next to an asteroid) sets a target. The ship flies there and stops, and follows the rock if the target is next to one. Steering yourself switches the autopilot off.</li>
+            <li><b>Choose the heading:</b> press and hold on empty space until the target ring appears, then drag toward where the nose should point when the ship arrives. A green arrow shows the heading.</li>
+            <li><b>Turn in place:</b> press on your ship and drag. The ship turns to face your finger without moving anywhere.</li>
             <li><b>Camera:</b> drag the screen to look around. The ship always stays on screen. Tap your ship (or ⋯ → Center camera, key O) to center again.</li>
-            <li><b>Firing:</b> press and hold on a rock to aim at it and use the tool. The aim follows the rock. Hold your finger still on empty space for a moment to fire there. The trigger at the bottom right fires at the current aim.</li>
+            <li><b>Firing:</b> press and hold on a rock to aim at it and use the tool. The aim follows the rock. The trigger at the bottom right (or Space) fires at the current aim. Lasers, drills and guns pass straight through loose ore chunks.</li>
             <li><b>Touch:</b> the stick is the circle at the bottom left: drag to turn, drag far out to thrust.</li>
             <li><b>Brake:</b> BRAKE (or S) uses every engine to stop the ship along the direction it is actually moving, wherever the nose points.</li>
             <li><b>Caves:</b> rocks are made of small pieces. The laser breaks off chunks that fit the hole they leave, so you can tunnel into big asteroids and fly inside. Some big asteroids already have a cave. Rockets blast big craters.</li>
@@ -211,6 +216,8 @@
       ${k(['Q', 'E'], 'Strafe')}
       ${k(['1', '2', '3', '4'], 'Laser, cannon, rocket, harpoon')}
       ${k(['Mouse'], 'Aim. Click empty space: move there. Click and hold a rock: fire')}
+      ${k(['Hold', 'Drag'], 'On empty space: move there and face the drag direction')}
+      ${k(['Ship', 'Drag'], 'Turn the ship in place')}
       ${k(['Drag'], 'Move the camera (also right mouse button)')}
       ${k(['O'], 'Center camera on the ship')}
       ${k(['Space'], 'Use the tool')}
@@ -277,10 +284,44 @@
           <div class="tab-body">${body}</div>
         </div>
         <footer class="st-foot"><button class="btn primary" data-act="undock" data-autofocus>Undock</button></footer>
+        ${toastHtml()}
       </div>`);
     const nb = root.querySelector('.tab-body');
     if (nb) nb.scrollTop = y;
     if (tab === 'utstyr') drawGear();
+    if (fitFx) animateFit();
+  }
+
+  // Et vindu som glir inn og viser hvor på skipet delen ble montert eller tatt av.
+  function toastHtml() {
+    if (!fitFx || performance.now() - fitFx.t0 > 3200) return '';
+    const buy = fitFx.kind === 'buy';
+    return `<div class="toast ${buy ? 'ok' : 'bad'}" role="status">
+      <canvas id="toast-ship" aria-hidden="true"></canvas>
+      <div><b>${buy ? '✓ ' + esc(fitFx.name) + ' fitted' : esc(fitFx.name) + ' removed'}</b>
+      <span>${buy ? '−' + kr(fitFx.cost) + ' · marked in green on your ship' : '+' + kr(fitFx.cost) + ' · marked in red on your ship'}</span></div>
+    </div>`;
+  }
+
+  let fitAnim = 0;
+  function animateFit() {
+    cancelAnimationFrame(fitAnim);
+    const row = root.querySelector(`[data-act="gearbuy"][data-id="${fitFx.id}"]`);
+    if (row && performance.now() - fitFx.t0 < 300) {
+      const li = row.closest('li');
+      if (li) li.classList.add('flash');
+    }
+    const step = () => {
+      if (!fitFx) return;
+      const t = (performance.now() - fitFx.t0) / 2600;
+      const hl = t < 1 ? { x: fitFx.x, y: fitFx.y, kind: fitFx.kind, t } : null;
+      const cv = $('#gear-canvas'), tc = $('#toast-ship');
+      if (cv) RF.drawShipPreview(cv, game.ship, hl);
+      if (tc) RF.drawShipPreview(tc, game.ship, hl);
+      if (t < 1) fitAnim = requestAnimationFrame(step);
+      else { const el = root.querySelector('.toast'); if (el) el.classList.add('gone'); }
+    };
+    fitAnim = requestAnimationFrame(step);
   }
 
   function marketTab(st) {
@@ -360,15 +401,19 @@
     const B = RF.hullBounds(s.hull);
     const cells = (B.x1 - B.x0 + 1) * (B.y1 - B.y0 + 1);
     const cats = [...new Set(Object.values(RF.MODULES).filter((m) => !m.unique).map((m) => m.cat))];
-    const list = cats.map((c) => `<h3>${esc(c)}</h3><ul class="missions">${Object.keys(RF.MODULES).filter((k) => RF.MODULES[k].cat === c && !RF.MODULES[k].unique).map((k) => {
+    if (!cats.includes(gearCat)) gearCat = cats[0];
+    const chips = cats.map((c) => `<button class="catchip ${c === gearCat ? 'on' : ''}" data-act="gearcat" data-id="${esc(c)}">${esc(c)}</button>`).join('');
+    const items = Object.keys(RF.MODULES).filter((k) => RF.MODULES[k].cat === gearCat && !RF.MODULES[k].unique).map((k) => {
       const M = RF.MODULES[k], n = count[k] || 0;
-      return `<li class="mission gear"><canvas class="pal-ico" data-mod="${k}" width="56" height="56"></canvas>
-        <div><b>${esc(M.name)}</b><span class="muted">${esc(M.desc)}</span>
-        <span class="muted small num">Fitted: ${n}</span></div>
-        <div class="m-side"><span class="num reward">${kr(M.cost)}</span>
-          <button class="btn sm" data-act="gearbuy" data-id="${k}" ${game.credits < M.cost ? 'disabled' : ''}>Buy and fit</button>
-          <button class="btn sm ghost" data-act="gearsell" data-id="${k}" ${n ? '' : 'disabled'}>Sell one</button></div></li>`;
-    }).join('')}</ul>`).join('');
+      return `<li class="gear-card mission">
+        <div class="gc-top"><canvas class="pal-ico" data-mod="${k}" width="56" height="56"></canvas>
+          <div class="gc-name"><b>${esc(M.name)}</b><span class="num reward">${kr(M.cost)}</span></div></div>
+        <p class="muted small">${esc(M.desc)}</p>
+        <div class="gc-foot"><span class="fitted ${n ? 'on' : ''}">${n ? 'Fitted: ' + n : 'Not fitted'}</span>
+          <span class="gc-btns"><button class="btn sm ghost" data-act="gearsell" data-id="${k}" ${n ? '' : 'disabled'}>Sell one</button>
+          <button class="btn sm primary" data-act="gearbuy" data-id="${k}" ${game.credits < M.cost ? 'disabled' : ''}>Buy and fit</button></span></div></li>`;
+    }).join('');
+    const list = `<nav class="catchips">${chips}</nav><ul class="gear-grid">${items}</ul>`;
     return `
       <div class="gear-top">
         <canvas id="gear-canvas" aria-label="Your ship with all its equipment"></canvas>
@@ -411,6 +456,7 @@
     game.credits -= M.cost;
     s.layout.push(m);
     game.msg(`${M.name} fitted`, RF.HUD_COLORS.ok);
+    fitFx = { kind: 'buy', id, x: m.x, y: m.y, name: M.name, cost: M.cost, t0: performance.now() };
     afterEdit();
   }
 
@@ -422,6 +468,7 @@
     const got = Math.round(M.cost * 0.7 * (m.hp / M.hp));
     game.credits += got;
     game.msg(`Sold ${M.name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
+    fitFx = { kind: 'sell', id, x: m.x, y: m.y, name: M.name, cost: got, t0: performance.now() };
     afterEdit();
   }
 
@@ -567,6 +614,7 @@
       case 'dial': game.dial(id); break;
       case 'undock': game.undock(); break;
       case 'tab': { tab = id; const tb = root.querySelector('.tab-body'); if (tb) tb.scrollTop = 0; renderStation(); break; }
+      case 'gearcat': gearCat = id; renderStation(); break;
       case 'gearbuy': buyGear(id); break;
       case 'gearsell': sellGear(id); break;
       case 'sell': {

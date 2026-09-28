@@ -48,6 +48,9 @@
   RF.game = game;
 
   game.msg = (text, color) => {
+    // Samme melding to ganger på rad forlenger bare den som vises.
+    const last = game.messages[game.messages.length - 1];
+    if (last && last.text === text && last.t > 0) { last.t = 3.5; return; }
     game.messages.push({ text, color, t: 3.5 });
     if (game.messages.length > 4) game.messages.shift();
   };
@@ -378,15 +381,27 @@
     }
     const mode = game.pointerMode;
     if (P.down) {
+      const w0 = toWorld(P.x0, P.y0);
       if (mode === 'pending') {
         if (P.moved) game.pointerMode = 'pan';
         else if (performance.now() - P.t0 > HOLD_MS) {
-          game.pointerMode = 'aim';
-          game.aimLock = null;
-          Input.press('Fire');
+          // Hold fingeren: målet settes her. Dra videre for å velge hvilken
+          // vei skipet skal peke når det er fremme.
+          game.pointerMode = 'navset';
+          game.setNav(w0.x, w0.y);
         }
       } else if (mode === 'aim' && game.aimLock && P.moved && G.len(P.x - P.x0, P.y - P.y0) > 30) game.aimLock = null;
-      else if (mode === 'ship' && P.moved) game.pointerMode = 'pan';
+      else if (mode === 'ship' && P.moved) {
+        // Trykk på skipet og dra: skipet snur seg dit uten å flytte seg.
+        game.pointerMode = 'rotate';
+        ship.nav = { x: ship.body.x, y: ship.body.y, body: null, l: null, arrived: true, rotate: true, heading: ship.body.a };
+      }
+      if (game.pointerMode === 'navset' && ship.nav && G.len(P.x - P.x0, P.y - P.y0) > 18) {
+        ship.nav.heading = Math.atan2(P.y - P.y0, P.x - P.x0);
+      } else if (game.pointerMode === 'rotate' && ship.nav) {
+        const sp = RF.renderer.toScreen(game.cam, ship.body.x, ship.body.y);
+        if (G.len(P.x - sp.x, P.y - sp.y) > 12) ship.nav.heading = Math.atan2(P.y - sp.y, P.x - sp.x);
+      }
     }
     // Kameraet følger fingeren når man drar.
     if (game.pointerMode === 'pan' && (P.panX || P.panY)) {
@@ -417,7 +432,7 @@
 
   // Autopilot: fly til et punkt og stopp der. Ligger punktet like ved en
   // stein, følger målet steinen mens den driver.
-  game.setNav = (x, y) => {
+  game.setNav = (x, y, heading = null) => {
     const ship = game.ship;
     let near = null, nd = 40;
     for (const b of game.sys.world.bodies) {
@@ -425,7 +440,7 @@
       const d = G.len(b.x - x, b.y - y) - b.radius;
       if (d < nd) { nd = d; near = b; }
     }
-    ship.nav = { x, y, body: near, l: near ? near.toLocal(x, y) : null, arrived: false };
+    ship.nav = { x, y, body: near, l: near ? near.toLocal(x, y) : null, arrived: false, heading };
     game.msg('Moving to target', RF.HUD_COLORS.gate);
     Audio.blip(700, 0.05, 'sine', 0.06);
   };
@@ -449,11 +464,13 @@
     const aB = Math.max(st.retro + st.strafe, (st.thrust || 0) * 0.6) / b.mass;
     const vd = Math.min(45, Math.sqrt(2 * aB * 0.55 * Math.max(0, d - 0.6)));
     const ax = ((dx / d) * vd - rvx) * 2.5, ay = ((dy / d) * vd - rvy) * 2.5;
-    if (!N.arrived && d < 2 && G.len(rvx, rvy) < 0.5) {
+    if (!N.arrived && !N.rotate && d < 2 && G.len(rvx, rvy) < 0.5) {
       N.arrived = true;
       game.msg('Arrived', RF.HUD_COLORS.ok);
     }
-    return Object.assign({}, inp, { accel: { x: ax, y: ay }, aim: d > 30 && !N.arrived ? Math.atan2(dy, dx) : null, aimThrust: 0 });
+    // På vei: nesen mot målet. Nær målet: den retningen spilleren valgte.
+    const aim = d > 30 && !N.arrived ? Math.atan2(dy, dx) : N.heading != null ? N.heading : null;
+    return Object.assign({}, inp, { accel: { x: ax, y: ay }, aim, aimThrust: 0 });
   }
 
   // --- Gruvedrift ---

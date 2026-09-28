@@ -507,11 +507,27 @@
 
     // Målet for autopiloten: en pulserende ring og en stiplet linje fra skipet.
     drawNav(game) {
-      const ctx = this.ctx, p = game.navPoint(), b = game.ship.body;
+      const ctx = this.ctx, p = game.navPoint(), b = game.ship.body, N = game.ship.nav;
       if (!p) return;
       const k = 0.5 + 0.5 * Math.sin(game.time * 5);
       const r = 2.5 + k * 0.8;
       ctx.save();
+      // Pil for retningen skipet skal peke (vises til skipet har snudd seg).
+      const turning = N.heading != null && (Math.abs(G.wrapAngle(N.heading - b.a)) > 0.05 || game.pointerMode === 'navset' || game.pointerMode === 'rotate');
+      if (turning) {
+        const o = N.rotate ? b : p, L = this.px * 70 + (N.rotate ? b.radius : 0);
+        const ex = o.x + Math.cos(N.heading) * L, ey = o.y + Math.sin(N.heading) * L;
+        ctx.strokeStyle = 'rgba(149,196,106,0.9)'; ctx.fillStyle = 'rgba(149,196,106,0.9)';
+        ctx.lineWidth = this.px * 2.5;
+        ctx.beginPath(); ctx.moveTo(o.x + Math.cos(N.heading) * (N.rotate ? b.radius : r), o.y + Math.sin(N.heading) * (N.rotate ? b.radius : r)); ctx.lineTo(ex, ey); ctx.stroke();
+        const hs = this.px * 12;
+        ctx.beginPath();
+        ctx.moveTo(ex + Math.cos(N.heading) * hs, ey + Math.sin(N.heading) * hs);
+        ctx.lineTo(ex + Math.cos(N.heading + 2.4) * hs, ey + Math.sin(N.heading + 2.4) * hs);
+        ctx.lineTo(ex + Math.cos(N.heading - 2.4) * hs, ey + Math.sin(N.heading - 2.4) * hs);
+        ctx.closePath(); ctx.fill();
+      }
+      if (N.rotate) { ctx.restore(); return; }
       ctx.lineWidth = this.px * 1.6;
       ctx.setLineDash([this.px * 8, this.px * 6]);
       ctx.strokeStyle = 'rgba(108,196,224,0.45)';
