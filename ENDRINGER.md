@@ -17,6 +17,22 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-28: v0.5.2 · Alle får nyeste versjon på github.io
+
+Problem: på https://thurbohnek.github.io/Ringfarer/ så brukeren selv den
+nyeste versjonen, mens andre fikk en eldre. GitHub-jobben hadde publisert
+riktig versjon. Nettleserne til de andre brukte gamle kopier av skriptfilene
+fra mellomlageret (GitHub Pages ber nettlesere huske filene i 10 minutter, og
+filene hadde samme navn i alle versjoner).
+
+- Skriptfilene lastes nå med versjonen i adressen (`js/game.js?v=v0.5.2`),
+  så en ny versjon alltid gir nye filer (`index.html`).
+- Siden ber nettleseren sjekke om den selv er endret (`Cache-Control: no-cache`).
+- Versjonsnummeret står nå bare ett sted: `window.RF_VERSION` i `index.html`.
+
+Etter at en ny versjon er publisert, kan det fortsatt ta opptil 10 minutter før
+selve siden er oppdatert hos alle. Da hjelper det å laste den inn på nytt.
+
 ## 2026-09-28: v0.5.1 · Alt åpent, ubegrenset penger til testing
 
 Ønske: for å teste må alt være ulåst, så man kan handle og prøve alt. Ingenting

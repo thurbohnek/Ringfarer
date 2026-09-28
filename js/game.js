@@ -7,7 +7,7 @@
   const Audio = RF.Audio;
 
   // Vises på startskjermen, så man ser hvilken versjon man spiller.
-  RF.VERSION = 'v0.5.1 · 2026-09-28';
+  RF.VERSION = window.RF_VERSION || 'ukjent';
   RF.KAWOOSH_TIME = 1.3;
   RF.KAWOOSH_LEN = 36;
   const STEP = 1 / 120;

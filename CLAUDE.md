@@ -26,8 +26,10 @@
 
 - Etter hver endring i spillet: publiser spillsiden på nytt og legg ved
   lenken i svaret, så brukeren kan teste med en gang.
-- Øk `RF.VERSION` i `js/game.js` ved hver endring, og nevn versjonsnummeret
-  i svaret, så brukeren kan se på startskjermen at hen har den nye.
+- Øk `window.RF_VERSION` øverst i skriptet nederst i `index.html` ved hver
+  endring, og nevn versjonsnummeret i svaret. Det vises på startskjermen og
+  brukes i adressen til skriptfilene (`?v=…`), så ingen får gamle filer fra
+  nettleserens mellomlager.
 - Spillsiden er https://claude.ai/artifact/RbYcgGXBSatEDSGDCXe756 . Oppdater
   den samme siden (samme lenke) i stedet for å lage en ny.
 - Når endringene er på `main` og GitHub Pages er slått på, legg også ved

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache">
 <title>Ringfarer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -285,21 +286,24 @@
 
 <div id="panel" hidden></div>
 
-<script src="js/geom.js"></script>
-<script src="js/physics.js"></script>
-<script src="js/world.js"></script>
-<script src="js/modules.js"></script>
-<script src="js/ship.js"></script>
-<script src="js/npc.js"></script>
-<script src="js/missions.js"></script>
-<script src="js/input.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/render.js"></script>
-<script src="js/shipdraw.js"></script>
-<script src="js/weapons.js"></script>
-<script src="js/hud.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/game.js"></script>
-<script>RF.game.boot();</script>
+<script>
+  // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
+  // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
+  window.RF_VERSION = 'v0.5.2 · 2026-09-28';
+  (function () {
+    var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
+    var files = ['geom', 'physics', 'world', 'modules', 'ship', 'npc', 'missions', 'input', 'audio',
+      'render', 'shipdraw', 'weapons', 'hud', 'ui', 'game'];
+    var i = 0;
+    (function next() {
+      if (i >= files.length) { RF.game.boot(); return; }
+      var sc = document.createElement('script');
+      sc.src = 'js/' + files[i++] + '.js?v=' + v;
+      sc.onload = next;
+      sc.onerror = function () { document.body.insertAdjacentHTML('beforeend', '<p style="color:#e2553d;padding:16px">Kunne ikke laste ' + sc.src + '. Last siden inn på nytt.</p>'); };
+      document.body.appendChild(sc);
+    })();
+  })();
+</script>
 </body>
 </html>
