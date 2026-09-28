@@ -62,6 +62,39 @@
       return { x: c.x, y: c.y };
     }
 
+    // For legemer satt sammen av moduler (skip): verts er allerede relative
+    // til tyngdepunktet, og masse og treghetsmoment er regnet ut på forhånd.
+    setRaw(verts, mass, I) {
+      if (G.polyArea(verts) < 0) verts = verts.slice().reverse();
+      this.verts = verts.map((p) => ({ x: p.x, y: p.y }));
+      this.area = G.polyArea(this.verts);
+      this.radius = G.polyRadius(this.verts);
+      this.normals = [];
+      for (let i = 0, n = this.verts.length; i < n; i++) {
+        const a = this.verts[i], b = this.verts[(i + 1) % n];
+        const ex = b.x - a.x, ey = b.y - a.y;
+        const l = G.len(ex, ey) || 1;
+        this.normals.push({ x: ey / l, y: -ex / l });
+      }
+      this.wv = [];
+      this.wn = [];
+      this.isStatic = false;
+      this.mass = this.baseMass = mass;
+      this.I = this.baseI = I;
+      this.invMass = 1 / mass;
+      this.invI = 1 / I;
+    }
+
+    // Flytt origo til lokalpunktet (lx,ly) uten at noe flytter seg i verden.
+    shiftOrigin(lx, ly) {
+      const cs = Math.cos(this.a), sn = Math.sin(this.a);
+      const ox = lx * cs - ly * sn, oy = lx * sn + ly * cs;
+      this.x += ox;
+      this.y += oy;
+      this.vx += -this.w * oy;
+      this.vy += this.w * ox;
+    }
+
     // Brukes av skipet når last og drivstoff endrer massen.
     setMass(m) {
       if (this.isStatic) return;

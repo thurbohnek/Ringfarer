@@ -10,8 +10,11 @@
   const G = RF.G;
 
   RF.NPC_TYPES = {
-    drone: { name: 'Gruvedrone', paint: 'drone', scale: 0.7, mass: 11000, thrust: 190e3, torque: 0.55e6, hull: 60, maxSpeed: 16 },
-    hauler: { name: 'Frakteskip', paint: 'hauler', scale: 1.45, mass: 70000, thrust: 820e3, torque: 7e6, hull: 180, maxSpeed: 28 },
+    drone: { name: 'Gruvedrone', mass: 11000, thrust: 190e3, torque: 0.55e6, hull: 60, maxSpeed: 16 },
+    hauler: { name: 'Frakteskip', mass: 70000, thrust: 820e3, torque: 7e6, hull: 180, maxSpeed: 28 },
+    // Spillerens egne droner.
+    helper: { name: 'Gruvedrone', mass: 5000, thrust: 110e3, torque: 0.35e6, hull: 40, maxSpeed: 20, own: true },
+    repair: { name: 'Reparasjonsdrone', mass: 4500, thrust: 110e3, torque: 0.35e6, hull: 40, maxSpeed: 22, own: true },
   };
 
   // Lasteporten ligger bak antennemasten, på motsatt side av dokkingsarmen.
@@ -30,11 +33,17 @@
       this.T = RF.NPC_TYPES[type];
       this.sys = sys;
       this.name = `${this.T.name} ${String(nextName++).padStart(2, '0')}`;
-      const k = this.T.scale;
-      this.body = new RF.Body(G.convexHull(RF.SHIP_HULL.map((p) => ({ x: p.x * k, y: p.y * k }))), 1,
-        { kind: 'npc', restitution: 0.18, friction: 0.45 });
-      this.body.setMass(this.T.mass);
+      this.layout = RF.layoutFrom(RF.NPC_LAYOUTS[type]);
+      const g = RF.layoutGeometry(this.layout);
+      this.body = new RF.Body(G.box(-1, -1, 1, 1), 1, { kind: 'npc', restitution: 0.18, friction: 0.45 });
+      this.body.setRaw(g.verts, this.T.mass, g.I * (this.T.mass / g.mass));
       this.body.npc = this;
+      this.k = this.body.radius / 8; // størrelse i forhold til spillerens første skip
+      this.noseX = this.layout.reduce((a, m) => Math.max(a, m.lx), 0) + RF.CELL / 2;
+      const lm = this.layout.find((m) => m.t === 'laser');
+      this.laserY = lm ? lm.ly : 0;
+      this._lights = RF.lightSources(this);
+      this.beams = [];
       this.fx = { main: 0, retro: 0, left: 0, right: 0, rotL: 0, rotR: 0 };
       this.laser = { on: false, hit: null, len: 0 };
       this.scars = [];
@@ -70,7 +79,7 @@
     // Med face satt peker nesen dit, og sidedyser og bremsemotor tar resten.
     // Hvis rett linje til målet går gjennom stasjonen, fly via et punkt på siden.
     routeAround(tx, ty) {
-      const b = this.body, st = this.sys.station, R = STATION_CLEAR + 10 * this.T.scale;
+      const b = this.body, st = this.sys.station, R = STATION_CLEAR + 10 * this.k;
       const dsx = b.x - st.x, dsy = b.y - st.y;
       if (G.len(dsx, dsy) < R - 5 || G.len(tx - st.x, ty - st.y) < R - 5) return { x: tx, y: ty };
       const ex = tx - b.x, ey = ty - b.y, el = ex * ex + ey * ey || 1;
@@ -98,10 +107,10 @@
       let sp2 = sp;
       const look = Math.min(dist, 30 + G.len(b.vx, b.vy) * 4);
       if (look > 5) {
-        const half = 5 * T.scale;
+        const half = 5 * this.k;
         let hit = null;
         for (const off of [0, -half, half]) {
-          const ox = b.x + ux * 10 * T.scale - uy * off, oy = b.y + uy * 10 * T.scale + ux * off;
+          const ox = b.x + ux * 10 * this.k - uy * off, oy = b.y + uy * 10 * this.k + ux * off;
           const h = this.sys.world.raycast(ox, oy, ux, uy, look,
             (o) => o !== b && o.kind !== 'ore' && o !== this.target && o.radius > 2);
           if (h && (!hit || h.t < hit.t)) hit = h;
@@ -160,6 +169,8 @@
       }
       this.laser.on = false;
       this.laser.hit = null;
+      this.beams = [];
+      if (this.T.own) { this.updateOwn(dt, game); this.setBeam(); return; }
       const st = this.sys.station;
       this.docking = this.state === 'undock' || this.state === 'dockIn';
       if (this.state === 'undock') {
@@ -182,6 +193,113 @@
       }
       if (this.type === 'drone') this.updateDrone(dt, game);
       else this.updateHauler(dt, game);
+      this.setBeam();
+    }
+
+    setBeam() {
+      if (this.laser.on) this.beams = [{ lx: this.noseX, ly: this.laserY, len: Math.max(0, this.laser.len), hit: this.laser.hit, color: this.beamColor || '255,150,60', w: 0.35 }];
+    }
+
+    // Bor i steinen t med en enkel laser. Returnerer true hvis den traff.
+    drill(t, dt, game) {
+      const b = this.body, ws = this.sys.world;
+      const nose = b.toWorld(this.noseX, this.laserY), dir = b.dirWorld(1, 0);
+      const hit = ws.raycast(nose.x, nose.y, dir.x, dir.y, 80, (o) => o !== b && o.kind !== 'npc' && o.kind !== 'ship');
+      this.laser.on = true;
+      this.laser.len = hit ? hit.t : 80;
+      if (!hit || hit.body !== t) return false;
+      this.laser.hit = hit;
+      t.heat = Math.min(1, (t.heat || 0) + dt * 2);
+      t.hitX = hit.x; t.hitY = hit.y;
+      if (RF.MATERIALS[t.mat].hard > 1) return true;
+      t.stress += dt * 0.6;
+      this.chipT += dt;
+      if (game.sys === this.sys && Math.random() < 0.4) game.laserDust(hit);
+      if (t.stress >= t.integrity) game.crackRock(t, hit, dir);
+      else if (this.chipT > 0.8) { this.chipT = 0; game.chipRock(t, hit, dir); }
+      return true;
+    }
+
+    // Spillerens droner: gruvedrone som leverer til skipet, eller reparasjonsdrone.
+    updateOwn(dt, game) {
+      const b = this.body, owner = this.owner, ob = owner.body, ws = this.sys.world;
+      this.timer += dt;
+      const toOwner = () => {
+        const p = ob.toWorld(-owner.noseX - 8, 0);
+        return this.steer(dt, p.x, p.y, ob.vx, ob.vy, null, 30);
+      };
+      if (this.state === 'recall') {
+        const p = ob.toWorld(0, 0);
+        const d = this.steer(dt, p.x, p.y, ob.vx, ob.vy, null, 30);
+        if (d < ob.radius + 6) game.droneHome(this);
+        return;
+      }
+      if (this.type === 'repair') {
+        const m = owner.mostDamaged();
+        if (!m) { toOwner(); return; }
+        const mp = ob.toWorld(m.lx, m.ly);
+        const side = ob.toWorld(m.lx, m.ly + (m.ly >= 0 ? 7 : -7));
+        const face = Math.atan2(mp.y - b.y, mp.x - b.x);
+        const d = this.steer(dt, side.x, side.y, ob.vx, ob.vy, face, 15);
+        if (d < 6) {
+          const D = RF.MODULES[m.t];
+          m.hp = Math.min(D.hp, m.hp + 6 * dt);
+          this.laser.on = true;
+          this.laser.len = G.len(mp.x - b.x, mp.y - b.y) - this.noseX;
+          this.laser.hit = null;
+          this.beamColor = '120,255,160';
+          if (Math.random() < 0.3) game.particles.burst(mp.x, mp.y, 2, { type: 'glow', sMin: 1, sMax: 4, color: '#9dffb0', zMin: 0.1, zMax: 0.25, lMin: 0.2, lMax: 0.5, vx: ob.vx, vy: ob.vy });
+          if (Math.random() < 0.05) owner.refreshStats();
+        }
+        return;
+      }
+      // Gruvedrone.
+      if (this.state === 'deliver' || this.cargo >= 5000) {
+        this.state = 'deliver';
+        const d = toOwner();
+        if (d < ob.radius + 12) {
+          for (const c of this.load || []) owner.processing.push(c);
+          if (this.cargo > 0) game.msg(`${this.name} leverte ${(this.cargo / 1000).toFixed(1).replace('.', ',')} t malm`, RF.HUD_COLORS.ok);
+          owner.updateMass();
+          this.load = [];
+          this.cargo = 0;
+          this.state = 'seek';
+        }
+        return;
+      }
+      if (this.state === 'seek' || !this.target || this.target.dead) {
+        const near = ws.bodies.filter((o) => o.kind === 'rock' && RF.MATERIALS[o.mat].hard <= 1 && o.area < 2500 && G.len(o.x - ob.x, o.y - ob.y) < 300);
+        near.sort((p, q) => G.len(p.x - b.x, p.y - b.y) - G.len(q.x - b.x, q.y - b.y));
+        this.target = near[0] || null;
+        this.state = this.target ? 'mine' : 'idle';
+        this.timer = 0;
+      }
+      // Samle løse malmbiter i nærheten først.
+      let ore = null, bd = 90;
+      for (const o of ws.bodies) {
+        if (o.kind !== 'ore' || o.dead) continue;
+        const d = G.len(o.x - b.x, o.y - b.y);
+        if (d < bd) { bd = d; ore = o; }
+      }
+      if (ore && (this.state !== 'mine' || this.timer > 6)) {
+        const face = Math.atan2(ore.y - b.y, ore.x - b.x);
+        this.steer(dt, ore.x - Math.cos(face) * 5, ore.y - Math.sin(face) * 5, ore.vx, ore.vy, bd < 30 ? face : null, 12);
+        const nose = b.toWorld(this.noseX + 1, 0);
+        if (G.len(ore.x - nose.x, ore.y - nose.y) < 3.5 + Math.sqrt(ore.area)) {
+          ore.dead = true;
+          this.cargo += ore.mass;
+          (this.load = this.load || []).push({ mat: ore.mat, mass: ore.mass });
+        }
+        return;
+      }
+      if (this.state === 'idle') { toOwner(); if (this.timer > 3) this.state = 'seek'; return; }
+      const t = this.target;
+      const dx = b.x - t.x, dy = b.y - t.y, d = G.len(dx, dy) || 1;
+      const stand = t.radius + 14;
+      const face = Math.atan2(t.y - b.y, t.x - b.x);
+      this.steer(dt, t.x + (dx / d) * stand, t.y + (dy / d) * stand, t.vx, t.vy, d < stand + 30 ? face : null, 16);
+      if (d < stand + 10 && Math.abs(G.wrapAngle(face - b.a)) < 0.25) this.drill(t, dt, game);
+      if (this.timer > 12) { this.timer = 0; this.state = 'seek'; }
     }
 
     leaveHangar() {
@@ -203,7 +321,7 @@
       const ws = this.sys.world;
       this.timer += dt;
       if (this.state === 'seek') {
-        const cands = ws.bodies.filter((o) => o.kind === 'rock' && o.area > 40 && o.area < 2500 && G.len(o.x - st.x, o.y - st.y) < 1900);
+        const cands = ws.bodies.filter((o) => o.kind === 'rock' && RF.MATERIALS[o.mat].hard <= 1 && o.area > 40 && o.area < 2500 && G.len(o.x - st.x, o.y - st.y) < 1900);
         if (!cands.length) { this.goHome(); return; }
         cands.sort((p, q) => G.len(p.x - b.x, p.y - b.y) - G.len(q.x - b.x, q.y - b.y));
         this.target = cands[Math.floor(Math.random() * Math.min(5, cands.length))];
@@ -223,22 +341,7 @@
           return;
         }
         // Bor når nesen peker mot steinen.
-        if (Math.abs(G.wrapAngle(face - b.a)) < 0.2) {
-          const nose = b.toWorld(RF.SHIP_NOSE.x * this.T.scale, 0), dir = b.dirWorld(1, 0);
-          const hit = ws.raycast(nose.x, nose.y, dir.x, dir.y, 80, (o) => o !== b && o.kind !== 'npc' && o.kind !== 'ship');
-          this.laser.on = true;
-          this.laser.len = hit ? hit.t : 80;
-          if (hit && hit.body === t) {
-            this.laser.hit = hit;
-            t.heat = Math.min(1, (t.heat || 0) + dt * 2);
-            t.hitX = hit.x; t.hitY = hit.y;
-            t.stress += dt * 0.6;
-            this.chipT += dt;
-            if (game.sys === this.sys && Math.random() < 0.4) game.laserDust(hit);
-            if (t.stress >= t.integrity) game.crackRock(t, hit, dir, this.sys);
-            else if (this.chipT > 0.8) { this.chipT = 0; game.chipRock(t, hit, dir, this.sys); }
-          }
-        }
+        if (Math.abs(G.wrapAngle(face - b.a)) < 0.2) this.drill(t, dt, game);
         if (this.timer > 12) { this.state = 'collect'; this.timer = 0; }
       } else if (this.state === 'collect') {
         if (this.cargo >= 9000) { this.goHome(); return; }
@@ -257,7 +360,7 @@
         }
         this.timer = 0;
         const face = Math.atan2(best.y - b.y, best.x - b.x);
-        const nose = b.toWorld(RF.SHIP_NOSE.x * this.T.scale + 1, 0);
+        const nose = b.toWorld(this.noseX + 1, 0);
         this.steer(dt, best.x - Math.cos(face) * 7, best.y - Math.sin(face) * 7, best.vx, best.vy, bd < 40 ? face : null, 12);
         if (G.len(best.x - nose.x, best.y - nose.y) < 4 + Math.sqrt(best.area)) {
           best.dead = true;
@@ -316,10 +419,11 @@
       const dmg = Math.pow(dv - 3, 1.5) * 3;
       this.hull -= dmg;
       this.shieldFlash = Math.min(1, dmg / 30);
+      // Skaden vises på modulen nærmest treffpunktet.
       const loc = this.body.toLocal(px, py);
-      const k = this.T.scale;
-      if (this.scars.length > 12) this.scars.shift();
-      this.scars.push({ x: G.clamp(loc.x / k, -7, 8), y: G.clamp(loc.y / k, -4.2, 4.2), r: Math.min(2.2, 0.6 + dmg / 20) });
+      let near = this.layout[0], nd = 1e9;
+      for (const m of this.layout) { const d = G.len(m.lx - loc.x, m.ly - loc.y); if (d < nd) { nd = d; near = m; } }
+      near.hp = Math.max(1, near.hp - dmg);
       if (this.hull <= 0) this.explode(game);
     }
 
@@ -328,7 +432,8 @@
       if (game.sys === this.sys) {
         game.particles.burst(b.x, b.y, 50, { sMin: 5, sMax: 30, color: '#ffcf80', zMin: 0.2, zMax: 0.6, lMin: 0.5, lMax: 1.4, vx: b.vx, vy: b.vy });
         game.particles.burst(b.x, b.y, 30, { type: 'smoke', sMin: 1, sMax: 8, color: '#5d5a52', zMin: 1.5, zMax: 3, grow: 3, lMin: 1.2, lMax: 3, vx: b.vx, vy: b.vy });
-        game.particles.burst(b.x, b.y, 20, { type: 'debris', sMin: 3, sMax: 15, color: RF.PAINTS[this.T.paint].hull[1], zMin: 0.3, zMax: 1, lMin: 2, lMax: 5, vx: b.vx, vy: b.vy });
+        game.particles.burst(b.x, b.y, 20, { type: 'debris', sMin: 3, sMax: 15, color: '#8a8e92', zMin: 0.3, zMax: 1, lMin: 2, lMax: 5, vx: b.vx, vy: b.vy });
+        game.spawnWreck(this.layout.filter(() => Math.random() < 0.4).map((m) => ({ t: m.t, x: m.x, y: m.y, hp: 1 })), b);
         RF.Audio.thud(0.9);
         game.msg(`${this.name} ble ødelagt`, RF.HUD_COLORS.danger);
       }
@@ -336,8 +441,9 @@
       this.state = 'hangar';
       this.timer = G.rand(60, 120); // et nytt skip bygges på stasjonen
       this.hull = this.T.hull;
-      this.scars = [];
+      for (const m of this.layout) m.hp = RF.MODULES[m.t].hp;
       this.cargo = 0;
+      if (this.T.own) { this.state = 'lost'; game.droneLost(this); }
     }
   }
 

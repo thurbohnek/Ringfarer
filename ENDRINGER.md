@@ -14,6 +14,67 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   de er slått sammen til `main`.
 - **Er ikke prøvd på en ekte telefon.** All testing er gjort i en nettleser
   uten skjerm, i PC- og mobilstørrelse.
+- **Låsing etter progresjon er ikke laget ennå.** Alle skip, moduler og droner
+  kan kjøpes nå, slik at de kan prøves. Moduler og skip har et `unlock`-nivå i
+  `js/modules.js` som kan brukes når progresjonen skal bygges.
+- **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
+  Start en ny karriere eller testmodus.
+
+## 2026-09-28: v0.4 · Modulære skip, våpen, anker, droner og ryddigere skjerm
+
+Ønske: skipet skal være mer metallisk og firkantet, som et gruveskip.
+Utstyr som kan kjøpes og festes på skipet (mer last, flere lasere, kanoner,
+verktøy for gruvedrift og bevegelse). Kantete asteroider med flere farger,
+flere mineraltyper og forskjellige typer asteroider og kometer, is på noen, og
+mineraler som krever sterkere laser eller rakett. Et anker som skytes ut og
+fester seg, så man kan slepe en komet etter en wire. Alt skal være tilgjengelig
+nå for testing, og låses etter progresjon senere. Større skip å kjøpe. Droner
+som kan sendes på oppdrag og hjelpe til med gruvedrift eller reparasjon.
+Skipet skal kunne miste deler, ikke bare eksplodere. Mindre rot på skjermen
+og zoom med knip. Bilder av Space Engineers-aktige gruveskip og Pixel
+Starships ble lagt ved som retning for designet.
+
+- **Modulære skip** (ny fil `js/modules.js`, ny `js/ship.js`, `js/physics.js`):
+  skipet er et rutenett av 22 modultyper. Masse, tyngdepunkt, treghetsmoment
+  og kollisjonsform regnes ut fra modulene. Hver motor skyver der den sitter.
+- **Tre skip å kjøpe:** Hoppeskip MK-I, Graver G-2 og Fjellbryter T-3, med
+  innbytte av det gamle skipet.
+- **Skipsbygger på stasjonen** (`js/ui.js`): trykk på en rute for å sette inn
+  eller fjerne moduler. Viser vekt, skyvekraft, akselerasjon, last og
+  advarsler hvis noe er sperret.
+- **Nytt utseende på skipene** (ny fil `js/shipdraw.js`): kantete metallblokker
+  i lys og mørk grå med gule varselfelt, glassfront, dyser, containere og
+  synlig skade per modul. Også de datastyrte skipene er bygget av moduler.
+- **Skade per modul:** støt skader modulene nærmest treffpunktet. Moduler med
+  0 hp faller av som vrakdeler, og deler som mister kontakten med cockpiten
+  driver bort. Vrak kan samles inn og selges som skrap. Verkstedet reparerer
+  og bygger opp tapte moduler etter tegningen. Bare tap av cockpiten er
+  dødelig.
+- **Våpen og verktøy** (ny fil `js/weapons.js`): laser (fire nivåer), massedriver
+  med rekyl, sprengraketter med trykkbølge, og ankerkrok som skytes ut på wire
+  og fester seg i det den treffer. Vinsj inn og gi ut wire.
+- **Nye mineraler og bergarter** (`js/world.js`): ti mineraler med hardhet fra
+  1 til 4, islag med verdifull kjerne, årer av et annet mineral, og kometer med
+  kjerne. Asteroidene er kantete og tegnes med fasetter som får lys fra sola.
+- **Egne droner** (`js/npc.js`): gruvedrone som borer og leverer malm til
+  skipet, reparasjonsdrone som reparerer moduler, og tokt fra stasjonen.
+- **Ryddigere skjerm** (ny `js/hud.js`): små felt i hjørnene, et skadediagram
+  av skipet i stedet for mange stolper, radar som blir stor når man trykker på
+  den, og korte meldinger.
+- **Mobil:** knip med to fingre for å zoome. Færre og mindre knapper: én
+  avtrekker, små verktøyknapper og en ⋯-meny for resten.
+- **Testmodus** på startskjermen med 1 000 000 kr.
+
+Testet i en nettleser uten skjerm (PC og mobilstørrelse):
+- Testmodus, alle fanene på stasjonen, kjøp av Graver G-2, og å sette inn en modul i skipsbyggeren.
+- Kjøp og utsending av drone.
+- Laser på kobber (hardhet 2) med tung laser, kanon, rakett og ankerkrok.
+- Gruvedronen samlet malm.
+- Et krasj i 16 m/s mot en stor stein kostet én modul (traktoren), som ble til en vrakdel.
+- Knip-zoom på mobil.
+- Arbeidsskipene fløy i fire simulerte minutter uten å krasje i stasjonen.
+
+Ingen feilmeldinger.
 
 ## 2026-09-28: Versjonsnummer på startskjermen
 

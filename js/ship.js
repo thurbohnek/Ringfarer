@@ -1,59 +1,36 @@
-// Spillerens skip: motorer, flygeassistent, borelaser, traktorstråle,
-// prosessering av malm, drivstoff, last og skademodell.
+// Spillerens skip, bygget av moduler (se modules.js): motorer, flygeassistent,
+// verktøy (laser, kanon, raketter, anker), traktorstråle, prosessering,
+// drivstoff, last og skade per modul.
 (function () {
   'use strict';
   const RF = (window.RF = window.RF || {});
   const G = RF.G;
+  const CELL = RF.CELL;
 
-  // Kollisjonsskrog (konvekst). Lokale akser: +x er fremover, +y er styrbord.
-  RF.SHIP_HULL = [
-    { x: 8.6, y: 0 }, { x: 4.6, y: 3.3 }, { x: -4.4, y: 4.5 }, { x: -7.2, y: 3.1 },
-    { x: -7.2, y: -3.1 }, { x: -4.4, y: -4.5 }, { x: 4.6, y: -3.3 },
-  ];
-  RF.SHIP_NOSE = { x: 9.2, y: 0 };
+  // Eksoshastighet for drivstofforbruk: kg/s = kraft / VE.
+  const VE = 25000;
 
-  RF.SHIP_DRY_MASS = 24000; // kg
-  RF.FUEL_MASS = 4000; // kg ved full tank
+  RF.TOOLS = ['laser', 'kanon', 'rakett', 'anker'];
+  RF.TOOL_NAMES = { laser: 'Laser', kanon: 'Kanon', rakett: 'Rakett', anker: 'Anker' };
 
-  // Oppgraderingsnivåer. Nivå 0 er startskipet "Hoppeskip MK-I".
-  RF.UPGRADES = {
-    motor: { name: 'Hovedmotor', unit: 'kN', levels: [420, 560, 720], cost: [0, 2200, 5200], fmt: (v) => v },
-    skjold: { name: 'Skjoldgenerator', unit: 'MJ', levels: [100, 160, 240], cost: [0, 1800, 4600], fmt: (v) => v },
-    skrog: { name: 'Skrogplating', unit: 'HP', levels: [100, 140, 190], cost: [0, 1600, 4200], fmt: (v) => v, mass: [0, 1500, 3200] },
-    laser: { name: 'Borelaser', unit: 'MW', levels: [1, 1.6, 2.4], cost: [0, 1500, 4000], fmt: (v) => (v * 4).toFixed(1) },
-    last: { name: 'Lasterom', unit: 't', levels: [12, 20, 32], cost: [0, 1400, 3800], fmt: (v) => v },
-    traktor: { name: 'Traktorstråle', unit: 'kN', levels: [60, 100, 160], cost: [0, 900, 2600], fmt: (v) => v },
-    lys: { name: 'Arbeidslys', unit: 'm', levels: [70, 120, 180], cost: [0, 700, 1900], fmt: (v) => v },
-    anker: { name: 'Ankerkabel og vinsj', unit: 'm', levels: [0, 60, 120], cost: [0, 1200, 2600],
-      fmt: (v) => v || 'ikke installert', unitFor: (v) => (v ? 'm' : '') },
+  RF.emptyCargo = () => {
+    const c = {};
+    for (const k in RF.PRODUCTS) c[k] = 0;
+    return c;
   };
 
-  RF.newShipState = () => ({
-    up: { motor: 0, skjold: 0, skrog: 0, laser: 0, last: 0, traktor: 0, lys: 0, anker: 0 },
-    hull: 100,
-    sys: { motor: 100, rcs: 100, laser: 100, traktor: 100 },
-    fuel: 100,
-    cargo: { jern: 0, nikkel: 0, vann: 0, naquadah: 0 },
-    missionCargo: [],
-  });
-
-  RF.shipStats = (s) => {
-    const U = RF.UPGRADES, u = s.up;
+  RF.newShipState = (hull = 'hopper') => {
+    const layout = RF.defaultLayout(hull);
+    const st = RF.layoutStats(layout);
     return {
-      thrust: U.motor.levels[u.motor] * 1000,
-      retro: U.motor.levels[u.motor] * 1000 * 0.4,
-      strafe: U.motor.levels[u.motor] * 1000 * 0.3,
-      torque: 2.2e6,
-      maxW: 1.9,
-      shieldMax: U.skjold.levels[u.skjold],
-      hullMax: U.skrog.levels[u.skrog],
-      extraMass: U.skrog.mass[u.skrog],
-      laser: U.laser.levels[u.laser],
-      hold: U.last.levels[u.last],
-      tractor: U.traktor.levels[u.traktor] * 1000,
-      light: U.lys.levels[u.lys],
-      anchorRange: U.anker.levels[u.anker],
-      winch: u.anker >= 2 ? 6 : 3.5,
+      hull,
+      layout,
+      blueprint: layout.map((m) => ({ t: m.t, x: m.x, y: m.y })),
+      fuel: st.fuelCap,
+      ammo: st.rocketCap,
+      cargo: RF.emptyCargo(),
+      missionCargo: [],
+      drones: [],
     };
   };
 
@@ -67,29 +44,71 @@
   class Ship {
     constructor(state) {
       this.s = state;
-      this.body = new RF.Body(G.convexHull(RF.SHIP_HULL), 1, { kind: 'ship', restitution: 0.18, friction: 0.45 });
-      this.refreshStats();
-      this.body.baseMass = this.body.mass;
-      this.shield = this.stats.shieldMax;
-      this.shieldDelay = 0;
+      this.body = new RF.Body(G.box(-1, -1, 1, 1), 1, { kind: 'ship', restitution: 0.18, friction: 0.45 });
+      this.body.ship = this;
       this.fa = 1; // 0 = av, 1 = rotasjon, 2 = full
       this.fx = { main: 0, retro: 0, left: 0, right: 0, rotL: 0, rotR: 0 };
-      this.laser = { on: false, hit: null, chipT: 0, len: 0 };
+      this.tool = 'laser';
+      this.beams = [];
+      this.laser = { on: false, hit: null };
       this.tractor = { on: false, targets: [] };
-      this.processing = []; // { mat, mass (kg) }
-      this.scars = [];
+      this.processing = [];
       this.shieldFlash = 0;
       this.shieldHitDir = 0;
-      this.impactLog = [];
+      this.shieldDelay = 0;
+      this.gunCd = 0;
+      this.rocketCd = 0;
       this.docked = null;
       this.lightOn = true;
-      this.anchor = null; // { rope }
+      this.anchor = null; // { rope, winch, range }
+      this.harpoon = null;
+      this.com = null;
+      this.rebuild();
+      this.shield = this.stats.shieldMax;
+    }
+
+    get layout() { return this.s.layout; }
+    get scars() { return []; }
+
+    // Regn ut masse, form og egenskaper på nytt etter at moduler er lagt til,
+    // fjernet eller skadet. Skipet flytter seg ikke i verden.
+    rebuild() {
+      const s = this.s;
+      const L = s.layout;
+      const extra = this.extraMass();
+      const g = RF.layoutGeometry(L, extra);
+      if (this.com) this.body.shiftOrigin(g.com.x - this.com.x, g.com.y - this.com.y);
+      this.com = g.com;
+      this.body.setRaw(g.verts, g.mass, g.I);
+      this.dryMass = g.dryMass;
+      this.refreshStats();
+      s.fuel = Math.min(s.fuel, this.stats.fuelCap);
+      s.ammo = Math.min(s.ammo || 0, this.stats.rocketCap);
+      this.shield = Math.min(this.shield || 0, this.stats.shieldMax);
+      this.noseX = L.reduce((a, m) => Math.max(a, m.lx), 0) + CELL / 2;
+      if (this.anchor && !this.anchorModuleAlive()) this.anchor.lost = true;
       this.updateMass();
     }
 
+    // Egenskaper fra modulene. Skadde moduler virker dårligere, så dette
+    // regnes ut på nytt etter hver skade.
     refreshStats() {
-      this.stats = RF.shipStats(this.s);
-      if (this.s.hull > this.stats.hullMax) this.s.hull = this.stats.hullMax;
+      const st = (this.stats = RF.layoutStats(this.s.layout));
+      // Dreiemoment fra styredysene vokser med avstanden fra tyngdepunktet.
+      st.torque = 0.25e6;
+      for (const r of st.rcsList) st.torque += r.F * Math.max(CELL, G.len(r.m.lx, r.m.ly));
+      st.strafe = 30e3 + st.rcs * 0.8;
+      st.retro = 40e3 + st.rcs * 1.4;
+      st.maxW = 1.8;
+      st.light = st.lights.reduce((a, l) => Math.max(a, l.range), 0);
+      st.anchorRange = st.anchors.reduce((a, l) => Math.max(a, l.range), 0);
+      st.tractor = st.tractors.reduce((a, t) => a + t.F, 0);
+      st.maxTier = st.lasers.reduce((a, l) => Math.max(a, l.tier), 0);
+      return st;
+    }
+
+    anchorModuleAlive() {
+      return this.anchor && this.s.layout.includes(this.anchor.module);
     }
 
     procMass() {
@@ -98,36 +117,34 @@
       return m;
     }
 
-    totalMass() {
-      return RF.SHIP_DRY_MASS + this.stats.extraMass + (this.s.fuel / 100) * RF.FUEL_MASS +
-        RF.cargoMass(this.s) * 1000 + this.procMass();
+    extraMass() {
+      return this.s.fuel + RF.cargoMass(this.s) * 1000 + this.procMass();
     }
 
     updateMass() {
-      this.body.setMass(this.totalMass());
+      this.body.setMass(this.dryMass + this.extraMass());
     }
 
     holdFree() {
       return this.stats.hold - RF.cargoMass(this.s);
     }
 
-    // input: { thrust: -1..1, turn: -1..1, strafe: -1..1 }
-    fly(input, dt, game) {
+    // Verdens-posisjon for fronten (eller baksiden) av en modul.
+    modPoint(m, side = 1) {
+      return this.body.toWorld(m.lx + (side * CELL) / 2, m.ly);
+    }
+
+    // input: { thrust, turn, strafe, aim, aimThrust }
+    fly(input, dt) {
       const b = this.body, s = this.s, st = this.stats;
       const fwd = b.dirWorld(1, 0), right = b.dirWorld(0, 1);
       const hasFuel = s.fuel > 0;
-      const motorEff = 0.25 + 0.75 * (s.sys.motor / 100);
-      const rcsEff = 0.3 + 0.7 * (s.sys.rcs / 100);
-
       let main = 0, retro = 0, strafe = 0, torque = 0;
-
       if (input.thrust > 0) main = input.thrust;
       else if (input.thrust < 0) retro = -input.thrust;
       strafe = input.strafe;
 
-      // Flygeassistent: demper rotasjon (ROT) og også fart (FULL).
-      const maxT = st.torque * rcsEff;
-      // Berøringsspak: pek i en retning, skipet dreier dit og gir gass.
+      const maxT = st.torque;
       if (input.aim != null) {
         const err = G.wrapAngle(input.aim - b.a);
         const target = G.clamp(err * 3, -st.maxW, st.maxW);
@@ -144,57 +161,81 @@
       }
 
       if (this.fa === 2 && input.thrust === 0 && input.strafe === 0 && !(input.aimThrust > 0)) {
-        const sp = G.len(b.vx, b.vy);
-        if (sp > 0.03) {
-          // Ønsket akselerasjon motsatt av farten, fordelt på skipets akser.
+        if (G.len(b.vx, b.vy) > 0.03) {
           const ax = -b.vx * 0.9, ay = -b.vy * 0.9;
           const af = ax * fwd.x + ay * fwd.y, ar = ax * right.x + ay * right.y;
           const m = b.mass;
-          if (af > 0) main = Math.min(1, (af * m) / (st.thrust * motorEff));
-          else retro = Math.min(1, (-af * m) / (st.retro * motorEff));
-          strafe = G.clamp((ar * m) / (st.strafe * rcsEff), -1, 1);
+          if (af > 0) main = Math.min(1, (af * m) / (st.thrust || 1));
+          else retro = Math.min(1, (-af * m) / st.retro);
+          strafe = G.clamp((ar * m) / st.strafe, -1, 1);
         }
       }
+      if (!hasFuel) { main = 0; retro *= 0.2; strafe *= 0.2; }
 
-      if (!hasFuel) { main = 0; retro = 0; strafe *= 0.2; }
+      // Hver motor skyver der den sitter. En motor som sitter skjevt gir dreiemoment.
+      let Fx = 0, Tq = 0;
+      for (const t of st.thrusters) {
+        const F = t.F * main;
+        Fx += F;
+        Tq += -t.m.ly * F;
+      }
+      Fx -= retro * st.retro;
+      const Fy = strafe * st.strafe;
+      b.vx += ((fwd.x * Fx + right.x * Fy) / b.mass) * dt;
+      b.vy += ((fwd.y * Fx + right.y * Fy) / b.mass) * dt;
+      b.w += (torque + Tq) * b.invI * dt;
 
-      const F = main * st.thrust * motorEff - retro * st.retro * motorEff;
-      const Fs = strafe * st.strafe * rcsEff;
-      b.vx += ((fwd.x * F + right.x * Fs) / b.mass) * dt;
-      b.vy += ((fwd.y * F + right.y * Fs) / b.mass) * dt;
-      b.w += torque * b.invI * dt;
-
-      // Drivstofforbruk i prosent per sekund.
-      const burn = main * 0.42 + retro * 0.18 + Math.abs(strafe) * 0.12 + (Math.abs(torque) / st.torque) * 0.04;
-      s.fuel = Math.max(0, s.fuel - burn * dt);
+      const use = (main * st.thrust + retro * st.retro + Math.abs(strafe) * st.strafe + Math.abs(torque) * 0.05) / VE;
+      s.fuel = Math.max(0, s.fuel - use * dt);
 
       const fx = this.fx;
-      fx.main = G.lerp(fx.main, main * (s.sys.motor < 30 && Math.random() < 0.3 ? 0.2 : 1), 0.3);
+      fx.main = G.lerp(fx.main, main, 0.3);
       fx.retro = G.lerp(fx.retro, retro, 0.3);
       fx.left = G.lerp(fx.left, strafe < 0 ? -strafe : 0, 0.3);
       fx.right = G.lerp(fx.right, strafe > 0 ? strafe : 0, 0.3);
-      fx.rotL = G.lerp(fx.rotL, torque < 0 ? -torque / st.torque : 0, 0.3);
-      fx.rotR = G.lerp(fx.rotR, torque > 0 ? torque / st.torque : 0, 0.3);
+      fx.rotL = G.lerp(fx.rotL, torque < 0 ? -torque / maxT : 0, 0.3);
+      fx.rotR = G.lerp(fx.rotR, torque > 0 ? torque / maxT : 0, 0.3);
     }
 
-    // Anker: en kabel fra nesen som fester seg i en stein. Holder skipet på
-    // plass mens man borer, og vinsjen kan trekke skipet helt inn for å lande.
-    toggleAnchor(game) {
-      if (this.anchor) { this.releaseAnchor(game); return; }
-      const range = this.stats.anchorRange;
-      if (!range) { game.msg('Ankeret er ikke installert. Kjøp det på en stasjon', RF.HUD_COLORS.amber); return; }
-      const b = this.body;
-      const nose = b.toWorld(RF.SHIP_NOSE.x - 0.4, 0), d = b.dirWorld(1, 0);
-      const hit = game.sys.world.raycast(nose.x, nose.y, d.x, d.y, range, (o) => o !== b && (o.kind === 'rock' || o.kind === 'ore') && o.mass > 20000);
-      if (!hit) { game.msg(`Ingen stein innen ${range} m rett foran`, RF.HUD_COLORS.amber); return; }
-      const rope = { A: b, la: { x: RF.SHIP_NOSE.x - 0.4, y: 0 }, B: hit.body, lb: hit.body.toLocal(hit.x, hit.y), length: hit.t + 0.5 };
-      game.sys.world.ropes.push(rope);
-      this.anchor = { rope };
-      RF.Audio.thud(0.4, true);
-      game.msg('Ankeret sitter', RF.HUD_COLORS.ok);
+    // Alle borelaserne skyter parallelt forover fra hver sin modul.
+    updateLasers(on, dt, game) {
+      const b = this.body, st = this.stats;
+      this.laser.on = false;
+      this.laser.hit = null;
+      this.beams = [];
+      if (!on) { this._chip = 0; return; }
+      const d = b.dirWorld(1, 0);
+      for (const L of st.lasers) {
+        const o = this.modPoint(L.m, 1);
+        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost);
+        const beam = { lx: L.m.lx + CELL / 2, ly: L.m.ly, len: hit ? hit.t : L.range, hit, color: L.color, w: 0.35 + L.tier * 0.12 };
+        this.beams.push(beam);
+        this.laser.on = true;
+        if (!hit) continue;
+        if (!this.laser.hit) this.laser.hit = hit;
+        const t = hit.body;
+        if (t.kind !== 'rock' && t.kind !== 'ore') continue;
+        t.applyImpulse(d.x * 900 * L.power * dt, d.y * 900 * L.power * dt, hit.x, hit.y);
+        t.heat = Math.min(1, (t.heat || 0) + dt * 2);
+        t.hitX = hit.x; t.hitY = hit.y;
+        if (t.kind !== 'rock') continue;
+        const hard = RF.MATERIALS[t.mat].hard;
+        if (L.tier < hard) {
+          if (!game._hardWarn || game.time - game._hardWarn > 5) {
+            game._hardWarn = game.time;
+            game.msg(`${RF.MATERIALS[t.mat].name} er for hard (${hard}). Trenger sterkere laser, kanon eller rakett`, RF.HUD_COLORS.amber);
+          }
+          continue;
+        }
+        t.stress += dt * L.power;
+        t._chip = (t._chip || 0) + dt * L.power;
+        if (t.stress >= t.integrity) game.crackRock(t, hit, d);
+        else if (t._chip >= 0.45) { t._chip = 0; game.chipRock(t, hit, d); }
+      }
     }
 
     releaseAnchor(game) {
+      if (this.harpoon) { this.harpoon.dead = true; this.harpoon = null; }
       if (!this.anchor) return;
       const ws = game.sys.world;
       ws.ropes = ws.ropes.filter((r) => r !== this.anchor.rope);
@@ -202,91 +243,59 @@
       RF.Audio.blip(180, 0.1, 'square', 0.08);
     }
 
-    updateAnchor(winch, dt, game) {
+    updateAnchor(winchIn, winchOut, dt, game) {
       const A = this.anchor;
       if (!A) return;
-      if (A.rope.B.dead || !game.sys.world.ropes.includes(A.rope)) {
-        this.anchor = null;
+      if (A.lost || A.rope.B.dead || !game.sys.world.ropes.includes(A.rope)) {
+        this.releaseAnchor(game);
         game.msg('Ankeret mistet feste', RF.HUD_COLORS.amber);
         return;
       }
-      if (winch) A.rope.length = Math.max(0.6, Math.min(A.rope.length, A.rope.dist || A.rope.length) - this.stats.winch * dt);
+      const cur = A.rope.dist || A.rope.length;
+      if (winchIn) A.rope.length = Math.max(0.6, Math.min(A.rope.length, cur) - A.winch * dt);
+      if (winchOut) A.rope.length = Math.min(A.range, A.rope.length + A.winch * dt);
     }
 
-    // Borelaser. Varmer opp steinen, skjærer av biter og får den til å sprekke.
-    updateLaser(on, dt, game) {
-      const L = this.laser, b = this.body, s = this.s;
-      L.on = on && s.sys.laser > 5;
-      L.hit = null;
-      if (!L.on) { L.chipT = 0; return; }
-      const nose = b.toWorld(RF.SHIP_NOSE.x, 0);
-      const d = b.dirWorld(1, 0);
-      const range = 240;
-      const hit = game.sys.world.raycast(nose.x, nose.y, d.x, d.y, range, (o) => o !== b && !o.ghost);
-      L.len = hit ? hit.t : range;
-      if (!hit) return;
-      L.hit = hit;
-      const t = hit.body;
-      if (t.kind !== 'rock' && t.kind !== 'ore') return;
-      const power = this.stats.laser * (0.35 + 0.65 * s.sys.laser / 100);
-      // Litt strålingstrykk.
-      t.applyImpulse(d.x * 900 * power * dt, d.y * 900 * power * dt, hit.x, hit.y);
-      t.heat = Math.min(1, (t.heat || 0) + dt * 2);
-      t.hitX = hit.x; t.hitY = hit.y;
-      if (t.kind !== 'rock') return;
-      t.stress += dt * power;
-      L.chipT += dt * power;
-      if (t.stress >= t.integrity) {
-        game.crackRock(t, hit, d);
-      } else if (L.chipT >= 0.45) {
-        L.chipT = 0;
-        game.chipRock(t, hit, d);
-      }
-    }
-
-    // Traktorstråle: trekker malmbiter mot inntaket i nesen. Kraften virker
-    // like mye tilbake på skipet (Newtons tredje lov).
+    // Traktorstråle: trekker malm og vrakdeler mot nærmeste inntak. Kraften
+    // virker like mye tilbake på skipet (Newtons tredje lov).
     updateTractor(dt, game) {
-      const T = this.tractor, b = this.body, s = this.s;
+      const T = this.tractor, b = this.body, st = this.stats;
       T.targets = [];
-      if (!T.on || s.sys.traktor <= 5) return;
-      const eff = 0.3 + 0.7 * s.sys.traktor / 100;
-      const maxF = this.stats.tractor * eff;
-      const intake = b.toWorld(RF.SHIP_NOSE.x + 1.2, 0);
+      if (!T.on || !st.tractors.length) return;
+      const intakes = st.tractors.map((t) => this.modPoint(t.m, 1.4));
       const fwd = b.dirWorld(1, 0);
       const range = 150;
       const cands = [];
       for (const o of game.sys.world.bodies) {
-        if (o.kind !== 'ore' || o.dead || o.ghost) continue;
-        const dx = o.x - intake.x, dy = o.y - intake.y;
-        const dist = G.len(dx, dy);
-        if (dist > range) continue;
-        const cosA = (dx * fwd.x + dy * fwd.y) / (dist || 1);
-        if (dist > 30 && cosA < 0.6) continue;
-        cands.push({ o, dist });
+        const small = o.kind === 'ore' || (o.kind === 'wreck' && o.modules.length <= 2);
+        if (!small || o.dead || o.ghost) continue;
+        let best = null, bd = 1e9;
+        for (const ip of intakes) {
+          const d = G.len(o.x - ip.x, o.y - ip.y);
+          if (d < bd) { bd = d; best = ip; }
+        }
+        if (bd > range) continue;
+        const cosA = ((o.x - best.x) * fwd.x + (o.y - best.y) * fwd.y) / (bd || 1);
+        if (bd > 30 && cosA < 0.6) continue;
+        cands.push({ o, dist: bd, ip: best });
       }
       cands.sort((p, q) => p.dist - q.dist);
-      const n = Math.min(4, cands.length);
+      const n = Math.min(4 + st.tractors.length * 2, cands.length);
       for (let i = 0; i < n; i++) {
-        const { o, dist } = cands[i];
-        const dx = intake.x - o.x, dy = intake.y - o.y;
-        const ux = dx / (dist || 1), uy = dy / (dist || 1);
-        // Ønsket fart mot inntaket relativt til skipet, rolig nær nesen.
+        const { o, dist, ip } = cands[i];
+        const ux = (ip.x - o.x) / (dist || 1), uy = (ip.y - o.y) / (dist || 1);
         const want = Math.min(14, dist * 0.45 + 0.5);
         const rv = b.pointVel(o.x, o.y);
-        const tvx = rv.x + ux * want, tvy = rv.y + uy * want;
-        let fx = (tvx - o.vx) * o.mass * 2.5, fy = (tvy - o.vy) * o.mass * 2.5;
-        const fl = G.len(fx, fy), cap = maxF / n;
+        let fx = (rv.x + ux * want - o.vx) * o.mass * 2.5, fy = (rv.y + uy * want - o.vy) * o.mass * 2.5;
+        const fl = G.len(fx, fy), cap = st.tractor / n;
         if (fl > cap) { fx *= cap / fl; fy *= cap / fl; }
         o.applyForce(fx, fy, o.x, o.y, dt);
-        b.applyForce(-fx, -fy, intake.x, intake.y, dt);
-        // Demp spinn på biten så den ikke spretter.
+        b.applyForce(-fx, -fy, ip.x, ip.y, dt);
         o.w *= 1 - Math.min(1, dt * 2);
+        o._tractorFrom = ip;
         T.targets.push(o);
-
         if (dist < 4.5 + Math.sqrt(o.area)) {
-          const rvx = o.vx - rv.x, rvy = o.vy - rv.y;
-          if (G.len(rvx, rvy) < 5) game.tryIntake(o);
+          if (G.len(o.vx - rv.x, o.vy - rv.y) < 5) game.tryIntake(o);
         }
       }
     }
@@ -294,13 +303,11 @@
     updateProcessing(dt, game) {
       if (!this.processing.length) return;
       const p = this.processing[0];
-      const rate = 1600 * dt; // kg råmasse per sekund
-      const take = Math.min(rate, p.mass);
+      const take = Math.min(this.stats.proc * dt, p.mass);
       p.mass -= take;
       const M = RF.MATERIALS[p.mat];
-      const out = (take * M.grade) / 1000; // tonn ferdig vare
-      const free = this.holdFree();
-      const add = Math.min(out, Math.max(0, free));
+      const out = (take * M.grade * this.stats.yield) / 1000;
+      const add = Math.min(out, Math.max(0, this.holdFree()));
       this.s.cargo[M.product] += add;
       p.made = (p.made || 0) + add;
       if (p.mass <= 0.01) {
@@ -311,17 +318,17 @@
 
     updateShield(dt) {
       if (this.shieldDelay > 0) this.shieldDelay -= dt;
-      else this.shield = Math.min(this.stats.shieldMax, this.shield + dt * this.stats.shieldMax * 0.07);
+      else this.shield = Math.min(this.stats.shieldMax, this.shield + dt * Math.max(4, this.stats.shieldMax * 0.07));
       this.shieldFlash = Math.max(0, this.shieldFlash - dt * 2.5);
     }
 
-    // dv er fartsendringen skipet fikk i støtet (m/s). Returnerer skade på skrog.
-    takeImpact(dv, px, py, game) {
-      const b = this.body;
-      const loc = b.toLocal(px, py);
+    // dv er fartsendringen skipet fikk i støtet (m/s). Skaden havner på
+    // modulene nærmest treffpunktet. Returnerer total skade.
+    takeImpact(dv, px, py, game, force = 0) {
+      const loc = this.body.toLocal(px, py);
       this.shieldHitDir = Math.atan2(loc.y, loc.x);
-      if (dv < 1.6) return 0;
-      let dmg = Math.pow(dv - 1.6, 1.55) * 2.3;
+      if (dv < 1.6 && !force) return 0;
+      let dmg = force || Math.pow(dv - 1.6, 1.55) * 2.3;
       if (this.shield > 0) {
         const absorbed = Math.min(this.shield, dmg);
         this.shield -= absorbed;
@@ -330,20 +337,39 @@
       }
       this.shieldDelay = 3;
       if (dmg <= 0) return 0;
-      this.s.hull = Math.max(0, this.s.hull - dmg);
-      // Hvilken del av skipet ble truffet?
-      const sys = this.s.sys;
-      if (loc.x > 3) {
-        sys.laser = Math.max(0, sys.laser - dmg * 0.9);
-        sys.traktor = Math.max(0, sys.traktor - dmg * 0.6);
-      } else if (loc.x < -3.5) {
-        sys.motor = Math.max(0, sys.motor - dmg * 1.0);
-      } else {
-        sys.rcs = Math.max(0, sys.rcs - dmg * 0.9);
-      }
-      if (this.scars.length > 24) this.scars.shift();
-      this.scars.push({ x: G.clamp(loc.x, -7, 8), y: G.clamp(loc.y, -4.2, 4.2), r: Math.min(2.2, 0.6 + dmg / 20) });
+      this.damageAt(loc.x, loc.y, dmg, game);
       return dmg;
+    }
+
+    damageAt(lx, ly, dmg, game) {
+      const near = this.s.layout
+        .map((m) => ({ m, d: G.len(m.lx - lx, m.ly - ly) }))
+        .sort((a, b) => a.d - b.d)
+        .filter((e, i) => i === 0 || e.d < CELL * 1.6)
+        .slice(0, 3);
+      const w = [0.7, 0.18, 0.12].slice(0, near.length);
+      const sum = w.reduce((a, b) => a + b, 0);
+      const dead = [];
+      near.forEach((e, i) => {
+        e.m.hp -= (dmg * w[i]) / sum;
+        if (e.m.hp <= 0) dead.push(e.m);
+      });
+      if (dead.length) game.loseModules(this, dead);
+      else this.refreshStats();
+    }
+
+    // Modulen med minst igjen av hp i forhold til maks.
+    mostDamaged() {
+      let best = null, bf = 1;
+      for (const m of this.s.layout) {
+        const f = m.hp / RF.MODULES[m.t].hp;
+        if (f < bf - 0.001) { bf = f; best = m; }
+      }
+      return best;
+    }
+
+    hullFrac() {
+      return this.stats.hp / this.stats.hpMax;
     }
   }
 

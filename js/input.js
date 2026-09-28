@@ -5,7 +5,8 @@
 
   const keys = new Set();
   const pressed = new Set(); // tast trykket ned denne rammen
-  const touch = { retro: 0, sl: 0, sr: 0, laser: 0, winch: 0, aim: null, aimThrust: 0 };
+  const touch = { retro: 0, sl: 0, sr: 0, fire: 0, winch: 0, winchOut: 0, aim: null, aimThrust: 0 };
+  let pinching = false;
 
   const Input = {
     keys, touch,
@@ -20,8 +21,9 @@
       const strafe = (d('KeyE') || touch.sr ? 1 : 0) - (d('KeyQ') || touch.sl ? 1 : 0);
       return {
         thrust, turn, strafe,
-        laser: d('Space') || !!touch.laser,
+        fire: d('Space') || !!touch.fire,
         winch: d('KeyC') || !!touch.winch,
+        winchOut: d('KeyV') || !!touch.winchOut,
         aim: turn === 0 ? touch.aim : null,
         aimThrust: touch.aimThrust,
       };
@@ -50,6 +52,7 @@
       const on = (e) => {
         e.preventDefault();
         touch[name] = 1;
+        if (el.dataset.tap) pressed.add(el.dataset.tap);
         el.classList.add('on');
         if (el.setPointerCapture && e.pointerId != null) {
           try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignorer */ }
@@ -66,7 +69,7 @@
       el.addEventListener('lostpointercapture', off);
       el.addEventListener('contextmenu', (e) => e.preventDefault());
     });
-    root.querySelectorAll('[data-tap]').forEach((el) => {
+    root.querySelectorAll('[data-tap]:not([data-hold])').forEach((el) => {
       el.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         pressed.add(el.dataset.tap);
@@ -86,6 +89,7 @@
       knob.style.transform = `translate(${kx - r.left - 28}px, ${ky - r.top - 28}px)`;
     };
     const move = (e) => {
+      if (pinching) return;
       let dx = e.clientX - ox, dy = e.clientY - oy;
       const d = Math.hypot(dx, dy);
       if (d > R) { dx *= R / d; dy *= R / d; }
@@ -126,6 +130,26 @@
     zone.addEventListener('pointercancel', end);
     zone.addEventListener('lostpointercapture', end);
   };
+
+  // Knip med to fingre for å zoome (ikke når fingrene står på knapper).
+  const isButton = (t) => t && t.closest && t.closest('button, #panel');
+  let pinch0 = 0;
+  const pdist = (e) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2 && !isButton(e.touches[0].target) && !isButton(e.touches[1].target)) {
+      pinching = true;
+      pinch0 = pdist(e);
+      touch.aim = null;
+      touch.aimThrust = 0;
+    }
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (!pinching || e.touches.length < 2) return;
+    const d = pdist(e);
+    if (pinch0 > 0 && Input.onPinch) Input.onPinch(d / pinch0);
+    pinch0 = d;
+  }, { passive: true });
+  window.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinching = false; }, { passive: true });
 
   RF.Input = Input;
 })();

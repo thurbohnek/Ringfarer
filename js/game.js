@@ -7,11 +7,11 @@
   const Audio = RF.Audio;
 
   // Vises på startskjermen, så man ser hvilken versjon man spiller.
-  RF.VERSION = 'v0.3 · 2026-09-28';
+  RF.VERSION = 'v0.4 · 2026-09-28';
   RF.KAWOOSH_TIME = 1.3;
   RF.KAWOOSH_LEN = 36;
   const STEP = 1 / 120;
-  const SAVE_KEY = 'ringfarer.lagring.v1';
+  const SAVE_KEY = 'ringfarer.lagring.v2';
   const DIAL_RANGE = 450;
   const DOCK_RANGE = 22;
   const DOCK_SPEED = 3.5;
@@ -40,6 +40,8 @@
     touchUI: false,
     paused: false,
     flash: 0,
+    testMode: false,
+    radarBig: false,
   };
   RF.game = game;
 
@@ -76,7 +78,7 @@
   game.sellPrice = (stationId, prod) => {
     const def = RF.stationById(stationId);
     const mod = (game.priceMod[stationId] && game.priceMod[stationId][prod]) || 1;
-    return Math.round(RF.PRODUCTS[prod].price * def.station.prices[prod] * mod);
+    return Math.round(RF.PRODUCTS[prod].price * (def.station.prices[prod] || 1) * mod);
   };
   game.buyPrice = (stationId, prod) => Math.round(game.sellPrice(stationId, prod) * 1.2);
 
@@ -92,24 +94,31 @@
   }
 
   // --- Ny karriere / lagring ---
-  game.newCareer = () => {
-    game.credits = 600;
+  // test = true gir en million kreditter, så alt kan prøves med en gang.
+  game.newCareer = (test) => {
+    game.testMode = !!test;
+    game.credits = test ? 1000000 : 1500;
     game.missions = [];
     game.boards = {};
     game.systems = {};
     game.priceMod = {};
     game.lastStation = 'midgard';
-    game.ship = new RF.Ship(RF.newShipState());
+    RF.Weapons.reset();
+    game.ship = new RF.Ship(RF.newShipState('hopper'));
     spawnDocked('midgard');
-    game.msg('Velkommen om bord i Hoppeskip MK-I', RF.HUD_COLORS.gate);
+    game.msg(test ? 'Testmodus: alt er åpent, og du har 1 000 000 kr' : 'Velkommen om bord i Hoppeskip MK-I', RF.HUD_COLORS.gate);
     game.save();
   };
 
   game.save = () => {
     const s = game.ship.s;
     const data = {
-      v: 1, credits: game.credits, ship: s, missions: game.missions.filter((m) => m.status === 'aktiv'),
-      lastStation: game.lastStation, fa: game.ship.fa,
+      v: 2, credits: game.credits, ship: {
+        hull: s.hull, layout: s.layout.map((m) => ({ t: m.t, x: m.x, y: m.y, hp: m.hp })), blueprint: s.blueprint,
+        fuel: s.fuel, ammo: s.ammo, cargo: s.cargo, missionCargo: s.missionCargo, drones: s.drones,
+      },
+      missions: game.missions.filter((m) => m.status === 'aktiv'),
+      lastStation: game.lastStation, fa: game.ship.fa, test: game.testMode,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) { /* lagring utilgjengelig */ }
   };
@@ -121,23 +130,61 @@
   game.load = () => {
     let data = null;
     try { data = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (_) { data = null; }
-    if (!data) return game.newCareer();
-    const base = RF.newShipState();
-    const s = Object.assign(base, data.ship);
-    s.up = Object.assign(RF.newShipState().up, data.ship.up);
-    s.sys = Object.assign(RF.newShipState().sys, data.ship.sys);
-    s.cargo = Object.assign(RF.newShipState().cargo, data.ship.cargo);
+    if (!data || data.v !== 2) return game.newCareer();
+    const s = RF.newShipState(data.ship.hull);
+    Object.assign(s, data.ship);
+    s.cargo = Object.assign(RF.emptyCargo(), data.ship.cargo);
+    s.drones = data.ship.drones || [];
     game.credits = data.credits;
+    game.testMode = !!data.test;
     game.missions = data.missions || [];
     RF.setMissionIdBase(game.missions.reduce((a, m) => Math.max(a, m.id), 0));
     game.lastStation = data.lastStation || 'midgard';
     game.boards = {};
     game.systems = {};
     game.priceMod = {};
+    RF.Weapons.reset();
     game.ship = new RF.Ship(s);
     game.ship.fa = data.fa != null ? data.fa : 1;
     spawnDocked(game.lastStation);
     game.msg('Karrieren er lastet inn', RF.HUD_COLORS.gate);
+  };
+
+  // Bytt til et nytt skip. Det gamle tas i innbytte.
+  game.tradeInValue = () => {
+    const s = game.ship.s;
+    return Math.round((RF.layoutValue(s.layout) + RF.HULLS[s.hull].cost) * 0.6);
+  };
+
+  game.buyHull = (hullId) => {
+    const H = RF.HULLS[hullId];
+    const price = H.cost - game.tradeInValue();
+    if (game.credits < price) return false;
+    game.credits -= price;
+    const old = game.ship.s;
+    const ns = RF.newShipState(hullId);
+    ns.missionCargo = old.missionCargo;
+    const hold = RF.layoutStats(ns.layout).hold;
+    let room = hold - ns.missionCargo.reduce((a, m) => a + m.mass, 0);
+    for (const k in old.cargo) { const take = Math.max(0, Math.min(old.cargo[k], room)); ns.cargo[k] = take; room -= take; }
+    const bays = RF.layoutStats(ns.layout).bays;
+    ns.drones = old.drones.slice(0, bays);
+    const st = game.ship.docked;
+    const fa = game.ship.fa;
+    game.ship = new RF.Ship(ns);
+    game.ship.fa = fa;
+    game.ship.docked = st;
+    const dp = RF.dockPoint(st);
+    Object.assign(game.ship.body, { x: dp.x, y: dp.y, a: dp.a });
+    game.fitZoom();
+    game.save();
+    return true;
+  };
+
+  // Zoom slik at skipet fyller en fornuftig del av skjermen.
+  game.fitZoom = () => {
+    const r = game.ship.body.radius;
+    game.cam.zoom = G.clamp((game.touchUI ? 42 : 64) / r, 1.2, 7);
   };
 
   function spawnDocked(stationId) {
@@ -149,6 +196,7 @@
     b.x = dp.x; b.y = dp.y; b.a = dp.a; b.vx = b.vy = b.w = 0;
     game.cam.x = b.x; game.cam.y = b.y;
     game.dead = false;
+    game.fitZoom();
     dock(true);
   }
 
@@ -156,6 +204,7 @@
   function dock(silent) {
     const ship = game.ship, st = game.sys.station;
     ship.releaseAnchor(game);
+    game.recallDronesNow();
     removeShipFromWorld();
     ship.docked = st;
     ship.tractor.on = false;
@@ -189,8 +238,10 @@
     const dp = RF.dockPoint(st);
     const out = { x: Math.cos(st.a), y: Math.sin(st.a) };
     const b = ship.body;
-    b.x = dp.x + out.x * 8; b.y = dp.y + out.y * 8;
+    const off = 8 + b.radius;
+    b.x = dp.x + out.x * off; b.y = dp.y + out.y * off;
     b.vx = out.x * 2; b.vy = out.y * 2; b.w = 0;
+    ship.s.blueprint = ship.s.layout.map((m) => ({ t: m.t, x: m.x, y: m.y }));
     enterSystem(game.sys.def.id);
     RF.UI.closeAll();
     game.save();
@@ -254,7 +305,9 @@
     to.veins = from.veins.map((v) => v.map(map));
   }
 
-  function spawnPieces(parentPose, pieces, mat, kickDir, parent) {
+  // parent: steinen bitene kommer fra (for kratre og kjerne), src: for årer.
+  function spawnPieces(parentPose, pieces, mat, kickDir, parent, src) {
+    src = src || parent;
     const out = [];
     for (const pv of pieces) {
       if (pv.length < 3) continue;
@@ -267,7 +320,16 @@
       }
       // Små biter blir runde klumper med samme areal (og dermed samme masse).
       const shape = area <= RF.ORE_MAX_AREA ? G.lump(area).map((p) => ({ x: p.x + cx.x, y: p.y + cx.y })) : G.simplify(pv, 0.05);
-      const b = RF.makeRock(shape, mat, { x: parentPose.x, y: parentPose.y, a: parentPose.a, vx: parentPose.vx, vy: parentPose.vy, w: parentPose.w });
+      // Noen biter er av mineralet i årene.
+      let pm = mat;
+      if (src && src.vein && area <= RF.ORE_MAX_AREA && Math.random() < (src.veinP || 0)) pm = src.vein;
+      const extra = {};
+      if (parent && parent.core && area > RF.ORE_MAX_AREA) {
+        extra.core = parent.core;
+        extra.coreArea = parent.coreArea * (area / parent.area);
+      }
+      if (src && src.vein) { extra.vein = src.vein; extra.veinP = src.veinP; }
+      const b = RF.makeRock(shape, pm, { x: parentPose.x, y: parentPose.y, a: parentPose.a, vx: parentPose.vx, vy: parentPose.vy, w: parentPose.w }, extra);
       if (parent && b.kind === 'rock') copyMarks(parent, b);
       if (kickDir) {
         const k = G.rand(1, 3.2);
@@ -309,7 +371,7 @@
     RF.classifyRock(t);
     t.stress = Math.min(t.stress, t.integrity * 0.9);
     const back = { x: -d.x, y: -d.y };
-    const made = spawnPieces(pose, pieces, t.mat, back);
+    const made = spawnPieces(pose, pieces, t.mat, back, null, t);
     // Bevar bevegelsesmengde: steinen får motsatt dytt av bitene.
     let px = 0, py = 0;
     for (const b of made) { px += (b.vx - pose.vx) * b.mass; py += (b.vy - pose.vy) * b.mass; }
@@ -380,9 +442,9 @@
     }
     if (ship.procMass() > 25000) return;
     o.dead = true;
-    ship.processing.push({ mat: o.mat, mass: o.mass });
+    ship.processing.push({ mat: o.kind === 'wreck' ? 'skrap' : o.mat, mass: o.mass });
     ship.updateMass();
-    const ip = ship.body.toWorld(RF.SHIP_NOSE.x + 1, 0);
+    const ip = o._tractorFrom || ship.body;
     game.particles.burst(ip.x, ip.y, 8, { type: 'glow', sMin: 1, sMax: 4, color: '#7dffd2', zMin: 0.15, zMax: 0.3, lMin: 0.2, lMax: 0.5, vx: ship.body.vx, vy: ship.body.vy });
     Audio.blip(520, 0.06, 'sine', 0.08);
   };
@@ -391,6 +453,101 @@
     const M = RF.MATERIALS[p.mat];
     if (p.made > 0.005) game.msg(`+${p.made.toFixed(2).replace('.', ',')} t ${RF.PRODUCTS[M.product].name}`, RF.PRODUCTS[M.product].color);
     game.ship.updateMass();
+  };
+
+  // --- Tap av moduler og vrakdeler ---
+
+  // Lager vrakdeler av en liste moduler. Moduler som ikke henger sammen blir
+  // hver sin del. from er legemet de falt av (for posisjon og fart).
+  game.spawnWreck = (mods, from) => {
+    if (!mods.length) return;
+    for (const cl of RF.clusters(mods)) {
+      // Posisjonen til klyngen i verden før geometrien regnes om.
+      const pts = cl.map((m) => from.toWorld(m.lx != null ? m.lx : 0, m.ly != null ? m.ly : 0));
+      const g = RF.layoutGeometry(cl);
+      const c = cl.reduce((a, m, i) => ({ x: a.x + pts[i].x * RF.MODULES[m.t].mass, y: a.y + pts[i].y * RF.MODULES[m.t].mass }), { x: 0, y: 0 });
+      c.x /= g.dryMass; c.y /= g.dryMass;
+      const v = from.pointVel(c.x, c.y);
+      const w = new RF.Body(G.box(-1, -1, 1, 1), 1, { kind: 'wreck', restitution: 0.2, friction: 0.5, x: c.x, y: c.y, a: from.a });
+      w.setRaw(g.verts, g.mass, g.I);
+      w.vx = v.x + G.rand(-2, 2); w.vy = v.y + G.rand(-2, 2); w.w = from.w + G.rand(-0.6, 0.6);
+      w.modules = cl;
+      w.mat = 'skrap';
+      game.sys.world.add(w);
+    }
+  };
+
+  // Moduler med 0 hp faller av. Deler som ikke lenger henger sammen med
+  // cockpiten driver bort som vrak. Mistes cockpiten, er skipet tapt.
+  game.loseModules = (ship, dead) => {
+    const s = ship.s, b = ship.body;
+    const lostCockpit = dead.some((m) => m.t === 'cockpit');
+    for (const m of dead) {
+      const p = b.toWorld(m.lx, m.ly);
+      game.particles.burst(p.x, p.y, 30, { sMin: 4, sMax: 25, color: '#ffcf80', zMin: 0.2, zMax: 0.5, lMin: 0.3, lMax: 1, vx: b.vx, vy: b.vy });
+      game.particles.burst(p.x, p.y, 14, { type: 'smoke', sMin: 1, sMax: 5, color: '#5d5a52', zMin: 1, zMax: 2.5, grow: 3, lMin: 1, lMax: 2.5, vx: b.vx, vy: b.vy });
+      game.msg(`Mistet ${RF.MODULES[m.t].name.toLowerCase()}`, RF.HUD_COLORS.danger);
+    }
+    Audio.thud(0.9);
+    game.shake = Math.min(1, game.shake + 0.6);
+    s.layout = s.layout.filter((m) => !dead.includes(m));
+    const loose = lostCockpit ? s.layout.slice() : RF.disconnected(s.layout);
+    s.layout = s.layout.filter((m) => !loose.includes(m));
+    game.spawnWreck(dead.map((m) => Object.assign({}, m, { hp: 1 })).concat(loose), b);
+    if (loose.length && !lostCockpit) game.msg(`${loose.length} modul${loose.length > 1 ? 'er' : ''} brakk av`, RF.HUD_COLORS.danger);
+    if (lostCockpit) { destroyShip(); return; }
+    ship.rebuild();
+    if (ship.anchor && ship.anchor.lost) ship.releaseAnchor(game);
+  };
+
+  // --- Egne droner ---
+  game.launchDrones = () => {
+    const ship = game.ship;
+    const ready = ship.s.drones.filter((d) => !d.trip && !d.out);
+    if (!ready.length) {
+      const out = game.sys.npcs.filter((n) => n.owner === ship);
+      if (out.length) { for (const n of out) n.state = 'recall'; game.msg('Dronene kalles tilbake', RF.HUD_COLORS.gate); }
+      else game.msg(ship.stats.bays ? 'Ingen droner om bord. Kjøp på en stasjon' : 'Skipet har ingen dronehangar', RF.HUD_COLORS.amber);
+      return;
+    }
+    const bays = ship.s.layout.filter((m) => m.t === 'dronebay');
+    ready.forEach((d, i) => {
+      const n = new RF.NPC(d.type === 'rep' ? 'repair' : 'helper', game.sys);
+      n.owner = ship;
+      n.data = d;
+      d.out = true;
+      const m = bays[i % bays.length];
+      const p = ship.body.toWorld(m.lx, m.ly + (m.ly >= 0 ? 4 : -4));
+      n.spawnAt(p.x, p.y, ship.body.a, ship.body.vx, ship.body.vy);
+      n.state = 'seek';
+      game.sys.npcs.push(n);
+    });
+    game.msg(`${ready.length} drone${ready.length > 1 ? 'r' : ''} sendt ut`, RF.HUD_COLORS.gate);
+  };
+
+  game.droneHome = (n) => {
+    n.despawn();
+    n.data.out = false;
+    game.sys.npcs = game.sys.npcs.filter((x) => x !== n);
+  };
+
+  game.droneLost = (n) => {
+    const s = game.ship.s;
+    s.drones = s.drones.filter((d) => d !== n.data);
+    game.sys.npcs = game.sys.npcs.filter((x) => x !== n);
+    game.msg(`${n.name} gikk tapt`, RF.HUD_COLORS.danger);
+  };
+
+  // Alle droner inn i hangaren med en gang (ved dokking og portreiser).
+  game.recallDronesNow = () => {
+    for (const n of game.sys.npcs.filter((x) => x.owner)) {
+      if (n.data) {
+        // Leverer malmen den har med seg.
+        for (const c of n.load || []) game.ship.processing.push(c);
+        n.load = [];
+      }
+      game.droneHome(n);
+    }
   };
 
   // --- Porten ---
@@ -428,9 +585,8 @@
           if (b === game.ship.body) {
             if (!game._kawooshHit) {
               game._kawooshHit = true;
-              const dmg = 45;
               game.ship.shield = 0;
-              game.ship.s.hull = Math.max(0, game.ship.s.hull - dmg);
+              game.ship.takeImpact(0, b.x - cs * 3, b.y - sn * 3, game, 120);
               b.vx += cs * 12; b.vy += sn * 12;
               game.msg('Truffet av virvelen fra porten!', RF.HUD_COLORS.danger);
               game.shake = 1;
@@ -501,6 +657,8 @@
   function transit(g, lx, ly) {
     const ship = game.ship, b = ship.body;
     ship.releaseAnchor(game);
+    game.recallDronesNow();
+    RF.Weapons.reset();
     const cs = Math.cos(g.a), sn = Math.sin(g.a);
     const vlx = b.vx * cs + b.vy * sn, vly = -b.vx * sn + b.vy * cs;
     const al = b.a - g.a;
@@ -546,22 +704,23 @@
     game.shake = 1;
   }
 
+  // Forsikringen bygger skipet opp igjen etter siste tegning.
   game.respawn = () => {
     const s = game.ship.s;
     const fee = Math.min(game.credits, 300 + Math.round(game.credits * 0.1));
     game.credits -= fee;
-    for (const k in s.cargo) s.cargo[k] = 0;
-    s.missionCargo = [];
     game.missions = game.missions.filter((m) => m.type !== 'frakt');
     const fa = game.ship.fa;
-    const up = s.up;
-    const ns = RF.newShipState();
-    ns.up = up;
-    ns.cargo = s.cargo;
-    ns.fuel = Math.max(60, s.fuel);
+    const ns = RF.newShipState(s.hull);
+    ns.layout = s.blueprint.map((m) => ({ t: m.t, x: m.x, y: m.y, hp: RF.MODULES[m.t].hp }));
+    ns.blueprint = s.blueprint;
+    ns.drones = s.drones.filter((d) => !d.out);
+    const st = RF.layoutStats(ns.layout);
+    ns.fuel = st.fuelCap;
+    ns.ammo = st.rocketCap;
+    RF.Weapons.reset();
     game.ship = new RF.Ship(ns);
     game.ship.fa = fa;
-    game.ship.s.hull = game.ship.stats.hullMax;
     RF.UI.closeAll();
     spawnDocked(game.lastStation);
     game.msg(`Nytt skrog fra forsikringen. Egenandel ${fee} kr`, RF.HUD_COLORS.amber);
@@ -622,12 +781,16 @@
   function updateFlight(dt, inp) {
     const ship = game.ship;
     ship.fly(inp, dt, game);
-    ship.updateLaser(inp.laser, dt, game);
+    ship.gunCd = Math.max(0, ship.gunCd - dt);
+    ship.rocketCd = Math.max(0, ship.rocketCd - dt);
+    // Valgt verktøy brukes så lenge avtrekkeren holdes inne.
+    ship.updateLasers(inp.fire && ship.tool === 'laser', dt, game);
+    if (inp.fire && ship.tool === 'kanon') RF.Weapons.fireGuns(ship, game);
     ship.updateTractor(dt, game);
     ship.updateProcessing(dt, game);
     ship.updateShield(dt);
-    ship.updateAnchor(inp.winch, dt, game);
-    if (ship.processing.length || game._massDirty) ship.updateMass();
+    ship.updateAnchor(inp.winch, inp.winchOut, dt, game);
+    ship.updateMass();
   }
 
   function updatePrompts() {
@@ -665,6 +828,15 @@
     if (ship.s.fuel <= 0) { game.prompt = `[R] Nødslep til ${sys.station.name} (${TOW_COST} kr)`; game.action = 'tow'; }
   }
 
+  game.selectTool = (t) => {
+    const ship = game.ship;
+    ship.tool = t;
+    const st = ship.stats;
+    const have = { laser: st.lasers.length, kanon: st.guns.length, rakett: st.rockets.length, anker: st.anchors.length }[t];
+    game.msg(`Verktøy: ${RF.TOOL_NAMES[t]}${have ? '' : ' (ikke montert)'}`, have ? RF.HUD_COLORS.gate : RF.HUD_COLORS.amber);
+    Audio.blip(500, 0.04, 'square', 0.06);
+  };
+
   function handleKeys() {
     if (Input.hit('KeyM')) {
       Audio.setMuted(!Audio.muted);
@@ -683,7 +855,16 @@
       ship.fa = (ship.fa + 1) % 3;
       game.msg('Flygeassistent: ' + ['av (ren Newton)', 'demper rotasjon', 'full (bremser også fart)'][ship.fa], RF.HUD_COLORS.gate);
     }
-    if (Input.hit('KeyX')) ship.toggleAnchor(game);
+    if (Input.hit('KeyX')) RF.Weapons.fireHarpoon(ship, game);
+    if (Input.hit('KeyK')) game.launchDrones();
+    const tools = { Digit1: 'laser', Digit2: 'kanon', Digit3: 'rakett', Digit4: 'anker' };
+    for (const k in tools) if (Input.hit(k)) game.selectTool(tools[k]);
+    if (Input.hit('ToolNext')) game.selectTool(RF.TOOLS[(RF.TOOLS.indexOf(ship.tool) + 1) % RF.TOOLS.length]);
+    // Engangsbruk av verktøy ved trykk.
+    if (Input.hit('Space') || Input.hit('Fire')) {
+      if (ship.tool === 'rakett') RF.Weapons.fireRocket(ship, game);
+      if (ship.tool === 'anker') RF.Weapons.fireHarpoon(ship, game);
+    }
     if (Input.hit('KeyL')) {
       ship.lightOn = !ship.lightOn;
       Audio.blip(ship.lightOn ? 900 : 600, 0.04, 'square', 0.06);
@@ -692,8 +873,8 @@
       ship.tractor.on = !ship.tractor.on;
       Audio.blip(ship.tractor.on ? 300 : 200, 0.08, 'sine', 0.1);
     }
-    if (Input.hit('Equal') || Input.hit('NumpadAdd')) game.cam.zoom = Math.min(9, game.cam.zoom * 1.25);
-    if (Input.hit('Minus') || Input.hit('NumpadSubtract')) game.cam.zoom = Math.max(0.35, game.cam.zoom / 1.25);
+    if (Input.hit('Equal') || Input.hit('NumpadAdd')) game.cam.zoom = Math.min(10, game.cam.zoom * 1.25);
+    if (Input.hit('Minus') || Input.hit('NumpadSubtract')) game.cam.zoom = Math.max(0.25, game.cam.zoom / 1.25);
     const act = Input.hit('Interact') || Input.hit('Enter');
     if ((Input.hit('KeyT') || act) && game.action === 'dock') dock();
     else if ((Input.hit('KeyG') || act) && game.action === 'dial') RF.UI.openDial();
@@ -706,10 +887,10 @@
     const inp = RF.UI.isOpen() || game.dead || ship.docked ? { thrust: 0, turn: 0, strafe: 0, laser: false } : Input.state();
     if (!ship.docked && !game.dead) updateFlight(dt, inp);
     else if (ship.docked) ship.updateShield(dt);
-    for (const n of game.sys.npcs) n.update(dt, game);
+    for (const n of game.sys.npcs.slice()) n.update(dt, game);
+    RF.Weapons.update(dt, game);
     updateGate(dt);
     game.sys.world.step(dt);
-    if (!ship.docked && !game.dead && ship.s.hull <= 0) destroyShip();
   }
 
   let last = 0, acc = 0, frameN = 0;
@@ -727,24 +908,29 @@
       const ship = game.ship;
       // Røyk og gnister fra et skadet skip.
       if (!game.dead && !ship.docked) {
-        const hf = ship.s.hull / ship.stats.hullMax;
         const b = ship.body;
-        if (hf < 0.5 && Math.random() < (0.5 - hf) * 0.8) {
-          const p = b.toWorld(G.rand(-6, 4), G.rand(-3, 3));
-          game.particles.add({ type: 'smoke', x: p.x, y: p.y, vx: b.vx + G.rand(-1, 1), vy: b.vy + G.rand(-1, 1), life: G.rand(0.8, 1.6), size: 0.8, grow: 2.2, color: '#5d626c' });
+        // Røyk og gnister fra skadde moduler.
+        for (const m of ship.s.layout) {
+          const f = m.hp / RF.MODULES[m.t].hp;
+          if (f < 0.5 && Math.random() < (0.5 - f) * 0.25) {
+            const p = b.toWorld(m.lx, m.ly);
+            game.particles.add({ type: 'smoke', x: p.x, y: p.y, vx: b.vx + G.rand(-1, 1), vy: b.vy + G.rand(-1, 1), life: G.rand(0.8, 1.6), size: 0.8, grow: 2.2, color: '#5d626c' });
+          }
+          if (f < 0.25 && Math.random() < 0.04) {
+            const p = b.toWorld(m.lx, m.ly);
+            game.particles.burst(p.x, p.y, 4, { sMin: 2, sMax: 8, color: '#ffd28a', zMin: 0.1, zMax: 0.25, lMin: 0.1, lMax: 0.4, vx: b.vx, vy: b.vy });
+          }
         }
-        if (hf < 0.25 && Math.random() < 0.15) {
-          const p = b.toWorld(G.rand(-6, 6), G.rand(-4, 4));
-          game.particles.burst(p.x, p.y, 4, { sMin: 2, sMax: 8, color: '#ffd28a', zMin: 0.1, zMax: 0.25, lMin: 0.1, lMax: 0.4, vx: b.vx, vy: b.vy });
-        }
-        // Dråper av motorplasma.
-        if (ship.fx.main > 0.1 && Math.random() < ship.fx.main) {
-          for (const s of [-1, 1]) {
-            const p = b.toWorld(-9, s * 2.9), d = b.dirWorld(-1, 0);
+        // Dråper av motorplasma fra hver motor.
+        if (ship.fx.main > 0.1) {
+          const d = b.dirWorld(-1, 0);
+          for (const t of ship.stats.thrusters) {
+            if (Math.random() > ship.fx.main * 0.7) continue;
+            const p = b.toWorld(t.m.lx - RF.CELL, t.m.ly);
             game.particles.add({ type: 'glow', x: p.x, y: p.y, vx: b.vx + d.x * 30 + G.rand(-2, 2), vy: b.vy + d.y * 30 + G.rand(-2, 2), life: 0.25, size: 0.25, color: '#7fb8ff' });
           }
         }
-        if (ship.laser.hit) game.laserDust(ship.laser.hit);
+        for (const B of ship.beams) if (B.hit) game.laserDust(B.hit);
         // Halen til kometene peker bort fra sola.
         const sd = game.sys.def.sky.starDir + Math.PI;
         for (const c of game.sys.world.bodies) {
@@ -779,9 +965,9 @@
     RF.UI.tick();
   }
 
-  game.start = (cont) => {
+  game.start = (cont, test) => {
     Audio.start();
-    if (cont) game.load(); else game.newCareer();
+    if (cont) game.load(); else game.newCareer(test);
     game.state = 'play';
   };
 
@@ -792,13 +978,20 @@
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const f = Math.exp(-e.deltaY * 0.0015);
-      game.cam.zoom = G.clamp(game.cam.zoom * f, 0.35, 9);
+      game.cam.zoom = G.clamp(game.cam.zoom * f, 0.25, 10);
     }, { passive: false });
     game.touchUI = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+    // Knip med to fingre for å zoome.
+    RF.Input.onPinch = (f) => { game.cam.zoom = G.clamp(game.cam.zoom * f, 0.25, 10); };
+    // Trykk på radaren gjør den stor eller liten.
+    canvas.addEventListener('pointerdown', (e) => {
+      const rb = game._radarHit;
+      if (rb && G.len(e.clientX - rb.x, e.clientY - rb.y) < rb.r + 8) game.radarBig = !game.radarBig;
+    });
     if (game.touchUI) game.cam.zoom = 2;
     RF.UI.init(game);
     // Et levende bakgrunnsbilde bak tittelskjermen.
-    game.ship = new RF.Ship(RF.newShipState());
+    game.ship = new RF.Ship(RF.newShipState('graver'));
     game.sys = game.getSystem('midgard');
     const b = game.ship.body;
     b.x = 420; b.y = 260; b.a = 0.4;

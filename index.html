@@ -182,41 +182,60 @@
   .dest .muted { font-size: 15px; }
   .glyph { width: 20px; height: 20px; fill: none; stroke: var(--paint); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-  /* Berøringskontroller */
+  /* Berøringskontroller: små, halvgjennomsiktige, samlet nede til høyre. */
   #touch { position: fixed; inset: 0; pointer-events: none; z-index: 4; }
   #touch button {
-    pointer-events: auto; font: 700 12px/1 var(--body); letter-spacing: 0.08em; color: var(--text);
-    background: linear-gradient(180deg, rgba(77, 74, 66, 0.82), rgba(35, 33, 29, 0.82));
-    border: 2px solid rgba(0, 0, 0, 0.9); box-shadow: inset 0 1px 0 rgba(255, 238, 205, 0.2); touch-action: none;
+    pointer-events: auto; font: 700 11px/1 var(--body); letter-spacing: 0.06em; color: var(--text);
+    background: linear-gradient(180deg, rgba(77, 74, 66, 0.7), rgba(35, 33, 29, 0.7));
+    border: 1.5px solid rgba(0, 0, 0, 0.9); box-shadow: inset 0 1px 0 rgba(255, 238, 205, 0.18); touch-action: none;
     display: grid; place-items: center; padding: 0; text-shadow: 0 1px 0 #000;
   }
   #touch button.on { background: linear-gradient(180deg, rgba(233, 172, 72, 0.9), rgba(167, 107, 31, 0.9)); color: #1b1206; text-shadow: none; }
-  #stick { position: absolute; left: 0; bottom: 0; width: calc(100% - 232px); height: 55%; pointer-events: auto; touch-action: none; }
+  #stick { position: absolute; left: 0; bottom: 0; width: calc(100% - 190px); height: 60%; pointer-events: auto; touch-action: none; }
   #stick .base, #stick .knob { position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none; transition: opacity 0.15s; }
-  #stick .base { width: 140px; height: 140px; border: 2px solid rgba(217, 154, 52, 0.45); background: radial-gradient(circle, rgba(0,0,0,0.1), rgba(0,0,0,0.45)); opacity: 0.35; }
-  #stick .knob { width: 56px; height: 56px; background: radial-gradient(circle at 35% 35%, #8a8374, #3a372f 60%, #16140f); border: 2px solid #000; opacity: 0.5; }
-  #stick.active .base, #stick.active .knob { opacity: 1; }
+  #stick .base { width: 140px; height: 140px; border: 2px solid rgba(217, 154, 52, 0.4); background: radial-gradient(circle, rgba(0,0,0,0.05), rgba(0,0,0,0.35)); opacity: 0; }
+  #stick .knob { width: 56px; height: 56px; background: radial-gradient(circle at 35% 35%, #8a8374, #3a372f 60%, #16140f); border: 2px solid #000; opacity: 0; }
+  #stick.active .base, #stick.active .knob { opacity: 0.9; }
   #stick.thrust .knob { box-shadow: 0 0 18px rgba(233, 172, 72, 0.8); }
-  .stick-hint { position: absolute; left: 20px; bottom: max(20px, env(safe-area-inset-bottom)); font: 700 12px/1.3 var(--body); letter-spacing: 0.12em; color: rgba(230, 223, 205, 0.45); pointer-events: none; text-transform: uppercase; }
+  .stick-hint { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); font: 700 11px/1.35 var(--body); letter-spacing: 0.12em; color: rgba(230, 223, 205, 0.35); pointer-events: none; text-transform: uppercase; }
   #stick.active + .stick-hint { display: none; }
-  .tc-right {
-    position: absolute; right: max(10px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom));
-    display: grid; grid-template-columns: 56px 56px 96px; grid-template-rows: 50px 50px 50px; gap: 7px;
+  #touch .fire { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px); width: 92px; height: 92px; border-radius: 50%; font-size: 13px;
+    background: radial-gradient(circle at 35% 30%, rgba(160, 70, 40, 0.85), rgba(70, 25, 12, 0.85)); }
+  #touch .fire.on { background: radial-gradient(circle, rgba(255, 190, 110, 0.95), rgba(200, 80, 30, 0.95)); color: #1b0a02; }
+  .tc-tools { position: absolute; right: calc(max(12px, env(safe-area-inset-right)) + 100px); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px); display: flex; flex-direction: column; gap: 4px; }
+  .tc-tools button { width: 64px; height: 26px; }
+  .tc-row { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); display: flex; gap: 4px; }
+  .tc-row button { width: 60px; height: 40px; }
+  .tc-row #tc-more { width: 44px; font-size: 20px; }
+  #touch .ctx { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 152px); width: 92px; height: 36px; color: var(--ok); border-color: var(--ok); }
+  .tc-winch { position: absolute; right: calc(max(12px, env(safe-area-inset-right)) + 100px); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 176px); display: flex; flex-direction: column; gap: 4px; }
+  .tc-winch button { width: 64px; height: 30px; }
+  #tc-drawer { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 48px); display: flex; flex-direction: column; gap: 6px; padding: 12px; pointer-events: auto; z-index: 6; }
+  #tc-drawer button { width: 170px; height: 40px; font-size: 13px; }
+  @media (max-height: 520px) {
+    #stick { height: 75%; }
   }
-  #touch .tc-right .laser { grid-column: 3; grid-row: 2 / span 2; border-radius: 50%; width: 96px; height: 96px; align-self: end; font-size: 15px;
-    background: radial-gradient(circle at 35% 30%, rgba(160, 70, 40, 0.9), rgba(70, 25, 12, 0.9)); border-color: #000; }
-  #touch .tc-right .laser.on { background: radial-gradient(circle, rgba(255, 190, 110, 0.95), rgba(200, 80, 30, 0.95)); color: #1b0a02; }
-  #touch .tc-right .ctx { grid-column: 3; grid-row: 1; }
-  #touch .tc-right .wide { grid-column: 1 / span 2; }
-  #touch #tc-ctx.ready { color: var(--ok); border-color: var(--ok); }
-  #touch #tc-tractor, #touch #tc-anchor, #touch #tc-winch { font-size: 11px; letter-spacing: 0.02em; }
-  body.touch .title-card .keys { display: none; }
-  .tc-top { position: absolute; right: max(12px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 190px); display: flex; flex-direction: column; gap: 6px; }
-  .tc-top button { width: 44px; height: 38px; }
-  @media (max-height: 560px) {
-    .tc-top { top: max(12px, env(safe-area-inset-top)); right: calc(max(12px, env(safe-area-inset-right)) + 160px); flex-direction: row; }
-    #stick { height: 70%; }
-  }
+
+  /* Skipsbygger */
+  .builder { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .builder { grid-template-columns: minmax(0, 1fr); } }
+  .ed-wrap { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  #ed-canvas { display: block; max-width: 100%; border: 2px solid #000; box-shadow: inset 0 2px 8px #000; cursor: crosshair; background: #0b0c0d; }
+  .ed-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .cats { display: flex; flex-wrap: wrap; gap: 4px; }
+  .cats .tab { padding: 7px 9px; font-size: 12px; }
+  .palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+  .pal { display: flex; gap: 8px; align-items: center; text-align: left; padding: 6px; cursor: pointer; color: var(--text); font: inherit; font-size: 14px;
+    background: linear-gradient(160deg, #34312b, #1e1c18); border: 2px solid var(--edge); }
+  .pal.on { border-color: var(--paint); box-shadow: 0 0 0 1px var(--paint); }
+  .pal > span { display: flex; flex-direction: column; line-height: 1.2; }
+  .pal .num { color: var(--paint); font-size: 13px; }
+  .pal-ico { width: 44px; height: 44px; flex: none; background: #0b0c0d; }
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; font-size: 14px; }
+  .stats dt { color: var(--muted); }
+  .stats dd { margin: 0; text-align: right; }
+  .warn { margin: 0; padding-left: 18px; color: var(--danger); font-size: 14px; }
+  .plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 15px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -225,21 +244,29 @@
 
 <div id="touch" hidden>
   <div id="stick"><div class="base"></div><div class="knob"></div></div>
-  <div class="stick-hint">Dra for å styre<br>dra langt for gass</div>
-  <div class="tc-right">
-    <button data-tap="KeyL" id="tc-light">LYS</button>
-    <button data-tap="KeyX" id="tc-anchor">ANKER</button>
-    <button data-tap="Interact" id="tc-ctx" class="ctx">—</button>
-    <button data-tap="KeyF" id="tc-tractor">TRAKTOR</button>
-    <button data-hold="winch" id="tc-winch">VINSJ</button>
-    <button data-hold="laser" class="laser">LASER</button>
-    <button data-hold="retro" class="wide">BREMS</button>
+  <div class="stick-hint">Dra for å styre<br>dra langt for gass<br>knip for zoom</div>
+  <button id="tc-ctx" class="ctx" data-tap="Interact" hidden></button>
+  <div class="tc-winch">
+    <button id="tc-winch" data-hold="winch" hidden>VINSJ INN</button>
+    <button id="tc-winchout" data-hold="winchOut" hidden>GI UT</button>
   </div>
-  <div class="tc-top">
-    <button data-tap="KeyZ" aria-label="Flygeassistent">FA</button>
-    <button data-tap="Equal" aria-label="Zoom inn">+</button>
-    <button data-tap="Minus" aria-label="Zoom ut">−</button>
-    <button data-tap="Escape" aria-label="Pause">II</button>
+  <div class="tc-tools">
+    <button data-tap="Digit1" data-tool="laser">LASER</button>
+    <button data-tap="Digit2" data-tool="kanon">KANON</button>
+    <button data-tap="Digit3" data-tool="rakett">RAKETT</button>
+    <button data-tap="Digit4" data-tool="anker">ANKER</button>
+  </div>
+  <button id="tc-fire" class="fire" data-hold="fire" data-tap="Fire">LASER</button>
+  <div class="tc-row">
+    <button data-hold="retro">BREMS</button>
+    <button data-tap="KeyF" id="tc-tractor">TRAKTOR</button>
+    <button id="tc-more" aria-label="Mer">⋯</button>
+  </div>
+  <div id="tc-drawer" class="plate" hidden>
+    <button data-tap="KeyL" id="tc-light">LYS</button>
+    <button data-tap="KeyZ">FLYGEASSISTENT</button>
+    <button data-tap="KeyK">DRONER UT/INN</button>
+    <button data-tap="Escape">PAUSE</button>
   </div>
 </div>
 
@@ -248,12 +275,15 @@
 <script src="js/geom.js"></script>
 <script src="js/physics.js"></script>
 <script src="js/world.js"></script>
+<script src="js/modules.js"></script>
 <script src="js/ship.js"></script>
 <script src="js/npc.js"></script>
 <script src="js/missions.js"></script>
 <script src="js/input.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/render.js"></script>
+<script src="js/shipdraw.js"></script>
+<script src="js/weapons.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>

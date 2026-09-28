@@ -169,9 +169,21 @@
     return G.convexHull(pts);
   };
 
+  // Kantete asteroide: få hjørner og store sprang i radius. Krystaller blir lange.
+  G.shardShape = (r, crystal) => {
+    const n = G.randInt(5, 8);
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + G.rand(-0.35, 0.35);
+      const rr = r * G.rand(0.6, 1.15);
+      pts.push({ x: Math.cos(a) * rr * (crystal ? 1.6 : 1), y: Math.sin(a) * rr * (crystal ? 0.6 : 1) });
+    }
+    return G.convexHull(pts);
+  };
+
   // Klumpete, avrundet bit med nøyaktig gitt areal (m²).
   G.lump = (area) => {
-    const v = G.convexHull(G.rockShape(1, G.randInt(7, 10)).map((p) => ({ x: p.x * G.rand(0.9, 1.1), y: p.y })));
+    const v = G.convexHull(G.rockShape(1, G.randInt(5, 7)).map((p) => ({ x: p.x * G.rand(0.85, 1.15), y: p.y })));
     const k = Math.sqrt(area / G.polyArea(v));
     return v.map((p) => ({ x: p.x * k, y: p.y * k }));
   };

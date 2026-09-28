@@ -31,8 +31,9 @@
       reward = Math.round(reward / 10) * 10;
       return { id: nextId++, type: 'frakt', from: fromId, to, goods: g.name, mass, fragile, maxDv, reward, status: 'tilbud' };
     }
-    const prod = G.weighted({ jern: 0.3, nikkel: 0.35, vann: 0.25, naquadah: 0.1 });
-    const amount = prod === 'naquadah' ? G.pick([0.5, 1, 1.5]) : G.randInt(3, 9);
+    const prod = G.weighted({ jern: 0.2, silisium: 0.14, grafitt: 0.1, vann: 0.15, nikkel: 0.15, kobber: 0.12, titan: 0.08, gull: 0.03, naquadah: 0.03 });
+    const price = RF.PRODUCTS[prod].price;
+    const amount = price > 1000 ? G.pick([0.5, 1, 1.5]) : price > 300 ? G.randInt(1, 3) : G.randInt(3, 9);
     const to = Math.random() < 0.6 ? fromId : G.pick(others);
     const P = RF.PRODUCTS[prod];
     const reward = Math.round((P.price * amount * 1.7 * risky(to) + 120) / 10) * 10;

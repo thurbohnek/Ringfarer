@@ -44,6 +44,9 @@
   }
   RF.Particles = Particles;
 
+  const hexRgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, t) => [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
+
   // --- Tekstur: støy til slitt metall ---
   function noiseCanvas(size, seed, dark, light) {
     const c = document.createElement('canvas');
@@ -309,8 +312,14 @@
       }
       this.drawParticles(game.particles, vis, 'solid');
       for (const r of sys.world.ropes) this.drawRope(r);
-      for (const n of sys.npcs || []) if (n.active && vis(n.body.x, n.body.y, 30)) this.drawShipHull(n, RF.PAINTS[n.T.paint], n.T.scale, game.time, sunDir);
-      if (shipLive) this.drawShipHull(ship, RF.PAINTS.player, 1, game.time, sunDir);
+      for (const b of sys.world.bodies) {
+        if (b.kind === 'wreck' && vis(b.x, b.y, b.radius)) this.drawModular({ body: b, layout: b.modules }, game.time);
+      }
+      for (const n of sys.npcs || []) if (n.active && vis(n.body.x, n.body.y, 40)) this.drawModular(n, game.time);
+      if (shipLive) {
+        ship._lights = ship.lightOn && !ship.docked ? RF.lightSources(ship) : [];
+        this.drawModular(ship, game.time);
+      }
       this.drawMotes(game, dt);
 
       // 3. Mørke med lys.
@@ -323,18 +332,19 @@
       for (const b of sys.world.bodies) {
         if (b.heat > 0.02 && b.hitX != null && vis(b.hitX, b.hitY, 10)) this.drawHeat(b);
       }
-      if (shipLive && ship.lightOn && !ship.docked) this.drawBeamHaze(ship, 1, ship.stats.light);
+      if (shipLive && !ship.docked) this.drawHaze(ship);
       for (const n of sys.npcs || []) {
         if (!n.active || !vis(n.body.x, n.body.y, 60)) continue;
-        this.drawBeamHaze(n, n.T.scale, 60);
-        this.drawShipFx(n, n.T.scale, game.time);
-        this.drawLaser(n, n.T.scale);
+        this.drawHaze(n);
+        this.drawModularFx(n, game.time);
+        this.drawBeams(n);
       }
       if (shipLive) {
         if (ship.tractor.on && !ship.docked) this.drawTractor(ship, game.time);
-        this.drawShipFx(ship, 1, game.time);
-        this.drawLaser(ship, 1);
+        this.drawModularFx(ship, game.time);
+        this.drawBeams(ship);
       }
+      RF.Weapons.draw(ctx, this.px);
       this.drawParticles(game.particles, vis, 'glow');
     }
 
@@ -369,26 +379,31 @@
           L.beginPath(); L.moveTo(x, y); L.arc(x, y, r, dir - half * k, dir + half * k); L.closePath(); L.fill();
         }
       };
-      const shipLights = (o, scale, range, lightOn) => {
+      const shipLights = (o) => {
         const b = o.body;
-        glow(b.x, b.y, 16 * scale, 0.5);
-        if (lightOn) {
-          const n = b.toWorld(RF.SHIP_NOSE.x * scale, 0);
-          cone(n.x, n.y, b.a, 0.42, range, 0.95);
+        glow(b.x, b.y, b.radius + 10, 0.5);
+        for (const Ls of o._lights || []) {
+          const n = b.toWorld(Ls.lx, Ls.ly);
+          cone(n.x, n.y, b.a, 0.42, Ls.range, 0.95);
         }
         if (o.fx.main > 0.05) {
-          const t = b.toWorld(-9 * scale, 0);
-          glow(t.x, t.y, (8 + o.fx.main * 22) * scale, 0.8 * o.fx.main);
+          for (const m of o.layout) {
+            if (m.t !== 'thruster' && m.t !== 'thruster2') continue;
+            const t = b.toWorld(m.lx - RF.CELL, m.ly);
+            glow(t.x, t.y, 8 + o.fx.main * 18, 0.7 * o.fx.main);
+          }
         }
-        if (o.laser && o.laser.on) {
-          const n = b.toWorld(RF.SHIP_NOSE.x * scale, 0), d = b.dirWorld(1, 0);
-          for (let s = 0; s < o.laser.len; s += 12) glow(n.x + d.x * s, n.y + d.y * s, 7, 0.35);
-          if (o.laser.hit) glow(o.laser.hit.x, o.laser.hit.y, 18, 1);
+        const d = b.dirWorld(1, 0);
+        for (const B of o.beams || []) {
+          const n = b.toWorld(B.lx, B.ly);
+          for (let s = 0; s < B.len; s += 14) glow(n.x + d.x * s, n.y + d.y * s, 7, 0.35);
+          if (B.hit) glow(B.hit.x, B.hit.y, 18, 1);
         }
       };
 
-      if (ship && !game.dead) shipLights(ship, 1, ship.stats.light, ship.lightOn && !ship.docked);
-      for (const n of sys.npcs || []) if (n.active) shipLights(n, n.T.scale, 60, true);
+      if (ship && !game.dead) shipLights(ship);
+      for (const n of sys.npcs || []) if (n.active) shipLights(n);
+      for (const p of RF.Weapons.list) if (p.type === 'rocket') glow(p.x, p.y, 20, 0.8);
 
       const st = sys.station;
       glow(st.x, st.y, 230, 0.55);
@@ -412,42 +427,49 @@
       ctx.drawImage(this.light, 0, 0, this.w, this.h);
     }
 
+    // Kantete stein: fasetter fra et toppunkt ut til hver kant, hver med sin
+    // egen lysstyrke etter hvordan flaten vender mot sola.
     drawRock(b, sunDir) {
       const ctx = this.ctx, M = RF.MATERIALS[b.mat];
+      const rgb = M._rgb || (M._rgb = {
+        base: hexRgb(M.base), dark: hexRgb(M.dark), light: hexRgb(M.light),
+      });
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.a);
-      const v = b.verts;
+      const v = b.verts, n = v.length, r = b.radius;
+      let ax = b.apex ? b.apex.x * r : 0, ay = b.apex ? b.apex.y * r : 0;
+      if (b.kind === 'ore' || !b.containsPoint(b.toWorld(ax, ay).x, b.toWorld(ax, ay).y)) { ax = 0; ay = 0; }
+      const la = sunDir - b.a, lx = Math.cos(la), ly = Math.sin(la);
+      for (let i = 0; i < n; i++) {
+        const p = v[i], q = v[(i + 1) % n];
+        const nn = b.normals[i];
+        let k = 0.5 + 0.5 * (nn.x * lx + nn.y * ly) + (b.shade ? b.shade[i % b.shade.length] : 0);
+        k = G.clamp(k, 0, 1);
+        const c = k < 0.5 ? mix(rgb.dark, rgb.base, k * 2) : mix(rgb.base, rgb.light, (k - 0.5) * 2);
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.lineWidth = this.px;
+        ctx.stroke();
+      }
       ctx.beginPath();
       ctx.moveTo(v[0].x, v[0].y);
-      for (let i = 1; i < v.length; i++) ctx.lineTo(v[i].x, v[i].y);
+      for (let i = 1; i < n; i++) ctx.lineTo(v[i].x, v[i].y);
       ctx.closePath();
-      ctx.fillStyle = M.base;
-      ctx.fill();
-      const r = b.radius;
-      const la = sunDir - b.a, lx = Math.cos(la), ly = Math.sin(la);
-      const g = ctx.createLinearGradient(lx * r, ly * r, -lx * r, -ly * r);
-      g.addColorStop(0, M.light + 'dd');
-      g.addColorStop(0.45, M.light + '00');
-      g.addColorStop(0.6, M.dark + '00');
-      g.addColorStop(1, M.dark + 'ee');
-      ctx.fillStyle = g;
-      ctx.fill();
-      if (b.craters.length || b.veins.length) {
+      if (b.craters.length || b.veins.length || b.core) {
         ctx.save();
         ctx.clip();
         for (const c of b.craters) {
-          ctx.fillStyle = M.dark + '99';
-          ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = M.light + '44';
-          ctx.beginPath(); ctx.arc(c.x - lx * c.r * 0.25, c.y - ly * c.r * 0.25, c.r * 0.75, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = M.dark + '88';
-          ctx.beginPath(); ctx.arc(c.x - lx * c.r * 0.12, c.y - ly * c.r * 0.12, c.r * 0.7, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = M.light + '33';
+          ctx.beginPath(); ctx.arc(c.x - lx * c.r * 0.3, c.y - ly * c.r * 0.3, c.r * 0.7, 0, Math.PI * 2); ctx.fill();
         }
         if (b.veins.length) {
-          ctx.strokeStyle = M.vein + '99';
-          ctx.lineWidth = Math.max(0.35, r * 0.05);
-          ctx.lineJoin = 'round';
+          ctx.strokeStyle = (b.veinColor || M.vein || M.light) + 'bb';
+          ctx.lineWidth = Math.max(0.3, r * 0.045);
+          ctx.lineJoin = 'miter';
           for (const vn of b.veins) {
             ctx.beginPath();
             ctx.moveTo(vn[0].x, vn[0].y);
@@ -455,13 +477,23 @@
             ctx.stroke();
           }
         }
+        // Et islag med en mørk kjerne som skimter gjennom.
+        if (b.core) {
+          const C2 = RF.MATERIALS[b.core];
+          const cr = Math.sqrt(b.coreArea / Math.PI);
+          const g = ctx.createRadialGradient(0, 0, 0, 0, 0, cr * 1.3);
+          g.addColorStop(0, C2.base + '66');
+          g.addColorStop(1, C2.base + '00');
+          ctx.fillStyle = g;
+          ctx.fillRect(-r, -r, r * 2, r * 2);
+        }
         ctx.restore();
       }
-      ctx.strokeStyle = b.kind === 'ore' ? M.light + 'aa' : M.dark;
+      ctx.strokeStyle = b.kind === 'ore' ? M.light + 'aa' : '#0b0a09';
       ctx.lineWidth = this.px * (b.kind === 'ore' ? 1.4 : 1.2);
       ctx.stroke();
-      if (b.kind === 'ore' && M.vein) {
-        ctx.fillStyle = M.vein + '44';
+      if (M.crystal || (b.kind === 'ore' && M.vein)) {
+        ctx.fillStyle = (M.vein || M.light) + '30';
         ctx.fill();
       }
       ctx.restore();
@@ -508,241 +540,11 @@
       ctx.strokeStyle = '#1b1a17'; ctx.lineWidth = 0.2; ctx.stroke();
     }
 
-    // Skroget. obj trenger body, fx, scars; paint fra RF.PAINTS; scale 1 = spillerens skip.
-    drawShipHull(obj, paint, scale, time, sunDir) {
-      const ctx = this.ctx, b = obj.body;
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(b.a);
-      ctx.scale(scale, scale);
-
-      // Motorgondoler.
-      for (const s of [-1, 1]) {
-        const y0 = s * 1.7, y1 = s * 4.1;
-        const top = Math.min(y0, y1), hh = Math.abs(y1 - y0);
-        const ng = ctx.createLinearGradient(0, top, 0, top + hh);
-        ng.addColorStop(0, '#4a4740');
-        ng.addColorStop(1, '#1d1c19');
-        ctx.fillStyle = ng;
-        ctx.fillRect(-8.2, top, 6.8, hh);
-        ctx.fillStyle = '#2a2824';
-        for (let x = -7.6; x < -2; x += 1.2) ctx.fillRect(x, top, 0.25, hh);
-        ctx.fillStyle = '#6d6a60';
-        ctx.fillRect(-8.2, top, 1.1, hh);
-        ctx.fillStyle = '#1a1917';
-        ctx.fillRect(-8.5, s * 2.9 - 0.85, 0.6, 1.7);
-      }
-
-      const hull = [[8.6, 0], [6.6, 1.5], [4.6, 3.3], [0, 3.9], [-4.4, 4.5], [-7.2, 3.1], [-7.2, -3.1], [-4.4, -4.5], [0, -3.9], [4.6, -3.3], [6.6, -1.5]];
-      const path = () => {
-        ctx.beginPath();
-        ctx.moveTo(hull[0][0], hull[0][1]);
-        for (let i = 1; i < hull.length; i++) ctx.lineTo(hull[i][0], hull[i][1]);
-        ctx.closePath();
-      };
-      path();
-      const la = sunDir - b.a;
-      const hg = ctx.createLinearGradient(Math.cos(la) * 7, Math.sin(la) * 7, -Math.cos(la) * 7, -Math.sin(la) * 7);
-      hg.addColorStop(0, paint.hull[0]);
-      hg.addColorStop(0.5, paint.hull[1]);
-      hg.addColorStop(1, paint.hull[2]);
-      ctx.fillStyle = hg;
-      ctx.fill();
-
-      ctx.save();
-      ctx.clip();
-      // Skitt og slitasje.
-      const pat = this.grimePattern();
-      if (pat.setTransform) pat.setTransform(new DOMMatrix().scale(0.09));
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = pat;
-      ctx.fillRect(-9, -5, 18, 10);
-      ctx.globalAlpha = 1;
-      // Tykke pansrede plater langs ryggen.
-      ctx.fillStyle = paint.plate;
-      ctx.beginPath();
-      ctx.moveTo(6.2, 0.9); ctx.lineTo(-6.6, 1.6); ctx.lineTo(-6.6, -1.6); ctx.lineTo(6.2, -0.9);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(255,245,220,0.06)';
-      ctx.fillRect(-6.4, -1.5, 12, 0.35);
-      // Platekanter og nagler.
-      ctx.strokeStyle = 'rgba(12,11,9,0.75)';
-      ctx.lineWidth = 0.14;
-      const seams = [2.4, -0.8, -3.6];
-      for (const x of seams) { ctx.beginPath(); ctx.moveTo(x, -4.6); ctx.lineTo(x - 0.4, 4.6); ctx.stroke(); }
-      ctx.beginPath(); ctx.moveTo(4.5, 2.2); ctx.lineTo(-5.5, 3.1); ctx.moveTo(4.5, -2.2); ctx.lineTo(-5.5, -3.1); ctx.stroke();
-      ctx.fillStyle = 'rgba(220,210,185,0.45)';
-      for (const x of seams) {
-        for (let y = -3.8; y <= 3.8; y += 0.65) {
-          if (Math.abs(y) < 1.7) continue;
-          ctx.beginPath(); ctx.arc(x + 0.18 - y * 0.04, y, 0.07, 0, Math.PI * 2); ctx.fill();
-        }
-      }
-      // Rustrenner som renner bakover fra skjøtene.
-      for (const x of seams) {
-        for (const y of [-2.8, 2.6, -1.9, 3.3]) {
-          const rg = ctx.createLinearGradient(x, 0, x - 2.2, 0);
-          rg.addColorStop(0, paint.rust);
-          rg.addColorStop(1, 'rgba(120,60,25,0)');
-          ctx.fillStyle = rg;
-          ctx.fillRect(x - 2.2, y - 0.12, 2.2, 0.24);
-        }
-      }
-      // Falmede varselstriper.
-      ctx.fillStyle = paint.accent;
-      ctx.globalAlpha = 0.75;
-      for (const s of [-1, 1]) {
-        for (let i = 0; i < 4; i++) {
-          ctx.beginPath();
-          const x = -1.8 + i * 0.9;
-          ctx.moveTo(x, s * 3.35); ctx.lineTo(x + 0.45, s * 3.35); ctx.lineTo(x + 0.9, s * 4.3); ctx.lineTo(x + 0.45, s * 4.3);
-          ctx.closePath(); ctx.fill();
-        }
-      }
-      ctx.globalAlpha = 1;
-      // Sot bak ved motorene.
-      const sg = ctx.createRadialGradient(-7.5, 0, 0, -7.5, 0, 5);
-      sg.addColorStop(0, 'rgba(8,7,6,0.8)');
-      sg.addColorStop(1, 'rgba(8,7,6,0)');
-      ctx.fillStyle = sg;
-      ctx.fillRect(-9, -5, 8, 10);
-      // Arr etter støt.
-      for (const sc of obj.scars) {
-        const g = ctx.createRadialGradient(sc.x, sc.y, 0, sc.x, sc.y, sc.r);
-        g.addColorStop(0, 'rgba(10,8,6,0.95)');
-        g.addColorStop(0.5, 'rgba(60,32,18,0.6)');
-        g.addColorStop(1, 'rgba(60,32,18,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(sc.x, sc.y, sc.r, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.restore();
-
-      path();
-      ctx.strokeStyle = '#0d0c0a';
-      ctx.lineWidth = Math.max(0.14, (this.px * 1.3) / scale);
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,240,210,0.18)';
-      ctx.lineWidth = 0.18;
-      ctx.stroke();
-
-      // Cockpit med ramme.
-      ctx.beginPath();
-      ctx.moveTo(7.4, 0); ctx.lineTo(5.7, 1.25); ctx.lineTo(3.3, 1.35); ctx.lineTo(3.3, -1.35); ctx.lineTo(5.7, -1.25);
-      ctx.closePath();
-      const cg = ctx.createLinearGradient(7.4, -1.3, 3.3, 1.3);
-      cg.addColorStop(0, paint.glass[0]);
-      cg.addColorStop(0.4, paint.glass[1]);
-      cg.addColorStop(1, paint.glass[2]);
-      ctx.fillStyle = cg;
-      ctx.fill();
-      ctx.strokeStyle = '#26241f';
-      ctx.lineWidth = 0.3;
-      ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(5.7, 1.25); ctx.lineTo(5.7, -1.25); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-      ctx.lineWidth = 0.1;
-      ctx.beginPath(); ctx.moveTo(6.6, -0.4); ctx.lineTo(5.9, -0.7); ctx.stroke();
-
-      // Lyskaster og laseremitter i nesen.
-      ctx.fillStyle = '#1a1917';
-      ctx.beginPath(); ctx.arc(8.1, 0, 0.55, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = obj.laser && obj.laser.on ? '#ffd9a0' : '#3a3730';
-      ctx.beginPath(); ctx.arc(8.2, 0, 0.3, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
-
-    // Flammer, navigasjonslys og skjold (tegnes etter mørket).
-    drawShipFx(obj, scale, time) {
-      const ctx = this.ctx, b = obj.body, fx = obj.fx;
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(b.a);
-      ctx.scale(scale, scale);
-      ctx.globalCompositeOperation = 'lighter';
-      const flame = (x, y, dx, dy, len, wid, hot) => {
-        if (len < 0.15) return;
-        const ex = x + dx * len, ey = y + dy * len;
-        const g = ctx.createLinearGradient(x, y, ex, ey);
-        g.addColorStop(0, hot ? 'rgba(255,240,215,0.95)' : 'rgba(235,225,210,0.8)');
-        g.addColorStop(0.25, hot ? 'rgba(120,170,255,0.75)' : 'rgba(170,190,220,0.5)');
-        g.addColorStop(1, 'rgba(40,70,255,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.moveTo(x - dy * wid, y + dx * wid);
-        ctx.quadraticCurveTo(ex - dy * wid * 0.4, ey + dx * wid * 0.4, ex, ey);
-        ctx.quadraticCurveTo(ex + dy * wid * 0.4, ey - dx * wid * 0.4, x + dy * wid, y - dx * wid);
-        ctx.closePath();
-        ctx.fill();
-      };
-      const fl = fx.main * (0.85 + Math.random() * 0.3);
-      for (const s of [-1, 1]) {
-        flame(-8.4, s * 2.9, -1, 0, 3 + fl * 11, 1.0, true);
-        if (fl > 0.05) {
-          const hg = ctx.createRadialGradient(-8.5, s * 2.9, 0, -8.5, s * 2.9, 3 + fl * 3);
-          hg.addColorStop(0, `rgba(140,180,255,${0.5 * fl})`);
-          hg.addColorStop(1, 'rgba(60,120,255,0)');
-          ctx.fillStyle = hg;
-          ctx.beginPath(); ctx.arc(-8.5, s * 2.9, 3 + fl * 3, 0, Math.PI * 2); ctx.fill();
-        }
-        flame(5.2, s * 3.1, 0.6, s * 0.35, fx.retro * 4.5, 0.45, false);
-      }
-      flame(1, 4.0, 0, 1, fx.left * 3, 0.35, false);
-      flame(1, -4.0, 0, -1, fx.right * 3, 0.35, false);
-      flame(6.2, -2.4, 0, -1, fx.rotR * 2.6, 0.3, false);
-      flame(-5.8, 4.2, 0, 1, fx.rotR * 2.6, 0.3, false);
-      flame(6.2, 2.4, 0, 1, fx.rotL * 2.6, 0.3, false);
-      flame(-5.8, -4.2, 0, -1, fx.rotL * 2.6, 0.3, false);
-
-      const blink = (time * 1.2 + (obj.blinkOff || 0)) % 1 < 0.12;
-      const light = (x, y, col, r) => {
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        g.addColorStop(0, col);
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-      };
-      light(-4.2, -4.4, 'rgba(255,60,50,0.9)', 1.2);
-      light(-4.2, 4.4, 'rgba(60,255,120,0.9)', 1.2);
-      if (blink) light(-7.3, 0, 'rgba(255,245,230,1)', 2.2);
-
-      if (obj.shieldFlash > 0.01) {
-        const a = obj.shieldFlash;
-        ctx.save();
-        ctx.scale(1, 0.68);
-        const sg = ctx.createRadialGradient(0, 0, 8, 0, 0, 12.5);
-        sg.addColorStop(0, 'rgba(90,200,255,0)');
-        sg.addColorStop(0.8, `rgba(90,200,255,${0.25 * a})`);
-        sg.addColorStop(1, `rgba(170,230,255,${0.7 * a})`);
-        ctx.fillStyle = sg;
-        ctx.beginPath(); ctx.arc(0, 0, 12.5, 0, Math.PI * 2); ctx.fill();
-        const hd = obj.shieldHitDir || 0;
-        ctx.strokeStyle = `rgba(200,240,255,${a})`;
-        ctx.lineWidth = 0.6;
-        ctx.beginPath(); ctx.arc(0, 0, 12.2, hd - 0.6, hd + 0.6); ctx.stroke();
-        ctx.restore();
-      }
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.restore();
-    }
-
-    // Svakt lysende kjegle, som lys gjennom støv.
-    drawBeamHaze(obj, scale, range) {
-      const ctx = this.ctx, b = obj.body;
-      const n = b.toWorld(RF.SHIP_NOSE.x * scale, 0);
-      const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, range);
-      g.addColorStop(0, 'rgba(255,236,200,0.14)');
-      g.addColorStop(1, 'rgba(255,236,200,0)');
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.arc(n.x, n.y, range, b.a - 0.4, b.a + 0.4); ctx.closePath(); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
     drawTractor(ship, time) {
       const ctx = this.ctx;
-      const ip = ship.body.toWorld(RF.SHIP_NOSE.x + 1.2, 0);
       ctx.globalCompositeOperation = 'lighter';
       for (const o of ship.tractor.targets) {
+        const ip = o._tractorFrom || ship.body;
         const gr = ctx.createLinearGradient(ip.x, ip.y, o.x, o.y);
         gr.addColorStop(0, 'rgba(120,255,210,0.5)');
         gr.addColorStop(1, 'rgba(120,255,210,0.05)');
@@ -753,35 +555,6 @@
         ctx.beginPath(); ctx.moveTo(ip.x, ip.y); ctx.lineTo(o.x, o.y); ctx.stroke();
       }
       ctx.setLineDash([]);
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
-    drawLaser(obj, scale) {
-      const L = obj.laser;
-      if (!L || !L.on) return;
-      const ctx = this.ctx, b = obj.body;
-      const p0 = b.toWorld(RF.SHIP_NOSE.x * scale - 0.8, 0);
-      const d = b.dirWorld(1, 0);
-      const p1 = { x: p0.x + d.x * (L.len + 0.8), y: p0.y + d.y * (L.len + 0.8) };
-      ctx.globalCompositeOperation = 'lighter';
-      const flick = 0.75 + Math.random() * 0.25;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = `rgba(255,120,40,${0.35 * flick})`;
-      ctx.lineWidth = 1.6 * scale;
-      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-      ctx.strokeStyle = `rgba(255,230,180,${0.9 * flick})`;
-      ctx.lineWidth = 0.45 * scale;
-      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-      if (L.hit) {
-        const r = 3 + Math.random() * 1.5;
-        const g = ctx.createRadialGradient(L.hit.x, L.hit.y, 0, L.hit.x, L.hit.y, r);
-        g.addColorStop(0, 'rgba(255,255,230,1)');
-        g.addColorStop(0.3, 'rgba(255,170,60,0.7)');
-        g.addColorStop(1, 'rgba(255,80,0,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(L.hit.x, L.hit.y, r, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.lineCap = 'butt';
       ctx.globalCompositeOperation = 'source-over';
     }
 

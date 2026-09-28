@@ -1,9 +1,9 @@
 # Ringfarer
 
-Et 2D romskipspill (sett ovenfra) med ekte fysikk, inspirert av Stargate.
-Du starter med **Hoppeskip MK-I**, et lite enmannsskip, og tjener penger på
-utvinning, frakt og handel mellom tre stjernesystemer som er knyttet sammen
-av en eldgammel ringport.
+Et 2D romskipspill (sett ovenfra) med ekte fysikk, inspirert av Stargate. Du
+bygger ditt eget gruveskip modul for modul, borer og sprenger deg gjennom
+asteroider og kometer, tar frakt- og leveringsoppdrag, og reiser mellom tre
+stjernesystemer gjennom en eldgammel ringport.
 
 Spillet er ren HTML5 + JavaScript uten byggesteg og uten avhengigheter. Det
 kjører i nettleseren på PC og mobil.
@@ -15,120 +15,120 @@ Se `ENDRINGER.md` for hva som er endret og hva som gjenstår.
 - **Lokalt:** åpne `index.html` i en nettleser. Ingen server trengs.
 - **På nett:** repoet har en GitHub Actions-jobb som publiserer spillet til
   GitHub Pages ved hver push til `main`. Første gang: gå til
-  **Settings → Pages** og velg **GitHub Actions** som kilde. Spillet ligger
-  da på `https://<brukernavn>.github.io/Ringfarer/`.
+  **Settings → Pages** og velg **GitHub Actions** som kilde.
+- **Testmodus** på startskjermen gir 1 000 000 kr, så alle skip, moduler og
+  droner kan prøves med en gang.
 
 ## Kontroller
 
 | Tast | Handling |
 | --- | --- |
-| W / S (piltaster) | Hovedmotor / bremsemotor |
+| W / S (piltaster) | Hovedmotor / brems |
 | A / D | Drei skipet |
 | Q / E | Sidestyring |
-| Mellomrom | Borelaser (hold inne) |
+| 1 / 2 / 3 / 4 | Velg laser, kanon, rakett eller anker |
+| Mellomrom | Bruk valgt verktøy |
+| X | Skyt ut / løsne ankerkroken |
+| C / V | Vinsj inn / gi ut wire |
 | F | Traktorstråle av/på |
+| K | Send ut / kall inn droner |
 | L | Arbeidslys av/på |
-| X | Anker: fest i steinen foran / løsne |
-| C | Vinsj inn ankerkabelen (hold) |
-| Z | Flygeassistent: av, demper rotasjon, full (bremser også fart) |
-| T | Dokk ved stasjonen |
-| G | Ring porten |
+| Z | Flygeassistent: av, demper rotasjon, full |
+| T / G | Dokk ved stasjonen / ring porten |
 | + / − eller musehjul | Zoom |
-| M | Lyd av/på |
-| Esc / P | Pause |
+| Esc / P | Pause (viser også aktive oppdrag) |
 | H | Hjelp |
 
-På mobil og nettbrett kommer berøringskontrollene fram av seg selv første gang
-du tar på skjermen. Dra hvor som helst på venstre side for å styre: skipet
-snur seg dit du drar, og drar du langt, gir det gass. Til høyre er knapper
-for laser, brems, traktor, lys, anker og vinsj. Kontrollene kan også slås av
-og på fra pausemenyen.
+**Mobil:** dra hvor som helst på venstre side for å styre (skipet snur seg dit
+du drar, langt drag gir gass). Knip med to fingre for å zoome. Den store runde
+knappen bruker valgt verktøy, de små over den bytter verktøy. BREMS, TRAKTOR og
+⋯ (lys, flygeassistent, droner, pause) ligger nederst. Trykk på radaren for å
+gjøre den stor.
 
-## Slik spilles det
+## Skipet er bygget av moduler
 
-1. **Utvinning.** Hold laseren på en asteroide. Den varmes opp, skjærer av
-   tynne skiver som blir til malmbiter, og sprekker til slutt i to. Slå på
-   traktorstrålen og fly rolig mot bitene. De trekkes inn i nesen og
-   prosesseres om bord til ferdig vare (jern, nikkel-jern, vannis, naquadah).
-2. **Salg og handel.** Dokk ved en stasjon (fly inn i den stiplede ringen ved
-   enden av dokkingsarmen under 3,5 m/s og trykk T). Prisene er ulike i hvert
-   system. Is er for eksempel billig i Vanaheim og dyr i Muspelheim.
-3. **Oppdrag.** Oppslagstavla på stasjonene har frakt- og leveringsoppdrag.
-   Skjør last ødelegges av ett støt over grensen (3–5 m/s).
-4. **Porten.** Ring porten med G og velg et system. Sju chevroner låses, så
-   skyter en virvel (kawoosh) ut foran porten. Den fordamper alt den treffer,
-   også deg. Når horisonten er stabil, flyr du inn forfra.
-5. **Anker.** Kjøp ankerkabel på en stasjon, pek nesen mot en stor stein og
-   trykk X. Kabelen holder deg på plass mens du borer. Med vinsjen trekker du
-   deg inn til du lander på steinen. Kabelen er et ekte fysisk ledd, så en tung
-   stein som spinner drar skipet med seg.
-6. **Mørke og lys.** Rommet er mørkt. Arbeidslyset lyser opp det du borer i og
-   får støvet til å glitre. Rekkevidden kan oppgraderes.
-7. **Arbeidsskip.** Gruvedroner borer og henter malm, og frakteskip ringer opp
-   porten og reiser mellom systemene. De flyr med samme fysikk som deg, konkurrerer
-   om de samme malmbitene og blir ødelagt hvis de blir rammet for hardt.
-8. **Oppgradering.** Motor, skjold, skrogplating, laser, lasterom og
-   traktorstråle, arbeidslys og anker kan oppgraderes på stasjonene.
+Hvert skip er et rutenett av moduler. Massen, tyngdepunktet, treghetsmomentet og
+kollisjonsformen regnes ut fra modulene, så plassering betyr noe: en motor som
+sitter skjevt gir dreiemoment, og tung last langt fra tyngdepunktet gjør skipet
+tregere å snu.
 
-## Systemene
+| Kategori | Moduler |
+| --- | --- |
+| Struktur | Cockpit, skrogramme |
+| Beskyttelse | Panserplate, tungpanser, skjoldgenerator |
+| Motor | Hovedmotor, tung motor, styredyser, drivstofftank |
+| Last | Lastecontainer, stor lastebinge |
+| Gruvedrift | Borelaser (nivå 1–4), traktorstråle med inntak, prosessor |
+| Våpen | Massedriver (kanon), rakettkaster |
+| Verktøy | Ankerkaster, tungt anker, arbeidslys, flomlys, dronehangar |
 
-| System | Stasjon | Kjennetegn |
+Lasere, kanoner, anker og lys må ha fri bane forover. Motorer må ha fri eksos
+bakover. Skipsbyggeren på stasjonen viser det med rødt hvis noe er sperret.
+
+**Skip å kjøpe:** Hoppeskip MK-I (6×5 ruter), Graver G-2 (8×7) og Fjellbryter
+T-3 (9×11). Det gamle skipet tas i innbytte.
+
+**Skade:** et støt skader modulene nærmest treffpunktet. En modul med 0 hp
+faller av som vrakdel, og deler som ikke lenger henger sammen med cockpiten
+driver bort. Mister du cockpiten, er skipet tapt. Vrakdeler kan samles inn med
+traktoren og selges som skrap. På verkstedet kan skadde moduler repareres og
+tapte moduler bygges opp igjen etter tegningen.
+
+## Asteroider og mineraler
+
+| Bergart | Mineral | Hardhet |
 | --- | --- | --- |
-| Midgard | Midgard Verft | Startsystemet. Rolig belte med jern og nikkel. |
-| Vanaheim | Vanaheim Handelspost | Raske kometer av rent is. |
-| Muspelheim | Surtr Borestasjon | Tett felt i rask drift. Farlig, men rikt på naquadah. |
+| Kondritt | Jern | 1 |
+| Silikat | Silisium | 1 |
+| Karbonkondritt | Grafitt | 1 |
+| Is | Vannis | 1 |
+| Nikkel-jern | Nikkel-jern (årer av kobber) | 2 |
+| Kobbermalm | Kobber | 2 |
+| Titanmalm | Titan | 3 |
+| Gullførende kvarts | Gull | 3 |
+| Naquadah-malm | Naquadah | 4 |
+| Triniumkrystall | Trinium | 4 |
 
-## Fysikken
+Laseren må ha minst samme nivå som hardheten. Kanonkuler og raketter slår løs
+biter av alt. Noen asteroider og kometer har et islag utenpå og et verdifullt
+mineral inni.
 
-Alt er i SI-enheter: meter, sekunder, kilo og newton.
+## Anker og slep
 
-- **Stive legemer.** Skip, asteroider og malmbiter er konvekse polygoner med
-  masse og treghetsmoment regnet ut fra formen og materialets tetthet.
-  Kollisjoner finnes med SAT (separating axis theorem) og løses med
-  impulser, sprett (restitusjon) og friksjon (`js/physics.js`).
-- **Newton.** Det er ingen luftmotstand. Skipet beholder farten til du
-  bremser. Flygeassistenten bruker de samme dysene, med samme kraft og
-  drivstofforbruk, som når du styrer selv.
-- **Masse som endrer seg.** Drivstoff, last og malm som prosesseres gjør
-  skipet tyngre. Tyngre skip akselererer tregere og treffer hardere.
-- **Traktorstrålen** drar i skipet like mye som i biten (Newtons tredje lov).
-  Tunge biter drar deg mot seg.
-- **Skade** regnes fra fartsendringen skipet får i støtet (Δv = impuls / masse).
-  Under ca. 1,6 m/s skjer ingenting. Skjoldet tar støtet først. Stedet på
-  skroget som blir truffet avgjør hvilket system som tar skade: nesen
-  (laser, traktor), sidene (styredyser) eller akterenden (motorer).
-- **Ankeret** er en kabel: den trekker bare når den er stram, og løses i
-  samme impulsløser som kollisjonene.
-- **Gruvedrift** kutter polygonene langs rette linjer, så massen er bevart
-  nøyaktig når steiner skjæres opp eller sprekker. Bitene får også bevart
-  bevegelsesmengde.
+Ankerkasteren skyter ut en krok på en wire. Den fester seg i det den treffer:
+asteroider, kometer, vrak eller stasjonen. Wiren er et fysisk ledd som bare
+trekker når den er stram. Vinsj inn for å lande på steinen, eller gi gass og
+slep den etter deg.
+
+## Droner
+
+Med en dronehangar kan du kjøpe droner:
+
+- **Gruvedrone** borer i myk stein nær skipet og leverer malmen til deg.
+- **Reparasjonsdrone** flyr rundt skipet og reparerer skadde moduler.
+
+Dronene kan også sendes på tokt fra stasjonen (3 minutter). De kommer tilbake
+med malm eller betaling, men omtrent én av ti går tapt.
 
 ## Kodestruktur
 
 | Fil | Innhold |
 | --- | --- |
-| `index.html` | Side, stil og berøringsknapper |
+| `index.html` | Side, stil og berøringskontroller |
 | `js/geom.js` | Polygonmatematikk: areal, tyngdepunkt, treghet, klipping, oppdeling |
-| `js/physics.js` | Fysikkmotoren (legemer, kollisjon, impulsløser, stråle-test) |
-| `js/world.js` | Materialer, varer, systemer, stasjoner, port, asteroidefelt |
-| `js/ship.js` | Skipet: motorer, flygeassistent, laser, traktor, anker, prosessering, skade |
-| `js/npc.js` | Datastyrte arbeidsskip: autopilot, gruvedroner, frakteskip |
+| `js/physics.js` | Fysikkmotoren: legemer, kollisjon, impulsløser, wire, stråle-test |
+| `js/world.js` | Mineraler, bergarter, varer, systemer, stasjoner, port, asteroidefelt |
+| `js/modules.js` | Moduler, skip å kjøpe, geometri og egenskaper fra et oppsett |
+| `js/ship.js` | Spillerens skip: flyging, laser, traktor, prosessering, skade per modul |
+| `js/weapons.js` | Kanonkuler, raketter med sprengning, ankerkrok |
+| `js/npc.js` | Datastyrte skip og spillerens droner (autopilot med samme fysikk) |
 | `js/missions.js` | Oppdragsgenerator |
-| `js/game.js` | Spill-løkke, kamera, gruvedrift, port, dokking, død og lagring |
-| `js/render.js` | Tegning av bakgrunn, skip, asteroider, stasjon, port, partikler og lys |
-| `js/hud.js` | Instrumentpanel, radar og markører |
-| `js/ui.js` | Menyer: tittel, stasjon, porten, pause, hjelp |
-| `js/input.js` | Tastatur og berøring |
+| `js/game.js` | Spill-løkke, kamera, gruvedrift, tap av moduler, port, dokking, lagring |
+| `js/render.js` | Bakgrunn, asteroider, stasjon, port, partikler og lys |
+| `js/shipdraw.js` | Tegning av moduler og modulære skip |
+| `js/hud.js` | Instrumentpanel, radar og skadediagram |
+| `js/ui.js` | Menyer: tittel, stasjon med skipsbygger, verft, droner, oppdrag |
+| `js/input.js` | Tastatur, styrespak og knip-zoom |
 | `js/audio.js` | Syntetisert lyd (Web Audio, ingen lydfiler) |
 
-Fremgangen lagres i nettleseren (`localStorage`) hver gang du dokker eller
-handler.
-
-## Ideer til neste steg
-
-- Større skip å kjøpe (to-seters frakteskip, tungt gruveskip) med egne skrog
-  og egenskaper.
-- Gravitasjon rundt planeter og månebaner.
-- Pirater som angriper fraktskip.
-- Flere porter og systemer, og en adressebok der man låser opp nye adresser.
-- Egne tegnede skip og stasjoner i stedet for vektorgrafikk.
+Fremgangen lagres i nettleseren (`localStorage`).
