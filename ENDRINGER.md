@@ -20,6 +20,20 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-28: v0.4.1 · Lesbare menyer
+
+Ønske: bakgrunnen i menyene gjorde den grå teksten nesten umulig å lese, og
+den måtte passe bedre med resten av spillet.
+
+- Panelene er nå mørkt, børstet stål med svak tekstur i stedet for det grove
+  støymønsteret (`index.html`, `js/ui.js`). Teksten er lysere og står på en
+  mørkere flate. Den oransje knappen er glatt i stedet for kornete.
+- Markedstabellen ble for bred på mobil, så kjøpskolonnen og knappene havnet
+  utenfor skjermen. På smale skjermer blir hver rad nå et lite kort med
+  merkede tall og knappene under. Det samme gjelder tabellen på verkstedet.
+
+Testet i mobilstørrelse (Pixel 7) på Marked og Verksted. Ingen feilmeldinger.
+
 ## 2026-09-28: v0.4 · Modulære skip, våpen, anker, droner og ryddigere skjerm
 
 Ønske: skipet skal være mer metallisk og firkantet, som et gruveskip.

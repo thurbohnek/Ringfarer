@@ -35,6 +35,25 @@
     if (first) first.focus({ preventScroll: true });
   }
 
+  // Svak børstet-stål-tekstur til panelene: fine vannrette striper og litt
+  // flekker, så lav kontrast at teksten alltid er lett å lese.
+  function brushedSteel() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const x = c.getContext('2d');
+    for (let y = 0; y < 256; y++) {
+      x.fillStyle = Math.random() < 0.5 ? '#ffffff' : '#000000';
+      x.globalAlpha = Math.random() * 0.035;
+      x.fillRect(0, y, 256, 1);
+    }
+    for (let i = 0; i < 900; i++) {
+      x.fillStyle = Math.random() < 0.6 ? '#000000' : '#ffffff';
+      x.globalAlpha = Math.random() * 0.06;
+      x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 3, 1);
+    }
+    return c;
+  }
+
   const UI = {
     isOpen: () => open !== null,
     closeAll() {
@@ -50,7 +69,7 @@
       touchRoot = $('#touch');
       root.addEventListener('click', onClick);
       try {
-        document.documentElement.style.setProperty('--noise', `url(${RF.noiseCanvas(128, 99, '#000000', '#e8dcc0').toDataURL()})`);
+        document.documentElement.style.setProperty('--noise', `url(${brushedSteel().toDataURL()})`);
       } catch (_) { /* uten tekstur går også fint */ }
       RF.Input.bindTouch(touchRoot);
       RF.Input.bindStick($('#stick'), $('#stick .base'), $('#stick .knob'));
@@ -251,9 +270,9 @@
       const canBuy = Math.min(free, game.credits / buy);
       return `<tr>
         <td><span class="dot" style="background:${P.color}"></span>${esc(P.name)}</td>
-        <td class="num">${tonn(have)}</td>
-        <td class="num">${sell}</td>
-        <td class="num">${buy}</td>
+        <td class="num" data-l="Om bord">${tonn(have)}</td>
+        <td class="num" data-l="Selg kr/t">${sell}</td>
+        <td class="num" data-l="Kjøp kr/t">${buy}</td>
         <td class="acts">
           <button class="btn sm" data-act="sell" data-id="${k}" ${have < 0.005 ? 'disabled' : ''}>Selg alt</button>
           <button class="btn sm ghost" data-act="buy" data-id="${k}" ${canBuy < 1 ? 'disabled' : ''}>Kjøp 1 t</button>
