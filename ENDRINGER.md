@@ -16,10 +16,70 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   er inne i en hule, kastes ingen skygge fra den steinen.
 - **Autopiloten ser ikke hindringer.** Skipet flyr rett mot målet og kan
   kollidere med steiner som ligger i veien.
+- **Ytelse:** med større steiner og ny himmel gikk testnettleseren (uten
+  grafikkort) ned til rundt 30 bilder i sekundet i asteroidefeltet. Si fra
+  hvis det hakker på telefonen.
 - **Kjempeasteroider tar tid å bore i.** En tunnel stor nok til skipet krever
   mange biter. Raketter går mye raskere. Farten kan justeres etter testing.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-28: v0.8.0 · Organisk skip, bedre menyer, ny himmel, engelsk, større steiner
+
+Ønsker fra brukeren (med et bilde av skip fra Stargate-flåten som mal):
+- skipet skal være mer organisk, som på det nye bildet (ikke det forrige)
+- menyen må fikses og gjøres bedre
+- bakgrunnen med planeter virker ikke realistisk
+- spillet skal være på engelsk
+- større kometer og asteroider med mer realistiske farger
+
+Hva som ble gjort:
+- **Skipet** (`js/shipdraw.js`): modulene tegnes ikke lenger som klosser. De
+  blir til ett sammenhengende, avrundet skrog i lag oppå hverandre: et bredt
+  underskrog, et smalere dekk og en rygg langs midten, med spiss baug foran
+  og motorgondoler bak. Fargen er varm grå/beige som på bildet. Skroget har
+  paneler og sømmer, små detaljer (luker, rør, bokser), mørke renner og rader
+  med vinduslys. Utstyret synes fortsatt: bro med vinduer, skjoldskål,
+  lastedører, tanker, prosessor, dronehangar, pansring, motorer og alle
+  verktøyene i sine festeringer.
+- **Menyene** (`js/ui.js`, `index.html`):
+  - Hovedmenyen har store, tydelige valg med en kort forklaring under hvert.
+  - Stasjonen har faner med ikoner, til venstre på PC og som et rutenett på
+    3 × 2 på mobil, så ingenting må skyves sidelengs. Last, skrog,
+    drivstoff og raketter vises som små målere.
+  - Knappen «Undock» ligger fast nederst.
+  - På mobil fyller stasjonen hele skjermen.
+- **Himmelen** (ny fil `js/sky.js`):
+  - Svart himmel med et svakt melkeveibånd med støvstriper, og tusenvis av
+    små stjerner i naturlige farger.
+  - Sola har en hvit kjerne og mild blending.
+  - Planetene er lyssatt fra sola, med dag- og nattside og atmosfære langs
+    kanten:
+    - Midgard: jordlik planet med hav, land, iskapper og skyer.
+    - Vanaheim: gasskjempe med bånd og ringer, der planeten kaster skygge
+      på ringene.
+    - Muspelheim: lavaplanet med glødende sprekker.
+  - Himmel og planet ligger langt unna og flytter seg nesten ikke.
+  - Svevende støv er dempet, og mørket over verden er lettere, så steiner og
+    planeter synes bedre.
+- **Engelsk:** all tekst spilleren ser er oversatt (menyer, meldinger,
+  moduler, varer, oppdrag, steder og knapper). Tall vises på engelsk vis, og
+  penger heter «cr». Regelen står i `CLAUDE.md`.
+- **Asteroider og kometer** (`js/world.js`, `js/voxel.js`, `js/render.js`):
+  - Steinene er større (opptil 42 m), kjempeasteroidene er 70–105 m, og
+    kometene 34–60 m.
+  - Fargene er dempet og realistiske: gråbrun kondritt, trekullsvart
+    karbonstein, metallgrå nikkel-jern og skitten, grå is. Sjeldne mineraler
+    har bare et svakt glimt av farge.
+  - Skyggen på steinene er jevn fra sola i stedet for «kakestykker», og
+    kometene har færre og mykere kratre.
+
+Testet (nettleser uten skjerm, PC og Pixel 7):
+- hovedmeny, stasjon (marked, utstyr, oppdrag) og kontrollmeny på PC og
+  mobil, uten feil
+- alle tre systemene: himmel, sol og planet tegnes riktig
+- autopilot, panorering, brems og lukking av kontrollmenyen virker fortsatt
+- ingen feil i nettleserkonsollen
 
 ## 2026-09-28: v0.7.0 · Nytt utseende på skipet, utstyrsbutikk, fly dit du trykker og kamera som kan flyttes
 

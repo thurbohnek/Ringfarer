@@ -12,7 +12,7 @@
 
   RF.TOOLS = ['laser', 'kanon', 'rakett', 'anker'];
   RF.TURRET_ARC = 1.9; // hvor langt et tårn kan dreie hver vei fra retningen det peker ut (rad)
-  RF.TOOL_NAMES = { laser: 'Laser', kanon: 'Kanon', rakett: 'Rakett', anker: 'Anker' };
+  RF.TOOL_NAMES = { laser: 'Laser', kanon: 'Cannon', rakett: 'Rocket', anker: 'Harpoon' };
 
   RF.emptyCargo = () => {
     const c = {};
@@ -338,7 +338,7 @@
       if (hardMat && !bit && (!game._hardWarn || game.time - game._hardWarn > 5)) {
         const M = RF.MATERIALS[hardMat];
         game._hardWarn = game.time;
-        game.msg(`${M.name} er for hard (${M.hard}). Trenger sterkere laser, kanon eller rakett`, RF.HUD_COLORS.amber);
+        game.msg(`${M.name} is too hard (${M.hard}). Needs a stronger laser, cannon or rockets`, RF.HUD_COLORS.amber);
       }
     }
 
@@ -356,7 +356,7 @@
       if (!A) return;
       if (A.lost || A.rope.B.dead || !game.sys.world.ropes.includes(A.rope)) {
         this.releaseAnchor(game);
-        game.msg('Ankeret mistet feste', RF.HUD_COLORS.amber);
+        game.msg('The harpoon lost its grip', RF.HUD_COLORS.amber);
         return;
       }
       const cur = A.rope.dist || A.rope.length;

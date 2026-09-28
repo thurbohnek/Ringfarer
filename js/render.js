@@ -149,7 +149,7 @@
     for (let i = 0; i < n; i++) {
       const par = G.rand(0.55, 1.35);
       out.push({ x: Math.random() * 1600, y: Math.random() * 1600, par, s: G.rand(0.6, 1.9) * par,
-        vx: G.rand(-3, 3), vy: G.rand(-3, 3), a: G.rand(0.25, 0.7), warm: Math.random() < 0.3 });
+        vx: G.rand(-3, 3), vy: G.rand(-3, 3), a: G.rand(0.08, 0.3), warm: Math.random() < 0.3 });
     }
     return out;
   }
@@ -163,7 +163,7 @@
         { stars: makeStars(150, 23), par: 0.1 },
         { stars: makeStars(60, 37), par: 0.22 },
       ];
-      this.motes = makeMotes(170);
+      this.motes = makeMotes(110);
       this.nebulae = {};
       this.light = document.createElement('canvas');
       this.lctx = this.light.getContext('2d');
@@ -431,7 +431,7 @@
       L.setTransform(1, 0, 0, 1, 0, 0);
       L.globalCompositeOperation = 'source-over';
       L.clearRect(0, 0, this.light.width, this.light.height);
-      L.fillStyle = 'rgba(1,2,6,0.72)';
+      L.fillStyle = 'rgba(1,2,6,0.5)';
       L.fillRect(0, 0, this.light.width, this.light.height);
       L.globalCompositeOperation = 'destination-out';
       this.worldTransform(L, game, ls);
@@ -658,14 +658,14 @@
       const la = sunDir - b.a, lx = Math.cos(la), ly = Math.sin(la);
       ctx.save();
       ctx.clip(V.path);
-      // Flater som vender mot sola er lyse, de andre i skygge.
-      if (V.facets) {
-        for (const F of V.facets) {
-          const k = F.nx * lx + F.ny * ly + F.sh;
-          ctx.fillStyle = k > 0 ? `rgba(255,238,215,${Math.min(0.14, k * 0.14)})` : `rgba(0,0,0,${Math.min(0.38, -k * 0.34)})`;
-          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(F.p.x, F.p.y); ctx.lineTo(F.q.x, F.q.y); ctx.closePath(); ctx.fill();
-        }
-      }
+      // Jevn skygge: lys mot sola, mørk på baksiden.
+      const r = b.radius;
+      const sg = ctx.createLinearGradient(lx * r, ly * r, -lx * r, -ly * r);
+      sg.addColorStop(0, 'rgba(255,240,220,0.16)');
+      sg.addColorStop(0.45, 'rgba(0,0,0,0)');
+      sg.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(-r, -r, r * 2, r * 2);
       // Kratre: mørke groper med lys kant på siden som vender bort fra sola.
       for (const c of b.craters) {
         if (RF.Vox.sample(V, c.x, c.y) < 0.5) continue;
@@ -675,9 +675,9 @@
         ctx.scale(1, c.e || 1);
         ctx.fillStyle = M.light + '38';
         ctx.beginPath(); ctx.arc(-lx * c.r * 0.22, -ly * c.r * 0.22, c.r * 1.1, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(8,8,9,0.7)';
+        ctx.fillStyle = 'rgba(8,8,9,0.42)';
         ctx.beginPath(); ctx.arc(0, 0, c.r, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(8,8,9,0.45)';
+        ctx.fillStyle = 'rgba(8,8,9,0.28)';
         ctx.beginPath(); ctx.arc(lx * c.r * 0.25, ly * c.r * 0.25, c.r * 0.78, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }

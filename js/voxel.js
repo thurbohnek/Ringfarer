@@ -510,8 +510,8 @@
       }
       game.particles.burst(hit.x, hit.y, 24, { sMin: 5, sMax: 20, color: '#ffd08a', zMin: 0.2, zMax: 0.5, lMin: 0.3, lMax: 0.9 });
       RF.Audio.thud(0.6);
-      if (made.some((o) => o.kind === 'rock')) game.msg(b.comet ? 'Kometen sprakk' : 'Asteroiden sprakk', RF.HUD_COLORS.amber);
-      else if (!full) game.msg('Det gikk en revne i steinen', RF.HUD_COLORS.amber);
+      if (made.some((o) => o.kind === 'rock')) game.msg(b.comet ? 'The comet split apart' : 'The asteroid split apart', RF.HUD_COLORS.amber);
+      else if (!full) game.msg('A crack runs through the rock', RF.HUD_COLORS.amber);
     }
     return made;
   };
@@ -606,7 +606,7 @@
   Vox.generate = (world, type, r, o, opts = {}) => {
     const T = RF.ROCK_TYPES[type];
     const seed = (Math.random() * 1e6) | 0;
-    const s = G.clamp(r / 22, 0.7, 2.8);
+    const s = G.clamp(r / 24, 0.7, 3.2);
     const crystal = RF.MATERIALS[T.mat].crystal;
     const base = opts.lumpy ? G.rockShape(r, G.randInt(12, 16)) : G.shardShape(r, crystal);
     const shapes = [{ v: base, x: 0, y: 0 }];
@@ -691,10 +691,10 @@
     }
     // Kratre i overflaten (tegnes som groper).
     const craters = [];
-    const nc = opts.comet ? G.randInt(10, 16) : G.randInt(Math.min(2, Math.floor(r / 6)), Math.min(9, 1 + Math.floor(r / 4)));
+    const nc = opts.comet ? G.randInt(5, 9) : G.randInt(Math.min(2, Math.floor(r / 8)), Math.min(8, 1 + Math.floor(r / 6)));
     for (let q = 0; q < nc; q++) {
       const a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * r * 0.7;
-      craters.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: r * G.rand(0.05, opts.comet ? 0.2 : 0.16), e: G.rand(0.6, 1), rot: Math.random() * 3 });
+      craters.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: r * G.rand(0.04, opts.comet ? 0.14 : 0.12), e: G.rand(0.6, 1), rot: Math.random() * 3 });
     }
     // Hold kanten av rutenettet tom.
     for (let i = 0; i < NX; i++) { V.f[i] = 0; V.f[(NY - 1) * NX + i] = 0; }

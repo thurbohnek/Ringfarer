@@ -249,12 +249,12 @@
     }
     if (!ship.docked) {
       edgeMarker(ctx, game, R, game.sys.station.x, game.sys.station.y, game.sys.station.name, C.ok);
-      edgeMarker(ctx, game, R, game.sys.gate.x, game.sys.gate.y, 'Porten', C.gate);
+      edgeMarker(ctx, game, R, game.sys.gate.x, game.sys.gate.y, 'Gate', C.gate);
     }
 
     // Øverst til venstre: system og kreditter på én linje.
     const name = game.sys.def.name.toUpperCase();
-    const cred = Math.floor(game.credits).toLocaleString('nb-NO') + ' kr';
+    const cred = Math.floor(game.credits).toLocaleString('en-US') + ' cr';
     ctx.font = F.stencil;
     const nw = ctx.measureText(name).width;
     ctx.font = F.num;
@@ -270,7 +270,7 @@
     if (active && !touch) {
       ctx.font = F.label;
       ctx.fillStyle = C.muted;
-      ctx.fillText(`${active} AKTIVE OPPDRAG`, 12, top + 42);
+      ctx.fillText(`${active} ACTIVE CONTRACT${active > 1 ? 'S' : ''}`, 12, top + 42);
     }
 
     // Status: skadediagram og små stolper.
@@ -279,20 +279,20 @@
     const dm = damageMap(ctx, ship, sx + 4, sy, 46, 82);
     const bx = sx + Math.max(40, dm.w) + 12;
     const hf = ship.hullFrac();
-    miniBar(ctx, bx, sy + 2, 62, 'SK', hf, hpColor(hf), Math.round(hf * 100) + '%');
-    miniBar(ctx, bx, sy + 18, 62, 'SJ', ship.shield / (st.shieldMax || 1), C.gate, Math.floor(ship.shield) + '');
-    miniBar(ctx, bx, sy + 34, 62, 'DR', s.fuel / (st.fuelCap || 1), s.fuel < st.fuelCap * 0.15 ? C.danger : C.amber, Math.round((s.fuel / (st.fuelCap || 1)) * 100) + '%');
+    miniBar(ctx, bx, sy + 2, 62, 'HP', hf, hpColor(hf), Math.round(hf * 100) + '%');
+    miniBar(ctx, bx, sy + 18, 62, 'SH', ship.shield / (st.shieldMax || 1), C.gate, Math.floor(ship.shield) + '');
+    miniBar(ctx, bx, sy + 34, 62, 'FU', s.fuel / (st.fuelCap || 1), s.fuel < st.fuelCap * 0.15 ? C.danger : C.amber, Math.round((s.fuel / (st.fuelCap || 1)) * 100) + '%');
     const cm = RF.cargoMass(s);
-    miniBar(ctx, bx, sy + 50, 62, 'LA', cm / (st.hold || 1), '#c9a24a', cm.toFixed(0) + '/' + st.hold);
+    miniBar(ctx, bx, sy + 50, 62, 'CG', cm / (st.hold || 1), '#c9a24a', cm.toFixed(0) + '/' + st.hold);
     ctx.font = F.num;
     ctx.fillStyle = C.text;
     ctx.fillText(spd.toFixed(1) + ' m/s', bx, sy + 78);
     ctx.font = F.label;
     ctx.fillStyle = ship.fa ? C.gate : C.amber;
-    ctx.fillText('FA ' + ['AV', 'ROT', 'FULL'][ship.fa], bx + 62, sy + 78);
+    ctx.fillText('FA ' + ['OFF', 'ROT', 'FULL'][ship.fa], bx + 62, sy + 78);
     if (ship.anchor) {
       ctx.fillStyle = C.ok;
-      ctx.fillText('WIRE ' + ship.anchor.rope.length.toFixed(0) + ' M', bx + 50, sy + 66);
+      ctx.fillText('CABLE ' + ship.anchor.rope.length.toFixed(0) + ' M', bx + 50, sy + 66);
     }
 
     // Verktøylinje nederst på PC. På mobil er verktøyene knapper.
@@ -308,7 +308,7 @@
         ctx.fillStyle = !have[t] ? '#5a554a' : sel ? C.amber : C.text;
         let lbl = `${i + 1} ${RF.TOOL_NAMES[t].toUpperCase()}`;
         if (t === 'rakett' && have[t]) lbl += ` ${s.ammo}`;
-        if (t === 'laser' && have[t]) lbl += ` N${st.maxTier}`;
+        if (t === 'laser' && have[t]) lbl += ` T${st.maxTier}`;
         ctx.fillText(lbl, x + 10, y + 16);
         x += tw + gap;
       });

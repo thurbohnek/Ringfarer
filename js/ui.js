@@ -11,8 +11,8 @@
 
   const $ = (sel) => document.querySelector(sel);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const kr = (n) => Math.round(n).toLocaleString('nb-NO') + ' kr';
-  const t1 = (n, d = 1) => n.toFixed(d).replace('.', ',');
+  const kr = (n) => Math.round(n).toLocaleString('en-US') + ' cr';
+  const t1 = (n, d = 1) => n.toFixed(d);
   const tonn = (n) => t1(n) + ' t';
 
   // Syv portsymboler tegnet som enkle SVG-streker.
@@ -89,14 +89,14 @@
         const act = game.action;
         const ctx = $('#tc-ctx');
         ctx.hidden = !act;
-        const label = act === 'dock' ? 'DOKK' : act === 'dial' ? 'RING PORT' : act === 'tow' ? 'SLEP' : '';
+        const label = act === 'dock' ? 'DOCK' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : '';
         if (ctx.textContent !== label) ctx.textContent = label;
         $('#tc-tractor').classList.toggle('on', sh.tractor.on);
         $('#tc-light').classList.toggle('on', sh.lightOn);
         $('#tc-winch').hidden = !sh.anchor;
         $('#tc-winchout').hidden = !sh.anchor;
         const fire = $('#tc-fire');
-        const fl = RF.TOOL_NAMES[sh.tool].toUpperCase() + (sh.tool === 'rakett' ? ' ' + sh.s.ammo : '') + (sh.tool === 'anker' && (sh.anchor || sh.harpoon) ? ' LØS' : '');
+        const fl = RF.TOOL_NAMES[sh.tool].toUpperCase() + (sh.tool === 'rakett' ? ' ' + sh.s.ammo : '') + (sh.tool === 'anker' && (sh.anchor || sh.harpoon) ? ' RELEASE' : '');
         if (fire.textContent !== fl) fire.textContent = fl;
         document.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('on', b.dataset.tool === sh.tool));
       }
@@ -106,21 +106,18 @@
     openTitle() {
       const cont = game.hasSave();
       show('title', `
-        <div class="card title-card">
-          <p class="eyebrow">Gruvedrift · frakt · ringporten</p>
-          <p class="version num">Versjon ${esc(RF.VERSION)}</p>
+        <div class="title-card">
+          <p class="eyebrow">Mining · hauling · the ring gate</p>
           <h1>Ringfarer</h1>
-          <p class="lede">Bygg ditt eget gruveskip modul for modul. Bor, skyt og spreng deg gjennom asteroider,
-          slep kometer etter en wire, send ut droner, og reis gjennom den eldgamle ringporten.
-          Alt følger ekte fysikk, og skipet kan miste deler når det blir truffet.</p>
-          <div class="row">
-            <button class="btn primary" data-act="test" data-autofocus>Test alt</button>
-            ${cont ? '<button class="btn" data-act="continue">Fortsett</button>' : ''}
-            <button class="btn" data-act="new">Ny karriere</button>
-            <button class="btn ghost" data-act="help">Kontroller</button>
-          </div>
-          <p class="muted small">«Test alt» gir ubegrenset med penger: kontoen fylles opp av seg selv, så du kan handle, kjøpe alle skip, moduler og droner og prøve alt. Ingenting er låst. I pausemenyen og på stasjonen kan du også når som helst gi deg selv 1 000 000 kr.</p>
-          ${keyList()}
+          <p class="lede">Fit out your own mining ship. Drill, blast and tunnel through asteroids, tow comets on a cable,
+          send out drones and travel through the ancient ring gate. Everything runs on real physics, and your ship can lose parts when it gets hit.</p>
+          <nav class="menu">
+            <button class="menu-item primary" data-act="test" data-autofocus><b>Test everything</b><span>Fully equipped ship, unlimited credits</span></button>
+            ${cont ? '<button class="menu-item" data-act="continue"><b>Continue</b><span>Pick up where you left off</span></button>' : ''}
+            <button class="menu-item" data-act="new"><b>New career</b><span>Start small with a Skiff MK-I</span></button>
+            <button class="menu-item" data-act="help"><b>Controls</b><span>Keys, touch and tips</span></button>
+          </nav>
+          <p class="version num">Version ${esc(RF.VERSION)}</p>
         </div>`);
     },
 
@@ -128,27 +125,26 @@
       const back = game.state === 'play' ? 'close' : 'title';
       show('help', `
         <div class="card plate help-card"><div class="hazard"></div>
-          <div class="card-head"><h2>Kontroller og tips</h2><button class="btn ghost" data-act="${back}">✕ Lukk</button></div>
+          <div class="card-head"><h2>Controls and tips</h2><button class="btn ghost" data-act="${back}">✕ Close</button></div>
           ${keyList()}
-          <h3>Slik fungerer det</h3>
+          <h3>How it works</h3>
           <ul class="tips">
-            <li><b>Sikting:</b> verktøyene sitter i festepunkter på skrogets kant og dreier mot der du trykker eller peker. Hvert tårn når litt over 90° hver vei fra kanten det sitter på. Trådkorset er grønt når minst ett tårn når målet.</li>
-            <li><b>Fly dit du trykker:</b> et kort trykk på tomt rom (for eksempel ved siden av en asteroide) setter et mål. Skipet flyr dit og stopper der, og følger steinen hvis målet ligger ved en. Styrer du selv, slås autopiloten av.</li>
-            <li><b>Kamera:</b> dra på skjermen for å se deg rundt. Skipet blir alltid værende på skjermen. Trykk på skipet ditt (eller ⋯ → Sentrer kamera, tasten O) for å sentrere igjen.</li>
-            <li><b>Skyte:</b> trykk og hold på en stein for å sikte på den og bruke verktøyet. Siktet følger steinen. Hold fingeren stille på tomt rom et øyeblikk for å skyte dit. Avtrekkeren nede til høyre skyter mot siktet.</li>
-            <li><b>Mobil:</b> styrespaken er sirkelen nede til venstre: dra for å snu, dra langt ut for å gi gass.</li>
-            <li><b>Brems:</b> BREMS (eller S) bruker alle motorene til å stoppe skipet i den retningen det faktisk beveger seg, uansett hvor nesen peker.</li>
-            <li><b>Huler:</b> steinene er bygget av små biter. Laseren slår løs biter som passer i hullet de etterlater, så du kan bore tunneler og fly inn i store asteroider. Noen store asteroider har allerede en hule. Raketter slår ut store krater.</li>
-            <li><b>Zoom:</b> knip med to fingre på mobil, musehjul eller + og − på PC.</li>
-            <li><b>Knapper på mobil:</b> de små knappene bytter verktøy, ⋯ har lys, flygeassistent, droner og pause.</li>
-            <li><b>Hardhet:</b> hver bergart har en hardhet fra 1 til 4. Laseren må ha minst samme nivå. Kanon og raketter knuser alt.</li>
-            <li><b>Islag:</b> noen asteroider og kometer har is utenpå og et verdifullt mineral inni.</li>
-            <li><b>Anker:</b> kroken skytes ut på en wire og fester seg i det den treffer. Vinsj inn for å lande, eller gi gass og slep kometen dit du vil.</li>
-            <li><b>Skade:</b> modulene som blir truffet tar skade og kan falle av. Mister du cockpiten, er skipet tapt. Vrakdeler kan samles inn med traktoren og selges som skrap.</li>
-            <li><b>Utstyr:</b> på stasjonen kjøper du lasere, borehoder, kanoner, raketter, anker, lys, lasterom og mer. Det monteres automatisk der det er plass på skroget og synes på skipet. Trenger du mer plass, kjøper du et større skip på verftet.</li>
-            <li><b>Droner:</b> kjøp en dronehangar og en drone. Gruvedronen borer og leverer malm til deg, reparasjonsdronen reparerer skipet. De kan også sendes på tokt fra stasjonen.</li>
+            <li><b>Aiming:</b> tools sit in mounts on the edge of the hull and turn toward where you tap or point. Each turret reaches a little over 90° either way. The crosshair turns green when at least one turret can reach the target.</li>
+            <li><b>Tap to move:</b> a short tap on empty space (for example next to an asteroid) sets a target. The ship flies there and stops, and follows the rock if the target is next to one. Steering yourself switches the autopilot off.</li>
+            <li><b>Camera:</b> drag the screen to look around. The ship always stays on screen. Tap your ship (or ⋯ → Center camera, key O) to center again.</li>
+            <li><b>Firing:</b> press and hold on a rock to aim at it and use the tool. The aim follows the rock. Hold your finger still on empty space for a moment to fire there. The trigger at the bottom right fires at the current aim.</li>
+            <li><b>Touch:</b> the stick is the circle at the bottom left: drag to turn, drag far out to thrust.</li>
+            <li><b>Brake:</b> BRAKE (or S) uses every engine to stop the ship along the direction it is actually moving, wherever the nose points.</li>
+            <li><b>Caves:</b> rocks are made of small pieces. The laser breaks off chunks that fit the hole they leave, so you can tunnel into big asteroids and fly inside. Some big asteroids already have a cave. Rockets blast big craters.</li>
+            <li><b>Zoom:</b> pinch with two fingers, or use the mouse wheel or + and −.</li>
+            <li><b>Hardness:</b> every rock type has a hardness from 1 to 4. The laser must be at least that tier. Cannons and rockets break anything.</li>
+            <li><b>Ice crust:</b> some asteroids and comets have ice on the outside and a valuable mineral inside.</li>
+            <li><b>Harpoon:</b> fires a hook on a cable that sticks to whatever it hits. Winch in to land, or thrust and tow the comet wherever you like.</li>
+            <li><b>Damage:</b> modules that get hit take damage and can break off. Lose the cockpit and the ship is lost. Salvage can be pulled in with the tractor and sold as scrap.</li>
+            <li><b>Equipment:</b> at a station you buy lasers, drill heads, cannons, rockets, harpoons, lights, cargo space and more. It is fitted automatically where there is room on the hull and shows on the ship. Need more room? Buy a bigger ship at the shipyard.</li>
+            <li><b>Drones:</b> buy a drone bay and a drone. The mining drone drills and brings ore to you, the repair drone fixes the ship. They can also be sent on expeditions from the station.</li>
           </ul>
-          <div class="row"><button class="btn primary" data-act="${back}" data-autofocus>Tilbake</button></div>
+          <div class="row"><button class="btn primary" data-act="${back}" data-autofocus>Back</button></div>
         </div>`);
     },
 
@@ -157,14 +153,14 @@
       show('pause', `
         <div class="card plate narrow"><div class="hazard"></div>
           <h2>Pause</h2>
-          ${act.length ? `<h3>Aktive oppdrag</h3><ul class="plain">${act.map((m) => `<li>${esc(RF.missionShort(m))} <span class="reward num">${kr(m.reward)}</span></li>`).join('')}</ul>` : ''}
+          ${act.length ? `<h3>Active contracts</h3><ul class="plain">${act.map((m) => `<li>${esc(RF.missionShort(m))} <span class="reward num">${kr(m.reward)}</span></li>`).join('')}</ul>` : ''}
           <div class="col">
-            <button class="btn primary" data-act="close" data-autofocus>Fortsett</button>
-            <button class="btn" data-act="help">Kontroller</button>
-            <button class="btn" data-act="money">Gi meg 1 000 000 kr</button>
-            <button class="btn" data-act="mute">${RF.Audio.muted ? 'Slå på lyd' : 'Slå av lyd'}</button>
-            <button class="btn" data-act="touch">${game.touchUI ? 'Skjul berøringskontroller' : 'Vis berøringskontroller'}</button>
-            <button class="btn ghost" data-act="quit">Til tittelskjermen</button>
+            <button class="btn primary" data-act="close" data-autofocus>Resume</button>
+            <button class="btn" data-act="help">Controls</button>
+            <button class="btn" data-act="money">Give me 1,000,000 cr</button>
+            <button class="btn" data-act="mute">${RF.Audio.muted ? 'Sound on' : 'Sound off'}</button>
+            <button class="btn" data-act="touch">${game.touchUI ? 'Hide touch controls' : 'Show touch controls'}</button>
+            <button class="btn ghost" data-act="quit">Main menu</button>
           </div>
         </div>`);
     },
@@ -173,12 +169,12 @@
       const fee = Math.min(game.credits, 300 + Math.round(game.credits * 0.1));
       show('dead', `
         <div class="card plate narrow danger"><div class="hazard"></div>
-          <p class="eyebrow">Cockpiten er borte</p>
-          <h2>Skipet er tapt</h2>
-          <p>Redningskapselen ble plukket opp. Forsikringen bygger skipet opp igjen etter siste tegning ved
+          <p class="eyebrow">The cockpit is gone</p>
+          <h2>Ship lost</h2>
+          <p>Your escape pod was picked up. The insurance rebuilds the ship from the last blueprint at
           ${esc(RF.stationName(game.lastStation))}.</p>
-          <p class="muted">Egenandel ${kr(fee)}. Last, fraktoppdrag og droner som var ute, er tapt.</p>
-          <div class="row"><button class="btn primary" data-act="respawn" data-autofocus>Ta over nytt skip</button></div>
+          <p class="muted">Deductible ${kr(fee)}. Cargo, haul contracts and drones that were out are lost.</p>
+          <div class="row"><button class="btn primary" data-act="respawn" data-autofocus>Take the new ship</button></div>
         </div>`);
     },
 
@@ -192,11 +188,11 @@
         </button>`).join('');
       show('dial', `
         <div class="card plate"><div class="hazard"></div>
-          <p class="eyebrow">Oppringingsenhet · ${esc(game.sys.def.name)}</p>
-          <h2>Velg adresse</h2>
+          <p class="eyebrow">Dial device · ${esc(game.sys.def.name)}</p>
+          <h2>Choose an address</h2>
           <div class="dests">${rows}</div>
-          <p class="muted small">Når sju chevroner er låst, skyter en virvel ut foran porten. Hold deg unna den, og fly så inn forfra.</p>
-          <div class="row"><button class="btn ghost" data-act="close">Avbryt</button></div>
+          <p class="muted small">When seven chevrons lock, a vortex bursts out in front of the gate. Stay clear of it, then fly in from the front.</p>
+          <div class="row"><button class="btn ghost" data-act="close">Cancel</button></div>
         </div>`);
     },
 
@@ -209,33 +205,44 @@
   function keyList() {
     const k = (keys, what) => `<div class="k"><span>${keys.map((x) => `<kbd>${x}</kbd>`).join('')}</span><span>${what}</span></div>`;
     return `<div class="keys">
-      ${k(['W'], 'Hovedmotor')}
-      ${k(['S'], 'Brems (stopper i fartsretningen)')}
-      ${k(['A', 'D'], 'Drei skipet')}
-      ${k(['Q', 'E'], 'Sidestyring')}
-      ${k(['1', '2', '3', '4'], 'Velg laser, kanon, rakett, anker')}
-      ${k(['Mus'], 'Sikt. Klikk på tomt rom: fly dit. Klikk og hold på stein: skyt')}
-      ${k(['Dra'], 'Flytt kameraet (også høyre musknapp)')}
-      ${k(['O'], 'Sentrer kameraet på skipet')}
-      ${k(['Mellomrom'], 'Bruk verktøyet')}
-      ${k(['X'], 'Skyt ut / løsne ankeret')}
-      ${k(['C', 'V'], 'Vinsj inn / gi ut wire')}
-      ${k(['F'], 'Traktorstråle av/på')}
-      ${k(['K'], 'Send ut / kall inn droner')}
-      ${k(['L'], 'Arbeidslys av/på')}
-      ${k(['Z'], 'Flygeassistent')}
-      ${k(['T', 'G'], 'Dokk / ring porten')}
-      ${k(['+', '−'], 'Zoom (eller musehjul)')}
+      ${k(['W'], 'Main engine')}
+      ${k(['S'], 'Brake (stops along your heading of travel)')}
+      ${k(['A', 'D'], 'Turn')}
+      ${k(['Q', 'E'], 'Strafe')}
+      ${k(['1', '2', '3', '4'], 'Laser, cannon, rocket, harpoon')}
+      ${k(['Mouse'], 'Aim. Click empty space: move there. Click and hold a rock: fire')}
+      ${k(['Drag'], 'Move the camera (also right mouse button)')}
+      ${k(['O'], 'Center camera on the ship')}
+      ${k(['Space'], 'Use the tool')}
+      ${k(['X'], 'Fire / release harpoon')}
+      ${k(['C', 'V'], 'Winch in / pay out cable')}
+      ${k(['F'], 'Tractor beam on/off')}
+      ${k(['K'], 'Launch / recall drones')}
+      ${k(['L'], 'Work lights on/off')}
+      ${k(['Z'], 'Flight assist')}
+      ${k(['T', 'G'], 'Dock / dial the gate')}
+      ${k(['+', '−'], 'Zoom (or mouse wheel)')}
       ${k(['Esc'], 'Pause')}
     </div>`;
   }
 
   // ---------- Stasjonen ----------
 
+  // Små ikoner til fanene.
+  const ICONS = {
+    marked: 'M4 7h16l-1.5 11h-13z M8 7V5h8v2 M9 11v4 M15 11v4',
+    verksted: 'M14 4a4 4 0 0 0-3.8 5.2L4 15.4 6.6 18l6.2-6.2A4 4 0 0 0 18 8l-2.5 2.5-2-2L16 6a4 4 0 0 0-2-2z',
+    utstyr: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M19 5l-2 2 M7 17l-2 2',
+    verft: 'M3 13l4-6h10l4 6-4 5H7z M9 10h6 M8 13h8',
+    droner: 'M8 12h8 M12 9v6 M5 6a2 2 0 1 0 0 .1 M19 6a2 2 0 1 0 0 .1 M5 18a2 2 0 1 0 0 .1 M19 18a2 2 0 1 0 0 .1 M7 8l3 3 M17 8l-3 3 M7 16l3-3 M17 16l-3-3',
+    oppdrag: 'M7 4h10v16H7z M9 8h6 M9 12h6 M9 16h4',
+  };
+  const icon = (id) => `<svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="${ICONS[id]}"/></svg>`;
+
   function renderStation() {
     const ship = game.ship, s = ship.s, st = ship.docked;
     if (!st) return;
-    const tabs = [['marked', 'Marked'], ['verksted', 'Verksted'], ['utstyr', 'Utstyr'], ['verft', 'Verft'], ['droner', 'Droner'], ['oppdrag', 'Oppdrag']];
+    const tabs = [['marked', 'Market'], ['verksted', 'Repairs'], ['utstyr', 'Equipment'], ['verft', 'Shipyard'], ['droner', 'Drones'], ['oppdrag', 'Contracts']];
     let body = '';
     if (tab === 'marked') body = marketTab(st);
     else if (tab === 'verksted') body = repairTab();
@@ -245,29 +252,31 @@
     else body = missionsTab(st);
     const scroll = root.querySelector('.tab-body');
     const y = scroll ? scroll.scrollTop : 0;
+    const pct = (a, b) => Math.round((a / (b || 1)) * 100);
+    const chip = (label, val, f) => `<span class="chip"><span>${label}</span><b class="num">${val}</b>${f != null ? `<i style="width:${Math.max(0, Math.min(100, f))}%"></i>` : ''}</span>`;
     show('station', `
       <div class="card plate station"><div class="hazard"></div>
         <header class="st-head">
-          <div>
-            <p class="eyebrow">Dokket · ${esc(game.sys.def.name)} · ${esc(RF.HULLS[s.hull].name)}</p>
+          <div class="st-title">
+            <p class="eyebrow">Docked · ${esc(game.sys.def.name)} · ${esc(RF.HULLS[s.hull].name)}</p>
             <h2>${esc(st.name)}</h2>
           </div>
-          <div class="wallet-wrap">
-            <div class="wallet"><span class="num">${Math.floor(game.credits).toLocaleString('nb-NO')}</span><span class="muted">kreditter${game.testMode ? ' · ubegrenset' : ''}</span></div>
-            <button class="btn sm ghost" data-act="money">+1 000 000 kr</button>
-          </div>
+          <div class="wallet"><span class="num">${Math.floor(game.credits).toLocaleString('en-US')}</span><span class="muted">credits${game.testMode ? ' · unlimited' : ''}</span>
+            <button class="btn sm ghost" data-act="money">+1M</button></div>
         </header>
-        <div class="hold-line">
-          <span>Last ${tonn(RF.cargoMass(s))} / ${ship.stats.hold} t</span>
-          <span>Skrog ${Math.round(ship.hullFrac() * 100)} %</span>
-          <span>Drivstoff ${Math.round((s.fuel / (ship.stats.fuelCap || 1)) * 100)} %</span>
-          <span>Raketter ${s.ammo}/${ship.stats.rocketCap}</span>
+        <div class="chips">
+          ${chip('Cargo', `${t1(RF.cargoMass(s))} / ${ship.stats.hold} t`, pct(RF.cargoMass(s), ship.stats.hold))}
+          ${chip('Hull', pct(ship.hullFrac(), 1) + ' %', pct(ship.hullFrac(), 1))}
+          ${chip('Fuel', pct(s.fuel, ship.stats.fuelCap) + ' %', pct(s.fuel, ship.stats.fuelCap))}
+          ${chip('Rockets', `${s.ammo}/${ship.stats.rocketCap}`, pct(s.ammo, ship.stats.rocketCap))}
         </div>
-        <nav class="tabs" role="tablist">
-          ${tabs.map(([id, name]) => `<button role="tab" class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-id="${id}" aria-selected="${tab === id}">${name}</button>`).join('')}
-        </nav>
-        <div class="tab-body">${body}</div>
-        <footer class="row end"><button class="btn primary" data-act="undock" data-autofocus>Forlat stasjonen</button></footer>
+        <div class="st-main">
+          <nav class="tabs" role="tablist">
+            ${tabs.map(([id, name]) => `<button role="tab" class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-id="${id}" aria-selected="${tab === id}">${icon(id)}<span>${name}</span></button>`).join('')}
+          </nav>
+          <div class="tab-body">${body}</div>
+        </div>
+        <footer class="st-foot"><button class="btn primary" data-act="undock" data-autofocus>Undock</button></footer>
       </div>`);
     const nb = root.querySelector('.tab-body');
     if (nb) nb.scrollTop = y;
@@ -284,23 +293,23 @@
       const canBuy = Math.min(free, game.credits / buy);
       return `<tr>
         <td><span class="dot" style="background:${P.color}"></span>${esc(P.name)}</td>
-        <td class="num" data-l="Om bord">${tonn(have)}</td>
-        <td class="num" data-l="Selg kr/t">${sell}</td>
-        <td class="num" data-l="Kjøp kr/t">${buy}</td>
+        <td class="num" data-l="Aboard">${tonn(have)}</td>
+        <td class="num" data-l="Sell cr/t">${sell}</td>
+        <td class="num" data-l="Buy cr/t">${buy}</td>
         <td class="acts">
-          <button class="btn sm" data-act="sell" data-id="${k}" ${have < 0.005 ? 'disabled' : ''}>Selg alt</button>
-          <button class="btn sm ghost" data-act="buy" data-id="${k}" ${canBuy < 1 ? 'disabled' : ''}>Kjøp 1 t</button>
+          <button class="btn sm" data-act="sell" data-id="${k}" ${have < 0.005 ? 'disabled' : ''}>Sell all</button>
+          <button class="btn sm ghost" data-act="buy" data-id="${k}" ${canBuy < 1 ? 'disabled' : ''}>Buy 1 t</button>
         </td></tr>`;
     }).join('');
     const mc = s.missionCargo.length
-      ? `<p class="muted small">Oppdragslast om bord: ${s.missionCargo.map((c) => `${esc(c.name)} (${c.mass} t)`).join(', ')}</p>` : '';
+      ? `<p class="muted small">Contract cargo aboard: ${s.missionCargo.map((c) => `${esc(c.name)} (${c.mass} t)`).join(', ')}</p>` : '';
     let total = 0;
     for (const k in s.cargo) total += s.cargo[k] * game.sellPrice(st.id, k);
     return `<div class="table-wrap"><table>
-      <thead><tr><th>Vare</th><th class="num">Om bord</th><th class="num">Selg kr/t</th><th class="num">Kjøp kr/t</th><th></th></tr></thead>
+      <thead><tr><th>Goods</th><th class="num">Aboard</th><th class="num">Sell cr/t</th><th class="num">Buy cr/t</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table></div>
       ${mc}
-      <div class="row"><button class="btn" data-act="sellall" ${total < 1 ? 'disabled' : ''}>Selg hele lasten (${kr(total)})</button></div>`;
+      <div class="row"><button class="btn" data-act="sellall" ${total < 1 ? 'disabled' : ''}>Sell the whole cargo (${kr(total)})</button></div>`;
   }
 
   function missingModules() {
@@ -323,17 +332,17 @@
   function repairTab() {
     const c = repairCosts();
     const row = (label, val, cost, act) => `<tr><td>${label}</td><td class="num">${val}</td>
-      <td class="acts"><button class="btn sm" data-act="${act}" ${cost <= 0 || game.credits < 1 ? 'disabled' : ''}>${cost > 0 ? 'Fiks · ' + kr(cost) : 'OK'}</button></td></tr>`;
-    const lostList = c.lost.length ? `<p class="muted small">Tapte moduler: ${c.lost.map((m) => esc(RF.MODULES[m.t].name)).join(', ')}</p>` : '';
+      <td class="acts"><button class="btn sm" data-act="${act}" ${cost <= 0 || game.credits < 1 ? 'disabled' : ''}>${cost > 0 ? 'Fix · ' + kr(cost) : 'OK'}</button></td></tr>`;
+    const lostList = c.lost.length ? `<p class="muted small">Lost modules: ${c.lost.map((m) => esc(RF.MODULES[m.t].name)).join(', ')}</p>` : '';
     return `<div class="table-wrap"><table><tbody>
-      ${row('Skadde moduler', c.dmg + ' stk', c.rep, 'rep-hull')}
-      ${row('Tapte moduler (bygg opp etter tegningen)', c.lost.length + ' stk', c.rebuild, 'rep-lost')}
-      ${row('Drivstoff', Math.round((game.ship.s.fuel / (game.ship.stats.fuelCap || 1)) * 100) + ' %', c.fuel, 'rep-fuel')}
-      ${row('Raketter', game.ship.s.ammo + ' / ' + game.ship.stats.rocketCap, c.ammo, 'rep-ammo')}
+      ${row('Damaged modules', c.dmg, c.rep, 'rep-hull')}
+      ${row('Lost modules (rebuild from blueprint)', c.lost.length, c.rebuild, 'rep-lost')}
+      ${row('Fuel', Math.round((game.ship.s.fuel / (game.ship.stats.fuelCap || 1)) * 100) + ' %', c.fuel, 'rep-fuel')}
+      ${row('Rockets', game.ship.s.ammo + ' / ' + game.ship.stats.rocketCap, c.ammo, 'rep-ammo')}
       </tbody></table></div>
       ${lostList}
-      <p class="muted small">Tegningen er skipet slik det var sist du forlot en stasjon eller endret utstyret.</p>
-      <div class="row"><button class="btn" data-act="rep-all" ${c.rep + c.rebuild + c.fuel + c.ammo <= 0 ? 'disabled' : ''}>Fiks alt (${kr(c.rep + c.rebuild + c.fuel + c.ammo)})</button></div>`;
+      <p class="muted small">The blueprint is the ship as it was when you last left a station or changed equipment.</p>
+      <div class="row"><button class="btn" data-act="rep-all" ${c.rep + c.rebuild + c.fuel + c.ammo <= 0 ? 'disabled' : ''}>Fix everything (${kr(c.rep + c.rebuild + c.fuel + c.ammo)})</button></div>`;
   }
 
   // ---------- Utstyr ----------
@@ -344,8 +353,8 @@
     const ship = game.ship, s = ship.s, st = ship.stats;
     const g = RF.layoutGeometry(s.layout);
     const full = g.dryMass + st.fuelCap + st.hold * 1000;
-    const warn = st.blocked.map((m) => `${RF.MODULES[m.t].name} ${RF.MODULES[m.t].mount ? 'har ingen fri kant å peke ut av' : 'har ikke åpen plass bak seg'}`);
-    if (!st.thrusters.length) warn.push('Ingen motor med fri eksos');
+    const warn = st.blocked.map((m) => `${RF.MODULES[m.t].name} ${RF.MODULES[m.t].mount ? 'has no free edge to point out of' : 'has no open space behind it'}`);
+    if (!st.thrusters.length) warn.push('No engine with a clear exhaust');
     const count = {};
     for (const m of s.layout) count[m.t] = (count[m.t] || 0) + 1;
     const B = RF.hullBounds(s.hull);
@@ -355,26 +364,26 @@
       const M = RF.MODULES[k], n = count[k] || 0;
       return `<li class="mission gear"><canvas class="pal-ico" data-mod="${k}" width="56" height="56"></canvas>
         <div><b>${esc(M.name)}</b><span class="muted">${esc(M.desc)}</span>
-        <span class="muted small num">Om bord: ${n}</span></div>
+        <span class="muted small num">Fitted: ${n}</span></div>
         <div class="m-side"><span class="num reward">${kr(M.cost)}</span>
-          <button class="btn sm" data-act="gearbuy" data-id="${k}" ${game.credits < M.cost ? 'disabled' : ''}>Kjøp og monter</button>
-          <button class="btn sm ghost" data-act="gearsell" data-id="${k}" ${n ? '' : 'disabled'}>Selg én</button></div></li>`;
+          <button class="btn sm" data-act="gearbuy" data-id="${k}" ${game.credits < M.cost ? 'disabled' : ''}>Buy and fit</button>
+          <button class="btn sm ghost" data-act="gearsell" data-id="${k}" ${n ? '' : 'disabled'}>Sell one</button></div></li>`;
     }).join('')}</ul>`).join('');
     return `
       <div class="gear-top">
-        <canvas id="gear-canvas" aria-label="Skipet ditt med alt utstyret"></canvas>
+        <canvas id="gear-canvas" aria-label="Your ship with all its equipment"></canvas>
         <div class="ed-side">
-          <p class="small">Utstyret monteres automatisk der det er plass på skroget. Verktøy og våpen settes i kanten og peker ut, motorer bakerst. Alt du kjøper synes på skipet.</p>
+          <p class="small">Equipment is fitted automatically where there is room on the hull. Tools and weapons go on the edge pointing out, engines at the back. Everything you buy shows on the ship.</p>
           <dl class="stats">
-            <dt>Plass på skroget</dt><dd class="num">${s.layout.length} / ${cells} ruter</dd>
-            <dt>Tørrvekt</dt><dd class="num">${t1(g.dryMass / 1000)} t</dd>
-            <dt>Skyvekraft</dt><dd class="num">${Math.round(st.thrust / 1000)} kN</dd>
-            <dt>Akselerasjon</dt><dd class="num">${t1(st.thrust / (g.dryMass + st.fuelCap))} / ${t1(st.thrust / full)} m/s² (full)</dd>
-            <dt>Lasterom</dt><dd class="num">${st.hold} t</dd>
-            <dt>Skjold</dt><dd class="num">${st.shieldMax}</dd>
-            <dt>Laser / bor</dt><dd class="num">${st.lasers.length} / ${st.drills.length}</dd>
-            <dt>Våpen</dt><dd class="num">${st.guns.length} kanon, ${st.rockets.length} rakett</dd>
-            <dt>Droneplasser</dt><dd class="num">${st.bays}</dd>
+            <dt>Hull space</dt><dd class="num">${s.layout.length} / ${cells} slots</dd>
+            <dt>Dry mass</dt><dd class="num">${t1(g.dryMass / 1000)} t</dd>
+            <dt>Thrust</dt><dd class="num">${Math.round(st.thrust / 1000)} kN</dd>
+            <dt>Acceleration</dt><dd class="num">${t1(st.thrust / (g.dryMass + st.fuelCap))} / ${t1(st.thrust / full)} m/s² (full)</dd>
+            <dt>Cargo hold</dt><dd class="num">${st.hold} t</dd>
+            <dt>Shield</dt><dd class="num">${st.shieldMax}</dd>
+            <dt>Lasers / drills</dt><dd class="num">${st.lasers.length} / ${st.drills.length}</dd>
+            <dt>Weapons</dt><dd class="num">${st.guns.length} cannon, ${st.rockets.length} rocket</dd>
+            <dt>Drone bays</dt><dd class="num">${st.bays}</dd>
           </dl>
           ${warn.length ? `<ul class="warn">${warn.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
         </div>
@@ -396,23 +405,23 @@
 
   function buyGear(id) {
     const ship = game.ship, s = ship.s, M = RF.MODULES[id];
-    if (game.credits < M.cost) { game.msg('Du har ikke råd', RF.HUD_COLORS.danger); return; }
+    if (game.credits < M.cost) { game.msg('You cannot afford it', RF.HUD_COLORS.danger); return; }
     const m = RF.autoPlace(s.layout, s.hull, id);
-    if (!m) { game.msg('Ikke plass på skroget. Selg noe, eller kjøp et større skip på verftet', RF.HUD_COLORS.amber); renderStation(); return; }
+    if (!m) { game.msg('No room on the hull. Sell something, or buy a bigger ship at the shipyard', RF.HUD_COLORS.amber); renderStation(); return; }
     game.credits -= M.cost;
     s.layout.push(m);
-    game.msg(`${M.name} montert`, RF.HUD_COLORS.ok);
+    game.msg(`${M.name} fitted`, RF.HUD_COLORS.ok);
     afterEdit();
   }
 
   function sellGear(id) {
     const ship = game.ship, s = ship.s, M = RF.MODULES[id];
     const m = RF.autoRemove(s.layout, id);
-    if (!m) { game.msg('Kan ikke ta den av uten at skipet faller fra hverandre', RF.HUD_COLORS.amber); return; }
+    if (!m) { game.msg('Cannot remove it without the ship falling apart', RF.HUD_COLORS.amber); return; }
     s.layout = s.layout.filter((o) => o !== m);
     const got = Math.round(M.cost * 0.7 * (m.hp / M.hp));
     game.credits += got;
-    game.msg(`Solgte ${M.name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
+    game.msg(`Sold ${M.name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
     afterEdit();
   }
 
@@ -432,7 +441,7 @@
   function yardTab() {
     const cur = game.ship.s.hull;
     const tv = game.tradeInValue();
-    return `<p class="small">Innbytteverdi for skipet ditt med alle moduler: <b class="num">${kr(tv)}</b>. Lasten flyttes over så langt det er plass.</p>
+    return `<p class="small">Trade-in value of your ship with all modules: <b class="num">${kr(tv)}</b>. Cargo is moved over as far as there is room.</p>
       <ul class="missions">${Object.keys(RF.HULLS).map((id) => {
         const H = RF.HULLS[id];
         const L = RF.defaultLayout(id);
@@ -442,9 +451,9 @@
         const mine = id === cur;
         return `<li class="mission"><div><b>${esc(H.name)}</b>
           <span class="muted">${esc(H.desc)}</span>
-          <span class="muted small num">Rutenett ${H.w}×${H.h} · ${L.length} moduler · ${t1(g.dryMass / 1000)} t · last ${st.hold} t · ${Math.round(st.thrust / 1000)} kN</span></div>
+          <span class="muted small num">Grid ${H.w}×${H.h} · ${L.length} modules · ${t1(g.dryMass / 1000)} t · cargo ${st.hold} t · ${Math.round(st.thrust / 1000)} kN</span></div>
           <div class="m-side"><span class="num reward">${kr(H.cost)}</span>
-          <button class="btn sm" data-act="buyhull" data-id="${id}" ${mine || game.credits < price ? 'disabled' : ''}>${mine ? 'Ditt skip' : price >= 0 ? 'Kjøp · ' + kr(price) : 'Bytt · få ' + kr(-price)}</button></div></li>`;
+          <button class="btn sm" data-act="buyhull" data-id="${id}" ${mine || game.credits < price ? 'disabled' : ''}>${mine ? 'Your ship' : price >= 0 ? 'Buy · ' + kr(price) : 'Trade · get ' + kr(-price)}</button></div></li>`;
       }).join('')}</ul>`;
   }
 
@@ -457,33 +466,33 @@
     const now = Date.now();
     const list = s.drones.map((d, i) => {
       const T = RF.DRONE_TYPES[d.type];
-      let status = 'Om bord', btn = `<button class="btn sm" data-act="trip" data-id="${i}">Send på tokt (3 min)</button>`;
+      let status = 'Aboard', btn = `<button class="btn sm" data-act="trip" data-id="${i}">Send on expedition (3 min)</button>`;
       if (d.trip) {
         const left = d.trip.end - now;
-        if (left > 0) { status = `På tokt, tilbake om ${Math.ceil(left / 60000)} min`; btn = ''; }
-        else { status = 'Tilbake fra tokt'; btn = `<button class="btn sm primary" data-act="tripdone" data-id="${i}">Hent resultat</button>`; }
+        if (left > 0) { status = `On expedition, back in ${Math.ceil(left / 60000)} min`; btn = ''; }
+        else { status = 'Back from expedition'; btn = `<button class="btn sm primary" data-act="tripdone" data-id="${i}">Collect</button>`; }
       }
       return `<li class="mission"><div><b>${esc(T.name)}</b><span class="muted">${esc(status)}</span></div>
-        <div class="m-side">${btn}<button class="btn sm ghost" data-act="selldrone" data-id="${i}" ${d.trip ? 'disabled' : ''}>Selg</button></div></li>`;
+        <div class="m-side">${btn}<button class="btn sm ghost" data-act="selldrone" data-id="${i}" ${d.trip ? 'disabled' : ''}>Sell</button></div></li>`;
     }).join('');
     const free = bays - s.drones.length;
-    return `<p class="small">Dronehangarer på skipet: <b>${bays}</b>. Droner om bord: <b>${s.drones.length}</b>.
-      ${bays ? 'Send dem ut i rommet med K (eller ⋯ → Droner på mobil).' : 'Kjøp en dronehangar under Utstyr for å ha plass til droner.'}</p>
-      <ul class="missions">${list || '<li class="muted">Ingen droner ennå.</li>'}</ul>
-      <h3>Kjøp drone</h3>
+    return `<p class="small">Drone bays on the ship: <b>${bays}</b>. Drones aboard: <b>${s.drones.length}</b>.
+      ${bays ? 'Launch them with K (or ⋯ → Drones on touch).' : 'Buy a drone bay under Equipment to make room for drones.'}</p>
+      <ul class="missions">${list || '<li class="muted">No drones yet.</li>'}</ul>
+      <h3>Buy a drone</h3>
       <ul class="missions">${Object.keys(RF.DRONE_TYPES).map((k) => {
         const T = RF.DRONE_TYPES[k];
         return `<li class="mission"><div><b>${esc(T.name)}</b><span class="muted">${esc(T.desc)}</span></div>
-          <div class="m-side"><button class="btn sm" data-act="buydrone" data-id="${k}" ${free <= 0 || game.credits < T.cost ? 'disabled' : ''}>${free <= 0 ? 'Ingen ledig hangar' : 'Kjøp · ' + kr(T.cost)}</button></div></li>`;
+          <div class="m-side"><button class="btn sm" data-act="buydrone" data-id="${k}" ${free <= 0 || game.credits < T.cost ? 'disabled' : ''}>${free <= 0 ? 'No free bay' : 'Buy · ' + kr(T.cost)}</button></div></li>`;
       }).join('')}</ul>
-      <p class="muted small">På tokt drar dronen til fjerne felt og kommer tilbake med malm eller betaling. Omtrent én av ti kommer ikke tilbake.</p>`;
+      <p class="muted small">On an expedition the drone heads to distant fields and comes back with ore or payment. About one in ten never returns.</p>`;
   }
 
   function tripResult(d) {
     const s = game.ship.s;
     if (Math.random() < 0.1) {
       s.drones = s.drones.filter((x) => x !== d);
-      game.msg('Dronen kom aldri tilbake fra toktet', RF.HUD_COLORS.danger);
+      game.msg('The drone never came back from its expedition', RF.HUD_COLORS.danger);
       return;
     }
     d.trip = null;
@@ -495,11 +504,11 @@
       s.cargo[prod] += take;
       const rest = (t - take) * RF.PRODUCTS[prod].price;
       if (rest > 0) game.credits += rest;
-      game.msg(`Dronen kom tilbake med ${tonn(t)} ${RF.PRODUCTS[prod].name.toLowerCase()}${rest > 0 ? ' (resten solgt)' : ''}`, RF.HUD_COLORS.ok);
+      game.msg(`The drone came back with ${tonn(t)} of ${RF.PRODUCTS[prod].name.toLowerCase()}${rest > 0 ? ' (the rest was sold)' : ''}`, RF.HUD_COLORS.ok);
     } else {
       const pay = Math.round(G.rand(900, 2200));
       game.credits += pay;
-      game.msg(`Dronen reparerte andre skip og tjente ${kr(pay)}`, RF.HUD_COLORS.ok);
+      game.msg(`The drone repaired other ships and earned ${kr(pay)}`, RF.HUD_COLORS.ok);
     }
   }
 
@@ -513,22 +522,22 @@
       let btn = '';
       if (m.type === 'levering' && m.to === st.id) {
         const ok = s.cargo[m.product] >= m.amount - 1e-6;
-        btn = `<button class="btn sm primary" data-act="deliver" data-id="${m.id}" ${ok ? '' : 'disabled'}>${ok ? 'Lever' : 'Mangler ' + tonn(m.amount - s.cargo[m.product])}</button>`;
+        btn = `<button class="btn sm primary" data-act="deliver" data-id="${m.id}" ${ok ? '' : 'disabled'}>${ok ? 'Deliver' : 'Missing ' + tonn(m.amount - s.cargo[m.product])}</button>`;
       }
       return `<li class="mission"><div><b>${esc(RF.missionShort(m))}</b><span class="muted">${esc(RF.missionDetail(m))}</span></div>
         <div class="m-side"><span class="num reward">${kr(m.reward)}</span>${btn}
-        <button class="btn sm ghost" data-act="abandon" data-id="${m.id}">Avbryt</button></div></li>`;
-    }).join('') : '<li class="muted">Ingen aktive oppdrag.</li>';
+        <button class="btn sm ghost" data-act="abandon" data-id="${m.id}">Abandon</button></div></li>`;
+    }).join('') : '<li class="muted">No active contracts.</li>';
     const free = game.ship.holdFree();
     const offerHtml = offers.map((m) => {
       const needs = m.type === 'frakt' ? m.mass : 0;
-      const block = active.length >= 3 ? 'Maks 3 aktive' : needs > free + 1e-6 ? 'For lite plass' : '';
-      const tag = m.type === 'frakt' ? (m.fragile ? `<span class="tag warn">Skjør · maks ${m.maxDv} m/s</span>` : '<span class="tag">Frakt</span>') : '<span class="tag ok">Levering</span>';
+      const block = active.length >= 3 ? 'Max 3 active' : needs > free + 1e-6 ? 'Not enough room' : '';
+      const tag = m.type === 'frakt' ? (m.fragile ? `<span class="tag warn">Fragile · max ${m.maxDv} m/s</span>` : '<span class="tag">Haul</span>') : '<span class="tag ok">Delivery</span>';
       return `<li class="mission"><div>${tag}<b>${esc(RF.missionShort(m))}</b><span class="muted">${esc(RF.missionDetail(m))}</span></div>
         <div class="m-side"><span class="num reward">${kr(m.reward)}</span>
-        <button class="btn sm" data-act="accept" data-id="${m.id}" ${block ? 'disabled' : ''}>${block || 'Ta oppdraget'}</button></div></li>`;
+        <button class="btn sm" data-act="accept" data-id="${m.id}" ${block ? 'disabled' : ''}>${block || 'Accept'}</button></div></li>`;
     }).join('');
-    return `<h3>Aktive</h3><ul class="missions">${activeHtml}</ul><h3>Oppslagstavla</h3><ul class="missions">${offerHtml}</ul>`;
+    return `<h3>Active</h3><ul class="missions">${activeHtml}</ul><h3>Contract board</h3><ul class="missions">${offerHtml}</ul>`;
   }
 
   // ---------- Klikk ----------
@@ -565,7 +574,7 @@
         const got = amt * game.sellPrice(st.id, id);
         game.credits += got;
         s.cargo[id] = 0;
-        game.msg(`Solgte ${tonn(amt)} ${RF.PRODUCTS[id].name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
+        game.msg(`Sold ${tonn(amt)} of ${RF.PRODUCTS[id].name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
         after();
         break;
       }
@@ -573,7 +582,7 @@
         let got = 0;
         for (const k in s.cargo) { got += s.cargo[k] * game.sellPrice(st.id, k); s.cargo[k] = 0; }
         game.credits += got;
-        game.msg(`Solgte hele lasten for ${kr(got)}`, RF.HUD_COLORS.ok);
+        game.msg(`Sold the whole cargo for ${kr(got)}`, RF.HUD_COLORS.ok);
         after();
         break;
       }
@@ -588,7 +597,7 @@
         after();
         break;
       case 'buyhull':
-        if (game.buyHull(id)) { game.msg(`Du flyr nå ${RF.HULLS[id].name}`, RF.HUD_COLORS.ok); RF.Audio.blip(740, 0.2, 'triangle', 0.12); }
+        if (game.buyHull(id)) { game.msg(`You now fly the ${RF.HULLS[id].name}`, RF.HUD_COLORS.ok); RF.Audio.blip(740, 0.2, 'triangle', 0.12); }
         renderStation();
         break;
       case 'buydrone': {
@@ -613,7 +622,7 @@
         game.boards[st.id] = board.filter((x) => x !== m);
         game.missions.push(m);
         if (m.type === 'frakt') s.missionCargo.push({ missionId: m.id, name: m.goods, mass: m.mass });
-        game.msg('Oppdrag tatt: ' + RF.missionTitle(m), RF.HUD_COLORS.gate);
+        game.msg('Contract accepted: ' + RF.missionTitle(m), RF.HUD_COLORS.gate);
         after();
         break;
       }
@@ -624,7 +633,7 @@
         game.credits += m.reward;
         m.status = 'fullført';
         game.missions = game.missions.filter((x) => x.status === 'aktiv');
-        game.msg(`Oppdrag fullført (+${kr(m.reward)})`, RF.HUD_COLORS.ok);
+        game.msg(`Contract complete (+${kr(m.reward)})`, RF.HUD_COLORS.ok);
         after();
         break;
       }
@@ -633,7 +642,7 @@
         if (!m) break;
         game.missions = game.missions.filter((x) => x !== m);
         s.missionCargo = s.missionCargo.filter((c) => c.missionId !== m.id);
-        game.msg('Oppdraget ble avbrutt', RF.HUD_COLORS.amber);
+        game.msg('Contract abandoned', RF.HUD_COLORS.amber);
         after();
         break;
       }

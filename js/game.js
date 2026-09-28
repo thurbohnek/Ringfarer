@@ -111,7 +111,7 @@
     if (test) st.drones = [{ type: 'gruve' }, { type: 'rep' }];
     game.ship = new RF.Ship(st);
     spawnDocked('midgard');
-    game.msg(test ? 'Testmodus: fullt utstyrt skip, alt er åpent og pengene tar aldri slutt' : 'Velkommen om bord i Hoppeskip MK-I', RF.HUD_COLORS.gate);
+    game.msg(test ? 'Test mode: fully equipped ship, everything unlocked and the money never runs out' : 'Welcome aboard the Skiff MK-I', RF.HUD_COLORS.gate);
     game.save();
   };
 
@@ -119,7 +119,7 @@
   // automatisk, så ingenting stopper på grunn av penger.
   game.giveMoney = (n = 1000000) => {
     game.credits += n;
-    game.msg(`+${n.toLocaleString('nb-NO')} kr til testing`, RF.HUD_COLORS.ok);
+    game.msg(`+${n.toLocaleString('en-US')} cr for testing`, RF.HUD_COLORS.ok);
     game.save();
   };
   game.topUp = () => {
@@ -163,7 +163,7 @@
     game.ship = new RF.Ship(s);
     game.ship.fa = data.fa != null ? data.fa : 1;
     spawnDocked(game.lastStation);
-    game.msg('Karrieren er lastet inn', RF.HUD_COLORS.gate);
+    game.msg('Career loaded', RF.HUD_COLORS.gate);
   };
 
   // Bytt til et nytt skip. Det gamle tas i innbytte.
@@ -237,7 +237,7 @@
         m.status = 'fullført';
         ship.s.missionCargo = ship.s.missionCargo.filter((c) => c.missionId !== m.id);
         game.credits += m.reward;
-        game.msg(`Levert: ${m.goods} (+${m.reward} kr)`, RF.HUD_COLORS.ok);
+        game.msg(`Delivered: ${m.goods} (+${m.reward} cr)`, RF.HUD_COLORS.ok);
         Audio.blip(660, 0.15, 'triangle', 0.12);
         Audio.blip(880, 0.2, 'triangle', 0.1);
       }
@@ -289,7 +289,7 @@
           m.status = 'feilet';
           ship.s.missionCargo = ship.s.missionCargo.filter((x) => x.missionId !== m.id);
           ship.updateMass();
-          game.msg(`${m.goods} ble ødelagt i støtet (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.danger);
+          game.msg(`${m.goods} was destroyed in the impact (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.danger);
         }
       }
       game.missions = game.missions.filter((m) => m.status !== 'feilet');
@@ -300,8 +300,8 @@
         Audio.thud(Math.min(1, dv / 10));
         game.shake = Math.min(1, game.shake + dv / 10);
       }
-      if (dmg > 0.5) game.msg(`Skrogskade −${Math.ceil(dmg)} (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.danger);
-      else if (dv > 2 && ship.shield > 0) game.msg(`Skjoldet tok støtet (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.gate);
+      if (dmg > 0.5) game.msg(`Hull damage −${Math.ceil(dmg)} (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.danger);
+      else if (dv > 2 && ship.shield > 0) game.msg(`Shield absorbed the impact (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.gate);
       if (other.kind === 'ore' && dv < 1) return;
       return;
     }
@@ -395,7 +395,7 @@
       const t = P.taps.shift();
       if (t.press !== game._aimPress) continue;
       const w = toWorld(t.x, t.y);
-      if (mode === 'ship') { game.camOff.x = game.camOff.y = 0; game.msg('Kameraet følger skipet', RF.HUD_COLORS.gate); }
+      if (mode === 'ship') { game.camOff.x = game.camOff.y = 0; game.msg('Camera follows the ship', RF.HUD_COLORS.gate); }
       else if (mode === 'pending') game.setNav(w.x, w.y);
     }
     const L = game.aimLock;
@@ -420,7 +420,7 @@
       if (d < nd) { nd = d; near = b; }
     }
     ship.nav = { x, y, body: near, l: near ? near.toLocal(x, y) : null, arrived: false };
-    game.msg('Flyr dit', RF.HUD_COLORS.gate);
+    game.msg('Moving to target', RF.HUD_COLORS.gate);
     Audio.blip(700, 0.05, 'sine', 0.06);
   };
 
@@ -445,7 +445,7 @@
     const ax = ((dx / d) * vd - rvx) * 2.5, ay = ((dy / d) * vd - rvy) * 2.5;
     if (!N.arrived && d < 2 && G.len(rvx, rvy) < 0.5) {
       N.arrived = true;
-      game.msg('Fremme', RF.HUD_COLORS.ok);
+      game.msg('Arrived', RF.HUD_COLORS.ok);
     }
     return Object.assign({}, inp, { accel: { x: ax, y: ay }, aim: d > 30 && !N.arrived ? Math.atan2(dy, dx) : null, aimThrust: 0 });
   }
@@ -471,7 +471,7 @@
     if (ship.holdFree() <= 0.02) {
       if (!game._fullWarn || game.time - game._fullWarn > 4) {
         game._fullWarn = game.time;
-        game.msg('Lasterommet er fullt', RF.HUD_COLORS.amber);
+        game.msg('Cargo hold is full', RF.HUD_COLORS.amber);
       }
       return;
     }
@@ -486,7 +486,7 @@
 
   game.onProcessed = (p) => {
     const M = RF.MATERIALS[p.mat];
-    if (p.made > 0.005) game.msg(`+${p.made.toFixed(2).replace('.', ',')} t ${RF.PRODUCTS[M.product].name}`, RF.PRODUCTS[M.product].color);
+    if (p.made > 0.005) game.msg(`+${p.made.toFixed(2)} t ${RF.PRODUCTS[M.product].name}`, RF.PRODUCTS[M.product].color);
     game.ship.updateMass();
   };
 
@@ -521,7 +521,7 @@
       const p = b.toWorld(m.lx, m.ly);
       game.particles.burst(p.x, p.y, 30, { sMin: 4, sMax: 25, color: '#ffcf80', zMin: 0.2, zMax: 0.5, lMin: 0.3, lMax: 1, vx: b.vx, vy: b.vy });
       game.particles.burst(p.x, p.y, 14, { type: 'smoke', sMin: 1, sMax: 5, color: '#5d5a52', zMin: 1, zMax: 2.5, grow: 3, lMin: 1, lMax: 2.5, vx: b.vx, vy: b.vy });
-      game.msg(`Mistet ${RF.MODULES[m.t].name.toLowerCase()}`, RF.HUD_COLORS.danger);
+      game.msg(`Lost ${RF.MODULES[m.t].name.toLowerCase()}`, RF.HUD_COLORS.danger);
     }
     Audio.thud(0.9);
     game.shake = Math.min(1, game.shake + 0.6);
@@ -529,7 +529,7 @@
     const loose = lostCockpit ? s.layout.slice() : RF.disconnected(s.layout);
     s.layout = s.layout.filter((m) => !loose.includes(m));
     game.spawnWreck(dead.map((m) => Object.assign({}, m, { hp: 1 })).concat(loose), b);
-    if (loose.length && !lostCockpit) game.msg(`${loose.length} modul${loose.length > 1 ? 'er' : ''} brakk av`, RF.HUD_COLORS.danger);
+    if (loose.length && !lostCockpit) game.msg(`${loose.length} module${loose.length > 1 ? 's' : ''} broke off`, RF.HUD_COLORS.danger);
     if (lostCockpit) { destroyShip(); return; }
     ship.rebuild();
     if (ship.anchor && ship.anchor.lost) ship.releaseAnchor(game);
@@ -541,8 +541,8 @@
     const ready = ship.s.drones.filter((d) => !d.trip && !d.out);
     if (!ready.length) {
       const out = game.sys.npcs.filter((n) => n.owner === ship);
-      if (out.length) { for (const n of out) n.state = 'recall'; game.msg('Dronene kalles tilbake', RF.HUD_COLORS.gate); }
-      else game.msg(ship.stats.bays ? 'Ingen droner om bord. Kjøp på en stasjon' : 'Skipet har ingen dronehangar', RF.HUD_COLORS.amber);
+      if (out.length) { for (const n of out) n.state = 'recall'; game.msg('Recalling drones', RF.HUD_COLORS.gate); }
+      else game.msg(ship.stats.bays ? 'No drones aboard. Buy one at a station' : 'The ship has no drone bay', RF.HUD_COLORS.amber);
       return;
     }
     const bays = ship.s.layout.filter((m) => m.t === 'dronebay');
@@ -557,7 +557,7 @@
       n.state = 'seek';
       game.sys.npcs.push(n);
     });
-    game.msg(`${ready.length} drone${ready.length > 1 ? 'r' : ''} sendt ut`, RF.HUD_COLORS.gate);
+    game.msg(`${ready.length} drone${ready.length > 1 ? 's' : ''} launched`, RF.HUD_COLORS.gate);
   };
 
   game.droneHome = (n) => {
@@ -570,7 +570,7 @@
     const s = game.ship.s;
     s.drones = s.drones.filter((d) => d !== n.data);
     game.sys.npcs = game.sys.npcs.filter((x) => x !== n);
-    game.msg(`${n.name} gikk tapt`, RF.HUD_COLORS.danger);
+    game.msg(`${n.name} was lost`, RF.HUD_COLORS.danger);
   };
 
   // Alle droner inn i hangaren med en gang (ved dokking og portreiser).
@@ -595,7 +595,7 @@
     g.dest = destId;
     g.incoming = false;
     RF.UI.closeAll();
-    game.msg(`Ringer ${RF.systemById(destId).name} …`, RF.HUD_COLORS.gate);
+    game.msg(`Dialing ${RF.systemById(destId).name} …`, RF.HUD_COLORS.gate);
   };
 
   function updateGate(dt) {
@@ -623,7 +623,7 @@
               game.ship.shield = 0;
               game.ship.takeImpact(0, b.x - cs * 3, b.y - sn * 3, game, 120);
               b.vx += cs * 12; b.vy += sn * 12;
-              game.msg('Truffet av virvelen fra porten!', RF.HUD_COLORS.danger);
+              game.msg('Hit by the gate vortex!', RF.HUD_COLORS.danger);
               game.shake = 1;
               Audio.thud(1);
             }
@@ -685,7 +685,7 @@
     g.state = 'dialing'; g.t = 0; g.chevrons = 0; g.incoming = true; g.dest = null;
     g.arrival = npc;
     const sb = game.ship.body;
-    if (game.sys === npc.sys && G.len(sb.x - g.x, sb.y - g.y) < 600) game.msg('Innkommende ormehull! Hold deg unna forsiden av porten', RF.HUD_COLORS.danger);
+    if (game.sys === npc.sys && G.len(sb.x - g.x, sb.y - g.y) < 600) game.msg('Incoming wormhole! Stay clear of the front of the gate', RF.HUD_COLORS.danger);
     return true;
   };
 
@@ -718,7 +718,7 @@
     game.particles.list = [];
     ship.tractor.targets = [];
     Audio.kawoosh();
-    game.msg(`Ankommet ${dest.def.name}`, RF.HUD_COLORS.gate);
+    game.msg(`Arrived at ${dest.def.name}`, RF.HUD_COLORS.gate);
     game.msg(dest.def.blurb, RF.HUD_COLORS.muted || '#8398b3');
     game._gatePrevLx = undefined;
   }
@@ -758,15 +758,15 @@
     game.ship.fa = fa;
     RF.UI.closeAll();
     spawnDocked(game.lastStation);
-    game.msg(`Nytt skrog fra forsikringen. Egenandel ${fee} kr`, RF.HUD_COLORS.amber);
+    game.msg(`New hull from the insurance. Deductible ${fee} cr`, RF.HUD_COLORS.amber);
     return fee;
   };
 
   function towHome() {
-    if (game.credits < TOW_COST) { game.msg('Du har ikke råd til slep', RF.HUD_COLORS.danger); return; }
+    if (game.credits < TOW_COST) { game.msg('You cannot afford a tow', RF.HUD_COLORS.danger); return; }
     game.credits -= TOW_COST;
     const st = game.sys.station;
-    game.msg(`Slept til ${st.name} (−${TOW_COST} kr)`, RF.HUD_COLORS.amber);
+    game.msg(`Towed to ${st.name} (−${TOW_COST} cr)`, RF.HUD_COLORS.amber);
     game.ship.s.fuel = Math.max(game.ship.s.fuel, 5);
     dock();
   }
@@ -852,27 +852,27 @@
     if (dd < DOCK_RANGE) {
       if (spd < DOCK_SPEED) {
         game.dockReady = true;
-        game.prompt = `[T] Dokk ved ${sys.station.name}`;
+        game.prompt = `[T] Dock at ${sys.station.name}`;
         game.action = 'dock';
       } else {
-        game.prompt = `Senk farten for å dokke (${spd.toFixed(1)} > ${DOCK_SPEED} m/s)`;
+        game.prompt = `Slow down to dock (${spd.toFixed(1)} > ${DOCK_SPEED} m/s)`;
       }
       return;
     }
     if (dd < 180) {
-      game.prompt = 'Fly inn i den stiplede ringen ved enden av dokkingsarmen';
+      game.prompt = 'Fly into the dashed ring at the end of the docking arm';
       return;
     }
     const g = sys.gate;
     const gd = G.len(b.x - g.x, b.y - g.y);
     if (gd < DIAL_RANGE) {
-      if (g.state === 'idle') { game.prompt = '[G] Ring porten'; game.action = 'dial'; }
-      else if (g.state === 'dialing') game.prompt = `Låser chevron ${g.chevrons + 1} av 7 …`;
-      else if (g.state === 'kawoosh') game.prompt = 'Hold avstand foran porten!';
-      else if (g.state === 'open' && !g.incoming) game.prompt = `Porten er åpen til ${RF.systemById(g.dest).name}: fly inn forfra`;
+      if (g.state === 'idle') { game.prompt = '[G] Dial the gate'; game.action = 'dial'; }
+      else if (g.state === 'dialing') game.prompt = `Locking chevron ${g.chevrons + 1} of 7 …`;
+      else if (g.state === 'kawoosh') game.prompt = 'Keep clear of the gate!';
+      else if (g.state === 'open' && !g.incoming) game.prompt = `Gate open to ${RF.systemById(g.dest).name}: fly in from the front`;
       return;
     }
-    if (ship.s.fuel <= 0) { game.prompt = `[R] Nødslep til ${sys.station.name} (${TOW_COST} kr)`; game.action = 'tow'; }
+    if (ship.s.fuel <= 0) { game.prompt = `[R] Emergency tow to ${sys.station.name} (${TOW_COST} cr)`; game.action = 'tow'; }
   }
 
   game.selectTool = (t) => {
@@ -880,14 +880,14 @@
     ship.tool = t;
     const st = ship.stats;
     const have = { laser: st.lasers.length + st.drills.length, kanon: st.guns.length, rakett: st.rockets.length, anker: st.anchors.length }[t];
-    game.msg(`Verktøy: ${RF.TOOL_NAMES[t]}${have ? '' : ' (ikke montert)'}`, have ? RF.HUD_COLORS.gate : RF.HUD_COLORS.amber);
+    game.msg(`Tool: ${RF.TOOL_NAMES[t]}${have ? '' : ' (not fitted)'}`, have ? RF.HUD_COLORS.gate : RF.HUD_COLORS.amber);
     Audio.blip(500, 0.04, 'square', 0.06);
   };
 
   function handleKeys() {
     if (Input.hit('KeyM')) {
       Audio.setMuted(!Audio.muted);
-      game.msg(Audio.muted ? 'Lyd av' : 'Lyd på');
+      game.msg(Audio.muted ? 'Sound off' : 'Sound on');
     }
     if (Input.hit('Escape') || Input.hit('KeyP')) {
       if (RF.UI.isOpen()) {
@@ -899,12 +899,12 @@
     if (RF.UI.isOpen() || game.dead) return;
     if (Input.hit('Recenter') || Input.hit('Home') || Input.hit('KeyO')) {
       game.camOff.x = game.camOff.y = 0;
-      game.msg('Kameraet følger skipet', RF.HUD_COLORS.gate);
+      game.msg('Camera follows the ship', RF.HUD_COLORS.gate);
     }
     const ship = game.ship;
     if (Input.hit('KeyZ')) {
       ship.fa = (ship.fa + 1) % 3;
-      game.msg('Flygeassistent: ' + ['av (ren Newton)', 'demper rotasjon', 'full (bremser også fart)'][ship.fa], RF.HUD_COLORS.gate);
+      game.msg('Flight assist: ' + ['off (pure Newton)', 'damps rotation', 'full (also brakes speed)'][ship.fa], RF.HUD_COLORS.gate);
     }
     if (Input.hit('KeyX')) RF.Weapons.fireHarpoon(ship, game);
     if (Input.hit('KeyK')) game.launchDrones();
@@ -940,7 +940,7 @@
     if (ship.nav && !ship.docked && !game.dead) {
       if (inp.thrust || inp.turn || inp.strafe || inp.brake || inp.aim != null) {
         ship.nav = null;
-        game.msg('Autopilot av', RF.HUD_COLORS.amber);
+        game.msg('Autopilot off', RF.HUD_COLORS.amber);
       } else if (!RF.UI.isOpen()) inp = navInput(inp);
     }
     if (!ship.docked && !game.dead) updateFlight(dt, inp);
@@ -997,7 +997,7 @@
           if (!c.comet || G.len(c.x - game.cam.x, c.y - game.cam.y) > 900) continue;
           if (Math.random() < 0.3) {
             const a = Math.random() * 6.28, r = c.radius * 0.9;
-            game.particles.add({ type: 'smoke', x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, vx: c.vx * 0.6 + Math.cos(sd) * 6 + G.rand(-1.5, 1.5), vy: c.vy * 0.6 + Math.sin(sd) * 6 + G.rand(-1.5, 1.5), life: G.rand(2, 4), size: c.radius * 0.12, grow: 1.5, color: '#9aa3a9' });
+            game.particles.add({ type: 'smoke', x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, vx: c.vx * 0.6 + Math.cos(sd) * 6 + G.rand(-1.5, 1.5), vy: c.vy * 0.6 + Math.sin(sd) * 6 + G.rand(-1.5, 1.5), life: G.rand(2, 4), size: c.radius * 0.05, grow: 1.6, color: '#8f979c' });
           }
           // Småstein og grus som følger kometen.
           if (Math.random() < 0.5) {

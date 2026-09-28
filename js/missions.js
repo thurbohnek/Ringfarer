@@ -5,13 +5,13 @@
   const G = RF.G;
 
   const GOODS = [
-    { name: 'Medisinsk forsyning', fragile: 0.7 },
-    { name: 'Reservedeler', fragile: 0.1 },
-    { name: 'Forskningsprøver', fragile: 0.8 },
-    { name: 'Hydrokultur-moduler', fragile: 0.4 },
-    { name: 'Post og pakker', fragile: 0.2 },
-    { name: 'Reaktorstaver', fragile: 0.9, bonus: 1.4 },
-    { name: 'Kryolagrede embryoer', fragile: 1, bonus: 1.6 },
+    { name: 'Medical supplies', fragile: 0.7 },
+    { name: 'Spare parts', fragile: 0.1 },
+    { name: 'Research samples', fragile: 0.8 },
+    { name: 'Hydroponics modules', fragile: 0.4 },
+    { name: 'Mail and parcels', fragile: 0.2 },
+    { name: 'Reactor rods', fragile: 0.9, bonus: 1.4 },
+    { name: 'Cryo-stored embryos', fragile: 1, bonus: 1.6 },
   ];
 
   let nextId = 1;
@@ -41,8 +41,8 @@
   };
 
   RF.missionTitle = (m) => {
-    if (m.type === 'frakt') return `Frakt ${m.mass} t ${m.goods.toLowerCase()}`;
-    return `Lever ${String(m.amount).replace('.', ',')} t ${RF.PRODUCTS[m.product].name.toLowerCase()}`;
+    if (m.type === 'frakt') return `Haul ${m.mass} t of ${m.goods.toLowerCase()}`;
+    return `Deliver ${m.amount} t of ${RF.PRODUCTS[m.product].name.toLowerCase()}`;
   };
 
   RF.missionShort = (m) => `${RF.missionTitle(m)} → ${RF.stationName(m.to)}`;
@@ -51,11 +51,11 @@
     const to = RF.stationById(m.to);
     const where = `${to.station.name} (${to.name})`;
     if (m.type === 'frakt') {
-      let s = `Lastes om bord nå, leveres automatisk når du dokker ved ${where}.`;
-      if (m.fragile) s += ` Skjør last: ett støt over ${m.maxDv} m/s ødelegger den.`;
+      let s = `Loaded now, delivered automatically when you dock at ${where}.`;
+      if (m.fragile) s += ` Fragile cargo: a single impact above ${m.maxDv} m/s destroys it.`;
       return s;
     }
-    return `Bor ut og prosesser råvaren selv, eller kjøp den billig et annet sted. Leveres ved ${where}.`;
+    return `Mine and process it yourself, or buy it cheap elsewhere. Deliver at ${where}.`;
   };
 
   RF.setMissionIdBase = (n) => { nextId = Math.max(nextId, n + 1); };

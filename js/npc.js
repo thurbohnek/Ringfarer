@@ -10,11 +10,11 @@
   const G = RF.G;
 
   RF.NPC_TYPES = {
-    drone: { name: 'Gruvedrone', mass: 11000, thrust: 190e3, torque: 0.55e6, hull: 60, maxSpeed: 16 },
-    hauler: { name: 'Frakteskip', mass: 70000, thrust: 820e3, torque: 7e6, hull: 180, maxSpeed: 28 },
+    drone: { name: 'Mining drone', mass: 11000, thrust: 190e3, torque: 0.55e6, hull: 60, maxSpeed: 16 },
+    hauler: { name: 'Freighter', mass: 70000, thrust: 820e3, torque: 7e6, hull: 180, maxSpeed: 28 },
     // Spillerens egne droner.
-    helper: { name: 'Gruvedrone', mass: 5000, thrust: 110e3, torque: 0.35e6, hull: 40, maxSpeed: 20, own: true },
-    repair: { name: 'Reparasjonsdrone', mass: 4500, thrust: 110e3, torque: 0.35e6, hull: 40, maxSpeed: 22, own: true },
+    helper: { name: 'Mining drone', mass: 5000, thrust: 110e3, torque: 0.35e6, hull: 40, maxSpeed: 20, own: true },
+    repair: { name: 'Repair drone', mass: 4500, thrust: 110e3, torque: 0.35e6, hull: 40, maxSpeed: 22, own: true },
   };
 
   // Lasteporten ligger bak antennemasten, på motsatt side av dokkingsarmen.
@@ -255,7 +255,7 @@
         const d = toOwner();
         if (d < ob.radius + 12) {
           for (const c of this.load || []) owner.processing.push(c);
-          if (this.cargo > 0) game.msg(`${this.name} leverte ${(this.cargo / 1000).toFixed(1).replace('.', ',')} t malm`, RF.HUD_COLORS.ok);
+          if (this.cargo > 0) game.msg(`${this.name} delivered ${(this.cargo / 1000).toFixed(1)} t of ore`, RF.HUD_COLORS.ok);
           owner.updateMass();
           this.load = [];
           this.cargo = 0;
@@ -381,7 +381,7 @@
           g.dest = G.pick(others).id;
           g.dialedBy = this;
           this.state = 'dialing';
-          if (game.sys === this.sys) game.msg(`${this.name} ringer ${RF.systemById(g.dest).name}`, RF.HUD_COLORS.muted);
+          if (game.sys === this.sys) game.msg(`${this.name} is dialing ${RF.systemById(g.dest).name}`, RF.HUD_COLORS.muted);
         }
       } else if (this.state === 'dialing') {
         this.steer(dt, g.x + cs * 140, g.y + sn * 140, 0, 0, g.a + Math.PI);
@@ -431,7 +431,7 @@
         game.particles.burst(b.x, b.y, 20, { type: 'debris', sMin: 3, sMax: 15, color: '#8a8e92', zMin: 0.3, zMax: 1, lMin: 2, lMax: 5, vx: b.vx, vy: b.vy });
         game.spawnWreck(this.layout.filter(() => Math.random() < 0.4).map((m) => ({ t: m.t, x: m.x, y: m.y, hp: 1 })), b);
         RF.Audio.thud(0.9);
-        game.msg(`${this.name} ble ødelagt`, RF.HUD_COLORS.danger);
+        game.msg(`${this.name} was destroyed`, RF.HUD_COLORS.danger);
       }
       this.despawn();
       this.state = 'hangar';

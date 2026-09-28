@@ -34,13 +34,13 @@
 
   W.fireRocket = (ship, game) => {
     const st = ship.stats;
-    if (!st.rockets.length) { game.msg('Skipet har ingen rakettkaster', RF.HUD_COLORS.amber); return; }
+    if (!st.rockets.length) { game.msg('The ship has no rocket launcher', RF.HUD_COLORS.amber); return; }
     if (ship.rocketCd > 0) return;
-    if ((ship.s.ammo || 0) <= 0) { game.msg('Tomt for raketter. Fyll på ved en stasjon', RF.HUD_COLORS.amber); return; }
+    if ((ship.s.ammo || 0) <= 0) { game.msg('Out of rockets. Restock at a station', RF.HUD_COLORS.amber); return; }
     ship.rocketCd = 0.6;
     ship.s.ammo--;
     const ready = st.rockets.filter((r) => r.m.onTarget);
-    if (!ready.length) { ship.s.ammo++; game.msg('Siktepunktet er utenfor rakettkasterens sektor', RF.HUD_COLORS.amber); return; }
+    if (!ready.length) { ship.s.ammo++; game.msg('Target is outside the rocket launcher arc', RF.HUD_COLORS.amber); return; }
     const L = ready[ship.s.ammo % ready.length];
     const { p, d, v } = launchFrom(ship, L.m);
     W.list.push({ type: 'rocket', x: p.x, y: p.y, vx: v.x + d.x * 25, vy: v.y + d.y * 25, dx: d.x, dy: d.y, life: 7, owner: ship.body, arm: 0.25 });
@@ -51,9 +51,9 @@
   W.fireHarpoon = (ship, game) => {
     if (ship.anchor || ship.harpoon) { ship.releaseAnchor(game); return; }
     const st = ship.stats;
-    if (!st.anchors.length) { game.msg('Skipet har ingen ankerkaster', RF.HUD_COLORS.amber); return; }
+    if (!st.anchors.length) { game.msg('The ship has no harpoon launcher', RF.HUD_COLORS.amber); return; }
     const inArc = st.anchors.filter((a) => a.m.onTarget);
-    if (!inArc.length) { game.msg('Siktepunktet er utenfor ankerkasterens sektor', RF.HUD_COLORS.amber); return; }
+    if (!inArc.length) { game.msg('Target is outside the harpoon arc', RF.HUD_COLORS.amber); return; }
     const A = inArc.reduce((a, b) => (b.range > a.range ? b : a));
     const { p, d, v } = launchFrom(ship, A.m);
     const h = { type: 'harpoon', x: p.x, y: p.y, vx: v.x + d.x * 70, vy: v.y + d.y * 70, life: 10, owner: ship.body, ship, mod: A.m, range: A.range, winch: A.winch };
@@ -135,7 +135,7 @@
 
   function hitHarpoon(p, hit, game) {
     const ship = p.ship, o = hit.body;
-    if (o.kind === 'gate') { p.dead = true; ship.harpoon = null; game.msg('Kroken preller av porten', RF.HUD_COLORS.amber); return; }
+    if (o.kind === 'gate') { p.dead = true; ship.harpoon = null; game.msg('The hook bounces off the gate', RF.HUD_COLORS.amber); return; }
     const mp = ship.mountOf(p.mod);
     const la = { x: mp.lx, y: mp.ly };
     const a = ship.body.toWorld(la.x, la.y);
@@ -146,8 +146,8 @@
     p.dead = true;
     game.particles.burst(hit.x, hit.y, 12, { sMin: 3, sMax: 12, color: '#ffd28a', zMin: 0.15, zMax: 0.3 });
     RF.Audio.thud(0.4, true);
-    const what = o.kind === 'rock' || o.kind === 'ore' ? (o.comet ? 'kometen' : 'steinen') : o.kind === 'station' ? 'stasjonen' : 'målet';
-    game.msg(`Kroken sitter i ${what}. Vinsj inn eller slep`, RF.HUD_COLORS.ok);
+    const what = o.kind === 'rock' || o.kind === 'ore' ? (o.comet ? 'the comet' : 'the rock') : o.kind === 'station' ? 'the station' : 'the target';
+    game.msg(`Hook attached to ${what}. Winch in or tow`, RF.HUD_COLORS.ok);
   }
 
   W.update = (dt, game) => {
@@ -167,7 +167,7 @@
         if (G.len(p.x - a.x, p.y - a.y) > p.range || p.life <= 0) {
           p.dead = true;
           p.ship.harpoon = null;
-          game.msg('Kroken bommet', RF.HUD_COLORS.amber);
+          game.msg('The hook missed', RF.HUD_COLORS.amber);
           continue;
         }
       }

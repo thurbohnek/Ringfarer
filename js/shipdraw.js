@@ -147,9 +147,9 @@
   }
 
   const TONES = {
-    light: ['#dcdfe1', '#b3b8bb', '#80868a'],
-    mid: ['#c2c6c9', '#979ca0', '#63686c'],
-    dark: ['#8f9498', '#686d71', '#3f4346'],
+    light: ['#ddd7c8', '#b3ad9d', '#7f796c'],
+    mid: ['#c4beaf', '#9a9486', '#686357'],
+    dark: ['#918b7e', '#6b665b', '#433f37'],
   };
 
   // Selve blokken: en åttekant, mest avfaset der den vender ut mot rommet.
@@ -424,9 +424,345 @@
     return out;
   }
 
+  // ---------- Organisk skrog (som skipene i Stargate-flåten) ----------
+  // Rutene blir til ett sammenhengende, avrundet skrog: et felt fylles der
+  // modulene sitter, glattes ut, og tegnes som flere lag oppå hverandre (bredt
+  // underskrog, smalere dekk, rygg og bro), med en spiss baug foran.
+  const RES = 0.25; // meter per rute i feltet
+
+  function blur(F, W, H, r) {
+    const tmp = new Float32Array(F.length);
+    for (let pass = 0; pass < 2; pass++) {
+      for (let y = 0; y < H; y++) {
+        let acc = 0;
+        const row = y * W;
+        for (let x = -r; x <= r; x++) acc += F[row + Math.min(W - 1, Math.max(0, x))];
+        for (let x = 0; x < W; x++) {
+          tmp[row + x] = acc / (2 * r + 1);
+          acc += F[row + Math.min(W - 1, x + r + 1)] - F[row + Math.max(0, x - r)];
+        }
+      }
+      for (let x = 0; x < W; x++) {
+        let acc = 0;
+        for (let y = -r; y <= r; y++) acc += tmp[Math.min(H - 1, Math.max(0, y)) * W + x];
+        for (let y = 0; y < H; y++) {
+          F[y * W + x] = acc / (2 * r + 1);
+          acc += tmp[Math.min(H - 1, y + r + 1) * W + x] - tmp[Math.max(0, y - r) * W + x];
+        }
+      }
+    }
+    return F;
+  }
+
+  // Marching squares: fylt område (fill) eller konturlinjer (lines) der F >= t.
+  function msPath(F, W, H, x0, y0, t, lines) {
+    const p = new Path2D();
+    const P = (i, j) => [x0 + i * RES, y0 + j * RES];
+    for (let j = 0; j < H - 1; j++) {
+      let run = -1;
+      for (let i = 0; i < W - 1; i++) {
+        const k = j * W + i;
+        const v = [F[k], F[k + 1], F[k + W + 1], F[k + W]];
+        const inn = v.map((a) => a >= t);
+        const n = inn.filter(Boolean).length;
+        // Hele ruter slås sammen til rader (færre biter å fylle).
+        if (!lines) {
+          if (n === 4) { if (run < 0) run = i; if (i < W - 2) continue; }
+          if (run >= 0) {
+            const end = n === 4 ? i + 1 : i;
+            p.rect(x0 + run * RES, y0 + j * RES, (end - run) * RES, RES);
+            run = -1;
+            if (n === 4) continue;
+          }
+        }
+        if (!n || n === 4) continue;
+        const c = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)];
+        const poly = [], cross = [];
+        for (let q = 0; q < 4; q++) {
+          const q2 = (q + 1) & 3;
+          if (inn[q]) poly.push(c[q]);
+          if (inn[q] !== inn[q2]) {
+            const f = (t - v[q]) / (v[q2] - v[q]);
+            const pt = [c[q][0] + (c[q2][0] - c[q][0]) * f, c[q][1] + (c[q2][1] - c[q][1]) * f];
+            poly.push(pt); cross.push(pt);
+          }
+        }
+        if (lines) {
+          for (let q = 0; q + 1 < cross.length; q += 2) { p.moveTo(cross[q][0], cross[q][1]); p.lineTo(cross[q + 1][0], cross[q + 1][1]); }
+        } else {
+          p.moveTo(poly[0][0], poly[0][1]);
+          for (let q = 1; q < poly.length; q++) p.lineTo(poly[q][0], poly[q][1]);
+          p.closePath();
+        }
+      }
+    }
+    return p;
+  }
+
+  // Enkel, fast tilfeldighet så samme skip alltid ser likt ut.
+  function rng(seed) {
+    let s = seed >>> 0 || 1;
+    return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000; };
+  }
+
+  const HULL = {
+    base: ['#8f897c', '#6f6a5f', '#4a463e'],
+    deck: ['#bdb6a6', '#9a9486', '#6d685d'],
+    spine: ['#d6d0c0', '#b2ab9b', '#838074'],
+  };
+
+  function layer(ctx, path, outline, cols, box, shadow) {
+    if (shadow) {
+      ctx.save(); ctx.translate(0.35, 0.45); ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill(path); ctx.lineWidth = 0.08; ctx.strokeStyle = 'rgba(0,0,0,0.38)'; ctx.restore();
+    }
+    const g = ctx.createLinearGradient(box.x0, box.y0, box.x1, box.y1);
+    g.addColorStop(0, cols[0]); g.addColorStop(0.55, cols[1]); g.addColorStop(1, cols[2]);
+    ctx.fillStyle = g;
+    ctx.fill(path);
+    // Samme farge over skjøtene mellom fyllbitene.
+    ctx.strokeStyle = g; ctx.lineWidth = RES * 0.35; ctx.stroke(path);
+    // Skråkant langs omrisset: lys oppe til venstre, mørk nede til høyre.
+    ctx.save();
+    ctx.clip(path);
+    const b = ctx.createLinearGradient(box.x0, box.y0, box.x1, box.y1);
+    b.addColorStop(0, 'rgba(255,250,235,0.6)'); b.addColorStop(0.5, 'rgba(255,250,235,0.1)');
+    b.addColorStop(0.5, 'rgba(0,0,0,0.1)'); b.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.strokeStyle = b; ctx.lineWidth = 0.45; ctx.stroke(outline);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(20,18,15,0.9)'; ctx.lineWidth = 0.07; ctx.stroke(outline);
+  }
+
+  function hullArt(L, ctx, bx) {
+    const { x0, y0, W, H } = bx;
+    const O = new Float32Array(W * H);
+    const put = (px, py, v = 1) => {
+      const i = Math.round((px - x0) / RES), j = Math.round((py - y0) / RES);
+      if (i >= 0 && j >= 0 && i < W && j < H) O[j * W + i] = Math.max(O[j * W + i], v);
+    };
+    const fillRect = (ax, ay, bxx, byy, v = 1) => { for (let y = ay; y <= byy; y += RES) for (let x = ax; x <= bxx; x += RES) put(x, y, v); };
+    for (const m of L) fillRect(m.lx - h, m.ly - h, m.lx + h, m.ly + h);
+    // Baug: en kile foran den fremste kolonnen.
+    let fx = -Infinity;
+    for (const m of L) fx = Math.max(fx, m.lx);
+    const front = L.filter((m) => m.lx > fx - 0.1);
+    const fy0 = Math.min(...front.map((m) => m.ly)) - h, fy1 = Math.max(...front.map((m) => m.ly)) + h;
+    const fyc = (fy0 + fy1) / 2, span = fy1 - fy0;
+    const plen = Math.min(CELL * 2.2, span * 0.9 + CELL * 0.6);
+    for (let x = fx + h; x <= fx + h + plen; x += RES) {
+      const k = 1 - (x - fx - h) / plen;
+      fillRect(x, fyc - (span / 2) * k * k, x, fyc + (span / 2) * k * k);
+    }
+    // Motorgondoler: rundet hus bak hver motor.
+    for (const m of L) if (m.t === 'thruster' || m.t === 'thruster2') fillRect(m.lx - h - 0.6, m.ly - h * 0.8, m.lx, m.ly + h * 0.8);
+    const F = blur(O.slice(), W, H, 3);
+    // Dekket: smalere, glatt platå oppå skroget.
+    const D = new Float32Array(W * H);
+    for (let k = 0; k < F.length; k++) D[k] = F[k] > 0.9 ? 1 : 0;
+    blur(D, W, H, 4);
+    // Ryggen: et bånd langs midten av skipet.
+    let ymin = Infinity, ymax = -Infinity;
+    for (const m of L) { ymin = Math.min(ymin, m.ly); ymax = Math.max(ymax, m.ly); }
+    const yc = (ymin + ymax) / 2, sig = Math.max(CELL * 0.6, (ymax - ymin) * 0.16);
+    const S = new Float32Array(W * H);
+    for (let j = 0; j < H; j++) {
+      const y = y0 + j * RES, gy = Math.exp(-((y - yc) ** 2) / (2 * sig * sig));
+      for (let i = 0; i < W; i++) S[j * W + i] = D[j * W + i] * gy;
+    }
+    blur(S, W, H, 2);
+    const box = { x0, y0, x1: x0 + W * RES, y1: y0 + H * RES };
+    const pBase = msPath(F, W, H, x0, y0, 0.42), oBase = msPath(F, W, H, x0, y0, 0.42, true);
+    const pDeck = msPath(D, W, H, x0, y0, 0.55), oDeck = msPath(D, W, H, x0, y0, 0.55, true);
+    const pSpine = msPath(S, W, H, x0, y0, 0.6), oSpine = msPath(S, W, H, x0, y0, 0.6, true);
+    // Skyggen under hele skipet brukes også som skygge i rommet.
+    layer(ctx, pBase, oBase, HULL.base, box, false);
+    // Paneler på underskroget: konturlinjer og tverrgående sømmer.
+    ctx.save();
+    ctx.clip(pBase);
+    ctx.strokeStyle = 'rgba(25,22,18,0.35)'; ctx.lineWidth = 0.06;
+    ctx.stroke(msPath(F, W, H, x0, y0, 0.62, true));
+    ctx.stroke(msPath(F, W, H, x0, y0, 0.8, true));
+    for (let x = x0 + 1.1; x < box.x1; x += 1.8) { ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x + 0.4, box.y1); ctx.stroke(); }
+    ctx.restore();
+    const R = rng(L.length * 7919 + L.reduce((a, m) => a + (m.x + 11) * 31 + (m.y + 17) * 131, 0));
+    const at = (A, x, y) => { const i = Math.round((x - x0) / RES), j = Math.round((y - y0) / RES); return i >= 0 && j >= 0 && i < W && j < H ? A[j * W + i] : 0; };
+    // Små detaljer (rør, luker, bokser) på underskroget.
+    greebles(ctx, R, 70 + L.length * 2, box, (x, y) => at(F, x, y) > 0.55 && at(D, x, y) < 0.4, 0.35, 1.3, HULL.base);
+    layer(ctx, pDeck, oDeck, HULL.deck, box, true);
+    ctx.save();
+    ctx.clip(pDeck);
+    ctx.strokeStyle = 'rgba(40,36,30,0.4)'; ctx.lineWidth = 0.05;
+    ctx.stroke(msPath(D, W, H, x0, y0, 0.8, true));
+    for (let y = yc - 30; y < yc + 30; y += 1.6) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(box.x1, y); ctx.stroke(); }
+    ctx.restore();
+    greebles(ctx, R, 50 + L.length, box, (x, y) => at(D, x, y) > 0.7 && at(S, x, y) < 0.5, 0.3, 1.1, HULL.deck);
+    // Mørke renner langs dekket.
+    ctx.save(); ctx.clip(pDeck);
+    ctx.fillStyle = 'rgba(28,25,21,0.55)';
+    for (const s of [-1, 1]) {
+      const yy = yc + s * sig * 1.25;
+      ctx.fillRect(box.x0, yy - 0.12, box.x1 - box.x0, 0.24);
+    }
+    ctx.restore();
+    layer(ctx, pSpine, oSpine, HULL.spine, box, true);
+    greebles(ctx, R, 18 + L.length / 2, box, (x, y) => at(S, x, y) > 0.75, 0.25, 0.8, HULL.spine);
+    // Vinduer: rader med små lys langs kanten av dekket.
+    const lights = [];
+    for (let j = 1; j < H - 1; j += 2) {
+      for (let i = 1; i < W - 1; i += 3) {
+        const k = j * W + i, v = D[k];
+        if (v > 0.55 && v < 0.62 && R() < 0.55) lights.push({ x: x0 + i * RES, y: y0 + j * RES });
+      }
+    }
+    for (const d of lights) { circle(ctx, d.x, d.y, 0.09, '#fff1c8'); }
+    return { lights, F, D, S, at };
+  }
+
+  function greebles(ctx, R, n, box, ok, smin, smax, cols) {
+    for (let q = 0; q < n; q++) {
+      const x = box.x0 + R() * (box.x1 - box.x0), y = box.y0 + R() * (box.y1 - box.y0);
+      if (!ok(x, y)) continue;
+      const w = smin + R() * (smax - smin), hh = smin + R() * (smax - smin) * 0.6;
+      if (!ok(x + w, y) || !ok(x, y + hh) || !ok(x + w, y + hh)) continue;
+      const kind = R();
+      if (kind < 0.55) {
+        const g = ctx.createLinearGradient(x, y, x, y + hh);
+        g.addColorStop(0, cols[0]); g.addColorStop(1, cols[2]);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x + 0.08, y + 0.1, w, hh);
+        ctx.fillStyle = g; ctx.fillRect(x, y, w, hh);
+        ctx.strokeStyle = 'rgba(20,18,15,0.6)'; ctx.lineWidth = 0.04; ctx.strokeRect(x, y, w, hh);
+      } else if (kind < 0.8) {
+        ctx.fillStyle = 'rgba(25,22,18,0.55)'; ctx.fillRect(x, y, w, Math.max(0.1, hh * 0.35));
+      } else {
+        const r = Math.min(w, hh) * 0.45;
+        circle(ctx, x + r, y + r, r, cols[1], 'rgba(20,18,15,0.7)');
+        circle(ctx, x + r * 0.8, y + r * 0.8, r * 0.4, cols[0]);
+      }
+    }
+  }
+
+  // Detaljer for modulene oppå skroget, så utstyret synes.
+  function moduleDetail(ctx, m, time) {
+    const D = RF.MODULES[m.t];
+    ctx.save();
+    ctx.translate(m.lx, m.ly);
+    switch (m.t) {
+      case 'cockpit': {
+        // Broen: et hevet tårn med vindusbånd foran.
+        rr(ctx, -1.0, -0.8, 1.9, 1.6, 0.45);
+        const g = ctx.createLinearGradient(-1, -0.8, 0.9, 0.8);
+        g.addColorStop(0, '#e2dccd'); g.addColorStop(1, '#8e887b');
+        ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.save(); ctx.translate(0.3, 0.35); ctx.fill(); ctx.restore();
+        rr(ctx, -1.0, -0.8, 1.9, 1.6, 0.45); ctx.fillStyle = g; ctx.fill();
+        bevel(ctx, -1.0, -0.8, 1.9, 1.6, 0.45, 1, 0.18);
+        rr(ctx, 0.35, -0.6, 0.45, 1.2, 0.18);
+        ctx.fillStyle = glassGrad(ctx, 0.35, -0.6, 0.8, 0.6); ctx.fill();
+        ctx.strokeStyle = '#1d1b17'; ctx.lineWidth = 0.05; ctx.stroke();
+        for (let y = -0.45; y <= 0.46; y += 0.3) circle(ctx, 0.58, y, 0.05, '#ffe6a8');
+        break;
+      }
+      case 'shield': {
+        circle(ctx, 0, 0, 0.9, 'rgba(0,0,0,0.35)');
+        circle(ctx, -0.05, -0.05, 0.85, '#8d877a', '#1d1b17');
+        const g = ctx.createRadialGradient(-0.25, -0.25, 0.05, 0, 0, 0.62);
+        g.addColorStop(0, '#effbff'); g.addColorStop(0.5, '#5aa9cf'); g.addColorStop(1, '#10283a');
+        circle(ctx, -0.05, -0.05, 0.6, g, '#10151a');
+        break;
+      }
+      case 'cargo': case 'cargo2': {
+        const w = m.t === 'cargo2' ? 1.9 : 1.6;
+        rr(ctx, -w / 2, -0.7, w, 1.4, 0.12);
+        ctx.fillStyle = 'rgba(40,36,30,0.55)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(230,222,205,0.35)'; ctx.lineWidth = 0.04;
+        ctx.beginPath(); ctx.moveTo(0, -0.7); ctx.lineTo(0, 0.7); ctx.stroke();
+        for (let x = -w / 2 + 0.2; x < w / 2; x += 0.3) { ctx.beginPath(); ctx.moveTo(x, -0.6); ctx.lineTo(x, 0.6); ctx.stroke(); }
+        if (m.t === 'cargo2') hazard(ctx, -w / 2, 0.5, w, 0.16);
+        break;
+      }
+      case 'fuel':
+        for (const y of [-0.45, 0.45]) {
+          rr(ctx, -0.9, y - 0.32, 1.8, 0.64, 0.32);
+          const g = ctx.createLinearGradient(0, y - 0.32, 0, y + 0.32);
+          g.addColorStop(0, '#ece6d7'); g.addColorStop(1, '#8f897b');
+          ctx.fillStyle = g; ctx.fill();
+          ctx.strokeStyle = '#2a2721'; ctx.lineWidth = 0.05; ctx.stroke();
+          ctx.fillStyle = '#9d3a2a'; ctx.fillRect(0.25, y - 0.31, 0.15, 0.62);
+        }
+        break;
+      case 'refinery':
+        rr(ctx, -0.8, -0.6, 1.6, 1.2, 0.15);
+        ctx.fillStyle = '#1b1510'; ctx.fill();
+        for (let i = 0; i < 4; i++) { ctx.fillStyle = '#4a2410'; ctx.fillRect(-0.62 + i * 0.32, -0.45, 0.16, 0.9); }
+        break;
+      case 'dronebay':
+        rr(ctx, -0.9, -0.7, 1.8, 1.4, 0.15);
+        ctx.fillStyle = '#211e1a'; ctx.fill();
+        hazard(ctx, -0.9, -0.7, 1.8, 0.14);
+        ctx.strokeStyle = '#5a554b'; ctx.lineWidth = 0.05;
+        ctx.beginPath(); ctx.moveTo(-0.9, 0.05); ctx.lineTo(0.9, 0.05); ctx.stroke();
+        break;
+      case 'armor': case 'armor2': {
+        const n = m.t === 'armor2' ? 2 : 1;
+        for (let i = 0; i < n; i++) {
+          const s = 1 - i * 0.3;
+          ctx.beginPath();
+          ctx.moveTo(-0.9 * s, -0.6 * s); ctx.lineTo(0.6 * s, -0.9 * s); ctx.lineTo(0.9 * s, 0); ctx.lineTo(0.6 * s, 0.9 * s); ctx.lineTo(-0.9 * s, 0.6 * s); ctx.closePath();
+          const g = ctx.createLinearGradient(-0.9, -0.9, 0.9, 0.9);
+          g.addColorStop(0, '#d8d2c3'); g.addColorStop(1, '#827c70');
+          ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.save(); ctx.translate(0.12, 0.15); ctx.fill(); ctx.restore();
+          ctx.fillStyle = g; ctx.fill();
+          ctx.strokeStyle = 'rgba(25,22,18,0.7)'; ctx.lineWidth = 0.04; ctx.stroke();
+        }
+        break;
+      }
+      case 'rcs':
+        for (const [x, y] of [[-0.7, -0.7], [0.7, -0.7], [0.7, 0.7], [-0.7, 0.7]]) {
+          circle(ctx, x, y, 0.22, '#3a3630');
+          circle(ctx, x, y, 0.11, '#0e0d0b');
+        }
+        break;
+      case 'thruster': case 'thruster2': {
+        // Motorhus: ribbet sylinder bakover.
+        const ys = m.t === 'thruster2' ? [-0.55, 0.55] : [0];
+        for (const y of ys) {
+          const w = m.t === 'thruster2' ? 0.48 : 0.75;
+          rr(ctx, -1.5, y - w, 2.0, w * 2, w);
+          const g = ctx.createLinearGradient(0, y - w, 0, y + w);
+          g.addColorStop(0, '#6d685e'); g.addColorStop(0.35, '#d0cabb'); g.addColorStop(1, '#4e4a42');
+          ctx.fillStyle = g; ctx.fill();
+          ctx.strokeStyle = '#1d1b17'; ctx.lineWidth = 0.05; ctx.stroke();
+          ctx.strokeStyle = 'rgba(30,27,22,0.55)';
+          for (let x = -1.3; x < 0.3; x += 0.3) { ctx.beginPath(); ctx.moveTo(x, y - w * 0.9); ctx.lineTo(x, y + w * 0.9); ctx.stroke(); }
+        }
+        break;
+      }
+      default:
+        if (D.mount) {
+          const a = RF.DIR_ANGLE[m.dir >= 0 ? m.dir : 0];
+          const px = Math.cos(a) * CELL * 0.35, py = Math.sin(a) * CELL * 0.35;
+          circle(ctx, px + 0.1, py + 0.12, 0.72, 'rgba(0,0,0,0.35)');
+          circle(ctx, px, py, 0.7, '#3a3630');
+          circle(ctx, px, py, 0.6, '#8e887b', '#1d1b17');
+        }
+    }
+    // Skader: sot og sprekker.
+    const f = m.hp / D.hp;
+    if (f < 0.6) {
+      const g = ctx.createRadialGradient(0.2, 0.1, 0, 0.2, 0.1, 1.5);
+      g.addColorStop(0, `rgba(12,8,4,${0.9 * (1 - f)})`);
+      g.addColorStop(1, 'rgba(40,20,10,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(-h - 0.3, -h - 0.3, CELL + 0.6, CELL + 0.6);
+    }
+    if (f < 0.3) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 0.09;
+      ctx.beginPath(); ctx.moveTo(-0.9, -0.3); ctx.lineTo(-0.2, 0.1); ctx.lineTo(0.1, -0.5); ctx.lineTo(0.8, 0.4); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // Ferdig tegnet skip (uten tårn) i et eget lerret, laget på nytt når
   // oppsettet endrer seg eller en modul blir skadet.
-  const PPM = 26;
+  const PPM = 24;
   function artOf(obj) {
     const L = obj.layout;
     const key = L.map((m) => m.t + m.x + ',' + m.y + ':' + (m.lx || 0).toFixed(2) + ':' + (m.ly || 0).toFixed(2) + ':' + m.dir + ':' +
@@ -436,44 +772,17 @@
     for (const m of L) {
       x0 = Math.min(x0, m.lx); x1 = Math.max(x1, m.lx); y0 = Math.min(y0, m.ly); y1 = Math.max(y1, m.ly);
     }
-    const pad = h + 1.6;
-    x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+    x0 -= h + 2.2; y0 -= h + 1.4; x1 += h + CELL * 2.4; y1 += h + 1.4;
     const ppm = Math.min(PPM, 2048 / Math.max(x1 - x0, y1 - y0));
     const cw = Math.ceil((x1 - x0) * ppm), ch = Math.ceil((y1 - y0) * ppm);
     const cv = document.createElement('canvas');
     cv.width = cw; cv.height = ch;
     const ctx = cv.getContext('2d');
     ctx.setTransform(ppm, 0, 0, ppm, -x0 * ppm, -y0 * ppm);
-    const occ = new Set(L.map((m) => m.x + ',' + m.y));
-    // Mørk ramme under blokkene (synes i fugene).
-    const loops = hullLoops(L);
-    tracePath(ctx, loops);
-    ctx.fillStyle = '#222428';
-    ctx.fill('evenodd');
-    ctx.strokeStyle = '#0d0e10'; ctx.lineWidth = 0.1; ctx.stroke();
     for (const m of L) if (m.t === 'thruster' || m.t === 'thruster2') nozzle(ctx, m);
-    const domes = [];
-    for (const m of L) {
-      ctx.save();
-      ctx.translate(m.lx, m.ly);
-      moduleArt(ctx, m, exposure(occ, m));
-      ctx.restore();
-      for (const d of domeSpots(occ, m)) { dome(ctx, d.x, d.y); domes.push(d); }
-    }
-    // Koblingsstykker over fugene mellom modulene.
-    for (const m of L) {
-      for (const [dx, dy] of [[1, 0], [0, 1]]) {
-        if (!occ.has(m.x + dx + ',' + (m.y + dy))) continue;
-        if ((m.x + m.y) % 2 && dy) continue;
-        const cx = m.lx + dx * h, cy = m.ly + dy * h;
-        ctx.save(); ctx.translate(cx, cy); if (dy) ctx.rotate(Math.PI / 2);
-        rr(ctx, -0.3, -0.42, 0.6, 0.84, 0.1);
-        ctx.fillStyle = '#4a4e53'; ctx.fill();
-        bevel(ctx, -0.3, -0.42, 0.6, 0.84, 0.1, 1, 0.1);
-        bolt(ctx, 0, -0.22, 0.06); bolt(ctx, 0, 0.22, 0.06);
-        ctx.restore();
-      }
-    }
+    const W = Math.ceil((x1 - x0) / RES) + 1, H = Math.ceil((y1 - y0) / RES) + 1;
+    const hull = hullArt(L, ctx, { x0, y0, W, H });
+    for (const m of L) moduleDetail(ctx, m, 0);
     // Skygge: samme form, helt mørk.
     const sh = document.createElement('canvas');
     sh.width = cw; sh.height = ch;
@@ -482,7 +791,7 @@
     sx.globalCompositeOperation = 'source-in';
     sx.fillStyle = '#000';
     sx.fillRect(0, 0, cw, ch);
-    obj._art = { key, cv, sh, x0, y0, w: cw / ppm, h: ch / ppm, domes };
+    obj._art = { key, cv, sh, x0, y0, w: cw / ppm, h: ch / ppm, domes: [], lights: hull.lights };
     return obj._art;
   }
 
@@ -653,7 +962,7 @@
     }
     ctx.globalCompositeOperation = 'lighter';
     const spr = glowSprite();
-    for (const d of art.domes) ctx.drawImage(spr, d.x - 0.9, d.y - 0.9, 1.8, 1.8);
+    for (const d of art.lights) ctx.drawImage(spr, d.x - 0.4, d.y - 0.4, 0.8, 0.8);
     ctx.globalCompositeOperation = 'source-over';
   };
 
@@ -729,7 +1038,7 @@
     const art = obj._art;
     if (art) {
       const spr = glowSprite();
-      for (const d of art.domes) ctx.drawImage(spr, d.x - 0.9, d.y - 0.9, 1.8, 1.8);
+      for (const d of art.lights) ctx.drawImage(spr, d.x - 0.4, d.y - 0.4, 0.8, 0.8);
     }
     for (const m of L) {
       if (m.t === 'refinery') {

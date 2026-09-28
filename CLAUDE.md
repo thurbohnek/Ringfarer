@@ -39,3 +39,9 @@
 
 - Ingenting i spillet skal låses (skip, moduler, droner, handel) før brukeren
   selv sier fra. «Test alt» på startskjermen gir ubegrenset med penger.
+
+## Språk
+
+- Alt spilleren ser i spillet (menyer, meldinger, navn på moduler, varer og
+  steder) skal være på engelsk.
+- Kommentarer i koden, `ENDRINGER.md` og svarene til brukeren er på norsk.
