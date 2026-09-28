@@ -159,30 +159,48 @@
   }, { passive: true });
   window.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinching = false; }, { passive: true });
 
-  // Siktepunkt: musen, eller en finger på skjermen utenfor styrespaken og knappene.
-  // down = holdes inne (avfyrer verktøyet).
-  const pointer = (Input.pointer = { x: 0, y: 0, x0: 0, y0: 0, has: false, down: false, id: null, type: 'mouse', presses: 0 });
+  // Musen eller en finger på skjermen utenfor styrespaken og knappene.
+  // Spillet avgjør hva et trykk betyr (se game.js): kort trykk = fly dit
+  // eller lås siktet, dra = flytt kameraet, hold = sikt og skyt.
+  // panX/panY samler opp hvor langt pekeren er dratt siden forrige ramme.
+  // taps: korte trykk som er sluppet, { x, y } i skjermpunkter.
+  const pointer = (Input.pointer = {
+    x: 0, y: 0, x0: 0, y0: 0, t0: 0, has: false, down: false, id: null, type: 'mouse', presses: 0,
+    moved: false, button: 0, panX: 0, panY: 0, taps: [],
+  });
   Input.bindAim = (canvas, onTapFirst) => {
+    let lx = 0, ly = 0;
     canvas.addEventListener('pointermove', (e) => {
       if (e.pointerType === 'mouse' || e.pointerId === pointer.id) {
         pointer.x = e.clientX; pointer.y = e.clientY; pointer.has = true;
       }
+      if (e.pointerId === pointer.id && pointer.down && !pinching) {
+        if (Math.hypot(e.clientX - pointer.x0, e.clientY - pointer.y0) > 12) pointer.moved = true;
+        pointer.panX += e.clientX - lx; pointer.panY += e.clientY - ly;
+        lx = e.clientX; ly = e.clientY;
+      }
     });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('pointerdown', (e) => {
       if (onTapFirst && onTapFirst(e)) return;
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (pinching || pointer.id !== null) return;
       pointer.x = e.clientX; pointer.y = e.clientY; pointer.has = true;
-      pointer.x0 = e.clientX; pointer.y0 = e.clientY;
+      pointer.x0 = lx = e.clientX; pointer.y0 = ly = e.clientY;
+      pointer.t0 = performance.now();
       pointer.type = e.pointerType || 'mouse';
+      pointer.button = e.button || 0;
+      pointer.moved = false;
+      pointer.panX = pointer.panY = 0;
       pointer.down = true;
       pointer.id = e.pointerId;
       pointer.presses++;
-      pressed.add('Fire');
       try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* ignorer */ }
     });
     const up = (e) => {
       if (e.pointerId !== pointer.id) return;
+      if (!pointer.moved && !pinching && pointer.button === 0 && performance.now() - pointer.t0 < 320) {
+        pointer.taps.push({ x: pointer.x0, y: pointer.y0, press: pointer.presses });
+      }
       pointer.down = false;
       pointer.id = null;
     };

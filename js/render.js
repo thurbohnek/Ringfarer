@@ -341,6 +341,7 @@
       }
       this.drawParticles(game.particles, vis, 'solid');
       for (const r of sys.world.ropes) this.drawRope(r);
+      if (shipLive && ship.nav && !ship.docked) this.drawNav(game);
       for (const b of sys.world.bodies) {
         if (b.kind === 'wreck' && vis(b.x, b.y, b.radius)) this.drawModular(b._draw || (b._draw = { body: b, layout: b.modules }), game.time);
       }
@@ -502,6 +503,31 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
       ctx.drawImage(this.light, 0, 0, this.w, this.h);
+    }
+
+    // Målet for autopiloten: en pulserende ring og en stiplet linje fra skipet.
+    drawNav(game) {
+      const ctx = this.ctx, p = game.navPoint(), b = game.ship.body;
+      if (!p) return;
+      const k = 0.5 + 0.5 * Math.sin(game.time * 5);
+      const r = 2.5 + k * 0.8;
+      ctx.save();
+      ctx.lineWidth = this.px * 1.6;
+      ctx.setLineDash([this.px * 8, this.px * 6]);
+      ctx.strokeStyle = 'rgba(108,196,224,0.45)';
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = game.ship.nav.arrived ? 'rgba(149,196,106,0.9)' : 'rgba(108,196,224,0.95)';
+      ctx.lineWidth = this.px * 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        const a = i * Math.PI / 2 + game.time * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(p.x + Math.cos(a) * (r + this.px * 4), p.y + Math.sin(a) * (r + this.px * 4));
+        ctx.lineTo(p.x + Math.cos(a) * (r + this.px * 12), p.y + Math.sin(a) * (r + this.px * 12));
+        ctx.stroke();
+      }
+      ctx.restore();
     }
 
     // Fargebilde med én piksel per node. Tegnes forstørret med utjevning, så

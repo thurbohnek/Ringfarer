@@ -14,10 +14,60 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Skygger fra asteroider følger ytterkanten.** Lyset fra skipet kaster
   skygge etter det ytre omrisset av steinen, ikke etter hulene inni. Når man
   er inne i en hule, kastes ingen skygge fra den steinen.
+- **Autopiloten ser ikke hindringer.** Skipet flyr rett mot målet og kan
+  kollidere med steiner som ligger i veien.
 - **Kjempeasteroider tar tid å bore i.** En tunnel stor nok til skipet krever
   mange biter. Raketter går mye raskere. Farten kan justeres etter testing.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-28: v0.7.0 · Nytt utseende på skipet, utstyrsbutikk, fly dit du trykker og kamera som kan flyttes
+
+Ønsker fra brukeren (med to bilder som mal for utseendet):
+- skipet var for kantete og hadde for lite detaljer på utsiden
+- skipsbyggeren kan tas bort, men når man kjøper ting skal det synes på skipet
+- man skal kunne zoome ut som nå og i tillegg flytte kameraet, helt til skipet
+  står i kanten av skjermen men fortsatt synes
+- trykker man på et sted, for eksempel ved siden av en asteroide, skal skipet
+  fly dit og stoppe
+
+Hva som ble gjort:
+- **Nytt utseende på skipene** (`js/shipdraw.js`), etter det første bildet:
+  hver modul er en lys stålblokk formet som en åttekant med avfasede hjørner,
+  skråkant og skygge. Mellom modulene synes den mørke rammen, og koblingsstykker
+  med bolter holder dem sammen. Modulene har rister, merkelapper, runde
+  tanker, cockpitglass, dyseklokker med blått lys og rader med lysende kupler
+  langs kantene. Verktøyene er større og lette å kjenne igjen: lasertårn med
+  farget linse, doble kanonløp, rakettkasse, ankerkrok, lyskastere, traktor og
+  borehoder. Skipet tegnes én gang og gjenbrukes, så det går like raskt som før.
+- **Nytt verktøy: borehode.** En piggete bortrommel på en arm (som på bildet).
+  Den snurrer og maler seg inn i stein den presses mot (hardhet 2), og brukes
+  med laserknappen (`js/modules.js`, `js/ship.js`).
+- **Skipsbyggeren er fjernet.** I stedet har stasjonen fanen **Utstyr**
+  (`js/ui.js`). Der ser du et bilde av skipet med alt utstyret, og kan kjøpe og
+  selge. Det du kjøper monteres automatisk der det er plass, uten å sperre
+  andre verktøy eller motorer (`RF.autoPlace` i `js/modules.js`).
+- **Fly dit du trykker:** et kort trykk på tomt rom setter et mål. Skipet snur
+  seg, flyr dit og stopper der. Ligger målet ved en stein, følger det steinen
+  mens den driver. En ring og en stiplet linje viser målet. Styrer du selv,
+  slås autopiloten av (`js/game.js`, `js/ship.js`, `js/render.js`).
+- **Kameraet kan flyttes:** dra på skjermen (eller bruk høyre musknapp) for å
+  se deg rundt. Skipet blir alltid værende på skjermen, et stykke fra kanten.
+  Trykk på skipet, ⋯ → Sentrer kamera eller tasten O for å sentrere igjen.
+- **Trykk på skjermen betyr nå:** kort trykk på tomt rom = fly dit, trykk og
+  hold på en stein = sikt og skyt (siktet følger steinen), hold fingeren stille
+  på tomt rom = skyt dit, dra = flytt kameraet (`js/input.js`, `js/game.js`).
+- Testskipet har i tillegg to borehoder.
+
+Testet (nettleser uten skjerm, PC og Pixel 7):
+- testskipet har alle modultypene og to borehoder, ingen er blokkert
+- på Hoppeskipet ble borehode, tung laser, kanon, flomlys og ett borehode til
+  kjøpt og montert uten at noe ble sperret. Salg av kanonen virket
+- klikk på tomt rom 60 m unna: skipet fløy dit og stoppet 0,4 m fra målet
+- å dra på skjermen flyttet kameraet, og skipet ble værende på skjermen
+- mobil: kort trykk satte mål, dra flyttet kameraet, å holde på en stein låste
+  siktet og laseren skjøt
+- ingen feil i nettleserkonsollen
 
 ## 2026-09-28: v0.6.0 · Asteroider av småbiter, huler, brems, sikting og testskip
 

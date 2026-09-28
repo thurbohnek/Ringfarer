@@ -28,6 +28,8 @@
     sys: null,
     ship: null,
     cam: { x: 0, y: 0, zoom: 3 },
+    camOff: { x: 0, y: 0 },
+    pointerMode: null,
     shake: 0,
     particles: new RF.Particles(),
     messages: [],
@@ -105,7 +107,7 @@
     game.lastStation = 'midgard';
     RF.Weapons.reset();
     // I testmodus starter man med et skip som har alt utstyret om bord.
-    const st = test ? RF.newShipState('fjell', RF.TEST_LAYOUT) : RF.newShipState('hopper');
+    const st = test ? RF.newShipState('fjell', RF.testLayout()) : RF.newShipState('hopper');
     if (test) st.drones = [{ type: 'gruve' }, { type: 'rep' }];
     game.ship = new RF.Ship(st);
     spawnDocked('midgard');
@@ -221,6 +223,8 @@
     game.recallDronesNow();
     removeShipFromWorld();
     ship.docked = st;
+    ship.nav = null;
+    game.camOff.x = game.camOff.y = 0;
     ship.tractor.on = false;
     const dp = RF.dockPoint(st);
     Object.assign(ship.body, { x: dp.x, y: dp.y, a: dp.a, vx: 0, vy: 0, w: 0 });
@@ -331,36 +335,119 @@
     return best;
   }
 
+  // Hva et trykk på skjermen betyr (game.pointerMode):
+  //  - trykk på en stein: siktet låses til steinen, verktøyet brukes mens man holder
+  //  - kort trykk på tomt rom: skipet flyr dit og stopper (autopilot)
+  //  - dra: flytt kameraet (skipet blir alltid værende på skjermen)
+  //  - hold stille på tomt rom: sikt og skyt dit
+  //  - trykk på eget skip: kameraet sentreres igjen
+  // Høyre- eller midtknappen på musa drar alltid kameraet.
+  const HOLD_MS = 350;
+  const toWorld = (sx, sy) => ({ x: game.cam.x + (sx - RF.renderer.w / 2) / game.cam.zoom, y: game.cam.y + (sy - RF.renderer.h / 2) / game.cam.zoom });
+
   function updateAim() {
-    const P = Input.pointer, R = RF.renderer, ship = game.ship;
+    const P = Input.pointer, ship = game.ship;
     if (!P.has || ship.docked) {
       game.aim = ship.body.toWorld(ship.noseX + 80, 0);
       game.aimLock = null;
+      game.pointerMode = null;
+      P.taps.length = 0;
       return;
     }
-    const wp = { x: game.cam.x + (P.x - R.w / 2) / game.cam.zoom, y: game.cam.y + (P.y - R.h / 2) / game.cam.zoom };
+    const wp = toWorld(P.x, P.y);
     // Nytt trykk (også et kort trykk som var over før denne rammen).
     if (P.presses !== game._aimPress) {
       game._aimPress = P.presses;
-      const w0 = { x: game.cam.x + (P.x0 - R.w / 2) / game.cam.zoom, y: game.cam.y + (P.y0 - R.h / 2) / game.cam.zoom };
-      const b = pickBody(w0.x, w0.y);
-      game.aimLock = b ? { body: b, l: b.toLocal(w0.x, w0.y) } : null;
-      game.aimWorld = w0;
+      const w0 = toWorld(P.x0, P.y0);
+      if (P.button !== 0) game.pointerMode = 'pan';
+      else if (ship.body.containsPoint(w0.x, w0.y)) game.pointerMode = 'ship';
+      else {
+        const b = pickBody(w0.x, w0.y);
+        if (b) {
+          game.aimLock = { body: b, l: b.toLocal(w0.x, w0.y) };
+          game.pointerMode = 'aim';
+          Input.press('Fire');
+        } else game.pointerMode = 'pending';
+      }
     }
-    // Drar man fingeren/musa bort mens man holder, følger siktet fingeren.
-    if (P.down && game.aimLock && G.len(P.x - P.x0, P.y - P.y0) > 30) game.aimLock = null;
-    if (!P.down && P.type === 'mouse' && game.aimLock && G.len(P.x - P.x0, P.y - P.y0) > 6) game.aimLock = null;
+    const mode = game.pointerMode;
+    if (P.down) {
+      if (mode === 'pending') {
+        if (P.moved) game.pointerMode = 'pan';
+        else if (performance.now() - P.t0 > HOLD_MS) {
+          game.pointerMode = 'aim';
+          game.aimLock = null;
+          Input.press('Fire');
+        }
+      } else if (mode === 'aim' && game.aimLock && P.moved && G.len(P.x - P.x0, P.y - P.y0) > 30) game.aimLock = null;
+      else if (mode === 'ship' && P.moved) game.pointerMode = 'pan';
+    }
+    // Kameraet følger fingeren når man drar.
+    if (game.pointerMode === 'pan' && (P.panX || P.panY)) {
+      game.camOff.x -= P.panX / game.cam.zoom;
+      game.camOff.y -= P.panY / game.cam.zoom;
+      game.cam.x -= P.panX / game.cam.zoom;
+      game.cam.y -= P.panY / game.cam.zoom;
+    }
+    P.panX = P.panY = 0;
+    // Korte trykk: fly dit, eller sentrer kameraet.
+    while (P.taps.length) {
+      const t = P.taps.shift();
+      if (t.press !== game._aimPress) continue;
+      const w = toWorld(t.x, t.y);
+      if (mode === 'ship') { game.camOff.x = game.camOff.y = 0; game.msg('Kameraet følger skipet', RF.HUD_COLORS.gate); }
+      else if (mode === 'pending') game.setNav(w.x, w.y);
+    }
     const L = game.aimLock;
     if (L && L.body.dead) game.aimLock = null;
     if (game.aimLock) {
       const b = L.body;
-      // Punktet på steinen kan ha blitt boret bort. Sikt da mot midten.
-      const p = b.toWorld(L.l.x, L.l.y);
-      game.aim = b.vox && !b.containsPoint(p.x, p.y) && G.len(L.l.x, L.l.y) > b.radius ? { x: b.x, y: b.y } : p;
-    } else if (P.down || P.type === 'mouse') {
+      game.aim = b.toWorld(L.l.x, L.l.y);
+    } else if ((P.down && game.pointerMode === 'aim') || (P.type === 'mouse' && game.pointerMode !== 'pan')) {
       game.aim = wp;
       game.aimWorld = wp;
-    } else game.aim = game.aimWorld || wp;
+    } else game.aim = game.aimWorld || ship.body.toWorld(ship.noseX + 80, 0);
+  }
+
+  // Autopilot: fly til et punkt og stopp der. Ligger punktet like ved en
+  // stein, følger målet steinen mens den driver.
+  game.setNav = (x, y) => {
+    const ship = game.ship;
+    let near = null, nd = 40;
+    for (const b of game.sys.world.bodies) {
+      if (b.kind !== 'rock' || b.dead) continue;
+      const d = G.len(b.x - x, b.y - y) - b.radius;
+      if (d < nd) { nd = d; near = b; }
+    }
+    ship.nav = { x, y, body: near, l: near ? near.toLocal(x, y) : null, arrived: false };
+    game.msg('Flyr dit', RF.HUD_COLORS.gate);
+    Audio.blip(700, 0.05, 'sine', 0.06);
+  };
+
+  game.navPoint = () => {
+    const N = game.ship.nav;
+    if (!N) return null;
+    if (N.body && N.body.dead) N.body = null;
+    return N.body ? N.body.toWorld(N.l.x, N.l.y) : { x: N.x, y: N.y };
+  };
+
+  // Ønsket akselerasjon mot målet: full fart mot det, og bremsing i tide.
+  function navInput(inp) {
+    const ship = game.ship, b = ship.body, N = ship.nav, st = ship.stats;
+    const p = game.navPoint();
+    let tvx = 0, tvy = 0;
+    if (N.body) { const v = N.body.pointVel(p.x, p.y); tvx = v.x; tvy = v.y; }
+    N.x = p.x; N.y = p.y;
+    const dx = p.x - b.x, dy = p.y - b.y, d = G.len(dx, dy) || 1e-6;
+    const rvx = b.vx - tvx, rvy = b.vy - tvy;
+    const aB = Math.max(st.retro + st.strafe, (st.thrust || 0) * 0.6) / b.mass;
+    const vd = Math.min(45, Math.sqrt(2 * aB * 0.55 * Math.max(0, d - 0.6)));
+    const ax = ((dx / d) * vd - rvx) * 2.5, ay = ((dy / d) * vd - rvy) * 2.5;
+    if (!N.arrived && d < 2 && G.len(rvx, rvy) < 0.5) {
+      N.arrived = true;
+      game.msg('Fremme', RF.HUD_COLORS.ok);
+    }
+    return Object.assign({}, inp, { accel: { x: ax, y: ay }, aim: d > 30 && !N.arrived ? Math.atan2(dy, dx) : null, aimThrust: 0 });
   }
 
   // --- Gruvedrift ---
@@ -686,14 +773,24 @@
 
   // --- Oppdatering ---
   function updateCamera(dt) {
-    const b = game.ship.body, cam = game.cam;
-    const look = Math.min(RF.renderer.w, RF.renderer.h) * 0.22 / cam.zoom;
+    const b = game.ship.body, cam = game.cam, R = RF.renderer;
+    // Hvor langt kameraet kan flyttes bort fra skipet: skipet skal alltid synes.
+    // Holder avstand til kanten så skipet ikke havner bak panelene.
+    const mx = Math.max(0, (R.w / 2 - Math.min(130, R.w * 0.22)) / cam.zoom), my = Math.max(0, (R.h / 2 - Math.min(150, R.h * 0.22)) / cam.zoom);
+    const off = game.camOff;
+    off.x = G.clamp(off.x, -mx, mx);
+    off.y = G.clamp(off.y, -my, my);
+    const panned = off.x || off.y;
+    const look = panned ? 0 : Math.min(R.w, R.h) * 0.22 / cam.zoom;
     let tx = b.x + b.vx * 0.9, ty = b.y + b.vy * 0.9;
     const dx = tx - b.x, dy = ty - b.y, dl = G.len(dx, dy);
-    if (dl > look) { tx = b.x + (dx / dl) * look; ty = b.y + (dy / dl) * look; }
+    if (dl > look) { tx = b.x + (dl ? (dx / dl) * look : 0); ty = b.y + (dl ? (dy / dl) * look : 0); }
+    tx += off.x; ty += off.y;
     const k = 1 - Math.exp(-dt * 4);
     cam.x += (tx - cam.x) * k;
     cam.y += (ty - cam.y) * k;
+    cam.x = G.clamp(cam.x, b.x - mx, b.x + mx);
+    cam.y = G.clamp(cam.y, b.y - my, b.y + my);
     if (game.shake > 0) {
       const s = game.shake * 6 / cam.zoom;
       cam.x += G.rand(-s, s);
@@ -732,7 +829,7 @@
     ship.gunCd = Math.max(0, ship.gunCd - dt);
     ship.rocketCd = Math.max(0, ship.rocketCd - dt);
     // Valgt verktøy brukes så lenge avtrekkeren holdes inne.
-    const fire = inp.fire || Input.pointer.down;
+    const fire = inp.fire || (Input.pointer.down && game.pointerMode === 'aim');
     ship.updateTurrets(game.aim, dt);
     ship.updateLasers(fire && ship.tool === 'laser', dt, game);
     if (fire && ship.tool === 'kanon') RF.Weapons.fireGuns(ship, game);
@@ -782,7 +879,7 @@
     const ship = game.ship;
     ship.tool = t;
     const st = ship.stats;
-    const have = { laser: st.lasers.length, kanon: st.guns.length, rakett: st.rockets.length, anker: st.anchors.length }[t];
+    const have = { laser: st.lasers.length + st.drills.length, kanon: st.guns.length, rakett: st.rockets.length, anker: st.anchors.length }[t];
     game.msg(`Verktøy: ${RF.TOOL_NAMES[t]}${have ? '' : ' (ikke montert)'}`, have ? RF.HUD_COLORS.gate : RF.HUD_COLORS.amber);
     Audio.blip(500, 0.04, 'square', 0.06);
   };
@@ -800,6 +897,10 @@
     }
     if (Input.hit('KeyH')) { RF.UI.openHelp(); return; }
     if (RF.UI.isOpen() || game.dead) return;
+    if (Input.hit('Recenter') || Input.hit('Home') || Input.hit('KeyO')) {
+      game.camOff.x = game.camOff.y = 0;
+      game.msg('Kameraet følger skipet', RF.HUD_COLORS.gate);
+    }
     const ship = game.ship;
     if (Input.hit('KeyZ')) {
       ship.fa = (ship.fa + 1) % 3;
@@ -834,7 +935,14 @@
   function update(dt) {
     game.time += dt;
     const ship = game.ship;
-    const inp = RF.UI.isOpen() || game.dead || ship.docked ? { thrust: 0, turn: 0, strafe: 0, laser: false } : Input.state();
+    let inp = RF.UI.isOpen() || game.dead || ship.docked ? { thrust: 0, turn: 0, strafe: 0, laser: false } : Input.state();
+    // Autopiloten flyr til målet til man styrer selv.
+    if (ship.nav && !ship.docked && !game.dead) {
+      if (inp.thrust || inp.turn || inp.strafe || inp.brake || inp.aim != null) {
+        ship.nav = null;
+        game.msg('Autopilot av', RF.HUD_COLORS.amber);
+      } else if (!RF.UI.isOpen()) inp = navInput(inp);
+    }
     if (!ship.docked && !game.dead) updateFlight(dt, inp);
     else if (ship.docked) ship.updateShield(dt);
     for (const n of game.sys.npcs.slice()) n.update(dt, game);

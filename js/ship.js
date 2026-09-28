@@ -20,8 +20,8 @@
     return c;
   };
 
-  RF.newShipState = (hull = 'hopper', list) => {
-    const layout = list ? RF.layoutFrom(list) : RF.defaultLayout(hull);
+  RF.newShipState = (hull = 'hopper', layout) => {
+    layout = layout || RF.defaultLayout(hull);
     const st = RF.layoutStats(layout);
     return {
       hull,
@@ -175,7 +175,23 @@
           strafe = -vr;
         }
       }
-      if (!input.brake && this.fa === 2 && input.thrust === 0 && input.strafe === 0 && !(input.aimThrust > 0)) {
+      // Autopilot: ønsket akselerasjon i verden. Hovedmotoren brukes når nesen
+      // peker omtrent dit, ellers dysene (like sterke som bremsen).
+      let accF = null;
+      if (input.accel && hasFuel) {
+        main = 0; retro = 0; strafe = 0;
+        const ax = input.accel.x, ay = input.accel.y, al = G.len(ax, ay);
+        if (al > 0.01) {
+          const ux = ax / al, uy = ay / al;
+          const cf = ux * fwd.x + uy * fwd.y, cr = ux * right.x + uy * right.y;
+          const cap = Math.max(st.retro + st.strafe, (st.thrust || 0) * 0.6);
+          const F = Math.min(al * b.mass, cf > 0.8 ? Math.max(st.thrust || 0, cap) : cap);
+          accF = { x: ux * F, y: uy * F, F };
+          if (cf > 0) main = Math.min(1, (cf * F) / (st.thrust || 1)); else retro = Math.min(1, -cf);
+          strafe = G.clamp(cr, -1, 1);
+        }
+      }
+      if (!accF && !input.brake && this.fa === 2 && input.thrust === 0 && input.strafe === 0 && !(input.aimThrust > 0)) {
         if (G.len(b.vx, b.vy) > 0.03) {
           const ax = -b.vx * 0.9, ay = -b.vy * 0.9;
           const af = ax * fwd.x + ay * fwd.y, ar = ax * right.x + ay * right.y;
@@ -196,7 +212,11 @@
       }
       Fx -= retro * st.retro;
       const Fy = strafe * st.strafe;
-      if (brakeF > 0) {
+      if (accF) {
+        b.vx += (accF.x / b.mass) * dt;
+        b.vy += (accF.y / b.mass) * dt;
+        Tq = 0;
+      } else if (brakeF > 0) {
         const sp = G.len(b.vx, b.vy) || 1;
         b.vx -= (b.vx / sp) * (brakeF / b.mass) * dt;
         b.vy -= (b.vy / sp) * (brakeF / b.mass) * dt;
@@ -206,7 +226,7 @@
       }
       b.w += (torque + Tq) * b.invI * dt;
 
-      const use = (brakeF > 0 ? brakeF : main * st.thrust + retro * st.retro + Math.abs(strafe) * st.strafe + Math.abs(torque) * 0.05) / VE;
+      const use = (accF ? accF.F : brakeF > 0 ? brakeF : main * st.thrust + retro * st.retro + Math.abs(strafe) * st.strafe + Math.abs(torque) * 0.05) / VE;
       s.fuel = Math.max(0, s.fuel - use * dt);
 
       const fx = this.fx;
@@ -227,7 +247,7 @@
     }
 
     // Tårnene dreier mot siktepunktet innenfor sin sektor (litt over 90° hver
-    // vei fra retningen de peker ut). Lys og traktor står fast.
+    // vei fra retningen de peker ut). Lys, traktor og borehoder står fast.
     updateTurrets(aim, dt) {
       const b = this.body;
       const al = b.toLocal(aim.x, aim.y);
@@ -235,7 +255,7 @@
         const D = RF.MODULES[m.t];
         if (!D.mount || m.dir < 0) continue;
         const mp = this.mountOf(m);
-        if (D.light || D.tractor) { m.aimA = mp.a; m.inArc = true; continue; }
+        if (D.light || D.tractor || D.drill) { m.aimA = mp.a; m.inArc = true; continue; }
         const want = Math.atan2(al.y - mp.ly, al.x - mp.lx);
         const diff = G.wrapAngle(want - mp.a);
         m.inArc = Math.abs(diff) <= RF.TURRET_ARC;
@@ -262,8 +282,27 @@
       this.laser.on = false;
       this.laser.hit = null;
       this.beams = [];
+      for (const Dr of st.drills) Dr.m.active = false;
       if (!on) return;
       let hardMat = null, bit = false;
+      // Borehodene maler i steinen rett foran seg.
+      for (const Dr of st.drills) {
+        const mp = this.mountOf(Dr.m);
+        Dr.m.active = true;
+        const o = b.toWorld(mp.lx, mp.ly), d = b.dirWorld(Math.cos(mp.a), Math.sin(mp.a));
+        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, Dr.range, (x) => x !== b && !x.ghost);
+        Dr.m.touch = hit ? hit.t : null;
+        if (!hit) continue;
+        const t = hit.body;
+        if (t.kind === 'ore' || t.kind === 'wreck') {
+          t.applyForce(d.x * 40000, d.y * 40000, t.x, t.y, dt);
+          continue;
+        }
+        if (!t.vox) continue;
+        if (Math.random() < 0.5) game.particles.burst(hit.x, hit.y, 2, { type: 'debris', sMin: 2, sMax: 7, dir: Math.atan2(-d.y, -d.x), spread: 1.6, color: RF.MATERIALS[t.mat].light, zMin: 0.15, zMax: 0.4, lMin: 0.5, lMax: 1.4, vx: t.vx, vy: t.vy });
+        const tooHard = RF.Vox.laser(t, hit, d, Dr.power, Dr.tier, dt, game);
+        if (tooHard) hardMat = tooHard; else bit = true;
+      }
       for (const L of st.lasers) {
         if (!L.m.onTarget) continue;
         const { p: o, d, lx, ly, a } = this.muzzle(L.m);

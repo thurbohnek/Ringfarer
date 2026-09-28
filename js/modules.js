@@ -52,6 +52,9 @@
     laser4: { name: 'Fasekutter', cat: 'Gruvedrift', mass: 4800, hp: 90, cost: 14000, mount: true, unlock: 3,
       laser: { power: 4.5, tier: 4, range: 280, color: '120,255,220' },
       desc: 'Det eneste som skjærer naquadah og trinium (hardhet 4).' },
+    drill: { name: 'Borehode', cat: 'Gruvedrift', mass: 2200, hp: 110, cost: 1800, mount: true, unlock: 0,
+      drill: { power: 2.2, tier: 2, range: 3.4 },
+      desc: 'Piggete bortrommel på en arm. Maler seg inn i stein den presses mot (hardhet 2). Brukes med laserknappen.' },
     tractor: { name: 'Traktorstråle og inntak', cat: 'Gruvedrift', mass: 1500, hp: 60, cost: 700, tractor: 70e3, mount: true, unlock: 0,
       desc: 'Trekker malmbiter og vrakdeler inn og prosesserer dem.' },
     cannon: { name: 'Massedriver', cat: 'Våpen', mass: 1600, hp: 60, cost: 1400, mount: true, unlock: 1,
@@ -253,7 +256,7 @@
   RF.layoutStats = (layout) => {
     const st = {
       thrust: 0, thrusters: [], rcs: 0, rcsList: [], fuelCap: 0, hold: 0, shieldMax: 0, proc: 800, yield: 1,
-      lasers: [], guns: [], rockets: [], anchors: [], tractors: [], lights: [], bays: 0, hpMax: 0, hp: 0, blocked: [],
+      lasers: [], drills: [], guns: [], rockets: [], anchors: [], tractors: [], lights: [], bays: 0, hpMax: 0, hp: 0, blocked: [],
     };
     for (const m of layout) {
       const D = RF.MODULES[m.t];
@@ -270,6 +273,7 @@
       if (D.shield) st.shieldMax += D.shield;
       if (D.proc) { st.proc += D.proc; st.yield += 0.15; }
       if (D.laser && !blocked) st.lasers.push({ m, ...D.laser, power: D.laser.power * eff });
+      if (D.drill && !blocked) st.drills.push({ m, ...D.drill, power: D.drill.power * eff });
       if (D.gun && !blocked) st.guns.push({ m, ...D.gun });
       if (D.ammo && !blocked) st.rockets.push({ m });
       if (D.anchor && !blocked) st.anchors.push({ m, ...D.anchor });
@@ -279,6 +283,68 @@
     }
     st.rocketCap = st.rockets.length * 6;
     return st;
+  };
+
+  // --- Automatisk montering (butikken) ---
+  // Finn beste ledige rute for en ny modul: inntil skipet, innenfor skroget,
+  // uten å sperre eller snu verktøy og motorer som allerede sitter der.
+  const FWD_TOOLS = new Set(['laser', 'laser2', 'laser3', 'laser4', 'drill', 'cannon', 'light', 'light2']);
+  RF.autoPlace = (layout, hull, t) => {
+    const B = RF.hullBounds(hull), D = RF.MODULES[t];
+    const occ = new Set(layout.map((m) => key(m.x, m.y)));
+    const before = layout.map((m) => [RF.isBlocked(layout, m), m.dir]);
+    const cy = layout.reduce((a, m) => a + m.y, 0) / (layout.length || 1);
+    let best = null, bs = -Infinity;
+    for (let x = B.x0; x <= B.x1; x++) {
+      for (let y = B.y0; y <= B.y1; y++) {
+        if (occ.has(key(x, y))) continue;
+        const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => occ.has(key(x + dx, y + dy))).length;
+        if (!nb) continue;
+        const m = { t, x, y, hp: D.hp };
+        const L2 = layout.concat([m]);
+        if (RF.isBlocked(L2, m)) continue;
+        let bad = false;
+        for (let i = 0; i < layout.length && !bad; i++) {
+          const o = layout[i];
+          const bl = RF.isBlocked(L2, o);
+          if ((!before[i][0] && bl) || (RF.MODULES[o.t].mount && o.dir !== before[i][1])) bad = true;
+        }
+        if (bad) continue;
+        let sc = 0;
+        if (D.mount) {
+          if (FWD_TOOLS.has(t)) sc += (m.dir === 0 ? 100 : m.dir === 2 ? -50 : 30) + x * 6 - Math.abs(y - cy) * 2;
+          else sc += (m.dir === 1 || m.dir === 3 ? 60 : m.dir === 0 ? 40 : 0) + x * 2;
+        } else if (D.face === 'aft') sc += -x * 20 - Math.abs(y - cy);
+        else if (t === 'rcs') sc += Math.abs(y - cy) * 6 + Math.abs(x - B.x1 / 2) * 2;
+        else if (t === 'armor' || t === 'armor2') sc += (4 - nb) * 10 + x * 2;
+        else sc += nb * 12 - Math.abs(y - cy) * 2 - Math.abs(x - B.x1 / 2);
+        if (sc > bs) { bs = sc; best = m; }
+      }
+    }
+    // Sett retningene tilbake slik de var.
+    for (const m of layout) RF.isBlocked(layout, m);
+    return best;
+  };
+
+  // Ta bort én modul av en type uten at resten av skipet faller fra hverandre.
+  RF.autoRemove = (layout, t) => {
+    for (let i = layout.length - 1; i >= 0; i--) {
+      const m = layout[i];
+      if (m.t !== t || RF.MODULES[t].unique) continue;
+      const rest = layout.filter((o) => o !== m);
+      if (!RF.disconnected(rest).length) return m;
+    }
+    return null;
+  };
+
+  // Testskipet: Fjellbryter med alt som er, pluss to borehoder.
+  RF.testLayout = () => {
+    const L = RF.layoutFrom(RF.TEST_LAYOUT);
+    for (const t of ['drill', 'drill']) {
+      const m = RF.autoPlace(L, 'fjell', t);
+      if (m) L.push(m);
+    }
+    return L;
   };
 
   RF.layoutValue = (layout) => layout.reduce((s, m) => s + RF.MODULES[m.t].cost, 0);

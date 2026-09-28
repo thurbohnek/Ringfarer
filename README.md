@@ -1,7 +1,7 @@
 # Ringfarer
 
 Et 2D romskipspill (sett ovenfra) med ekte fysikk, inspirert av Stargate. Du
-bygger ditt eget gruveskip modul for modul, borer og sprenger deg gjennom
+utstyrer ditt eget gruveskip med lasere, borehoder og våpen, borer og sprenger deg gjennom
 asteroider og kometer, tar frakt- og leveringsoppdrag, og reiser mellom tre
 stjernesystemer gjennom en eldgammel ringport.
 
@@ -27,7 +27,9 @@ Se `ENDRINGER.md` for hva som er endret og hva som gjenstår.
 | S (pil ned) | Brems: stopper skipet i fartsretningen |
 | A / D | Drei skipet |
 | Q / E | Sidestyring |
-| Mus | Sikt; venstreklikk bruker valgt verktøy |
+| Mus | Sikt. Klikk på tomt rom: fly dit og stopp. Klikk og hold på en stein: bruk verktøyet |
+| Dra (eller høyre musknapp) | Flytt kameraet, skipet blir værende på skjermen |
+| O | Sentrer kameraet på skipet igjen |
 | 1 / 2 / 3 / 4 | Velg laser, kanon, rakett eller anker |
 | Mellomrom | Bruk valgt verktøy mot siktepunktet |
 | X | Skyt ut / løsne ankerkroken |
@@ -61,14 +63,14 @@ tregere å snu.
 | Beskyttelse | Panserplate, tungpanser, skjoldgenerator |
 | Motor | Hovedmotor, tung motor, styredyser, drivstofftank |
 | Last | Lastecontainer, stor lastebinge |
-| Gruvedrift | Borelaser (nivå 1–4), traktorstråle med inntak, prosessor |
+| Gruvedrift | Borelaser (nivå 1–4), borehode, traktorstråle med inntak, prosessor |
 | Våpen | Massedriver (kanon), rakettkaster |
 | Verktøy | Ankerkaster, tungt anker, arbeidslys, flomlys, dronehangar |
 
-Verktøy (laser, kanon, rakett, anker, lys, traktor) festes i festepunkter på
-skrogets kant og peker ut der det er ledig plass. Våpen og lasere sitter i tårn
-som dreier mot siktepunktet. Motorer trenger en åpen rute rett bak seg. I flukt
-tegnes skipet som ett glatt skrog; klossene synes bare i skipsbyggeren.
+Utstyr kjøpes under «Utstyr» på stasjonen og monteres automatisk der det er
+plass på skroget. Verktøy (laser, borehode, kanon, rakett, anker, lys, traktor)
+festes i kanten og peker ut. Våpen og lasere sitter i tårn som dreier mot
+siktepunktet. Motorer settes bakerst. Alt som er montert synes på skipet.
 
 **Skip å kjøpe:** Hoppeskip MK-I (6×5 ruter), Graver G-2 (8×7) og Fjellbryter
 T-3 (9×11). Det gamle skipet tas i innbytte.
@@ -133,7 +135,7 @@ med malm eller betaling, men omtrent én av ti går tapt.
 | `js/render.js` | Bakgrunn, asteroider, stasjon, port, partikler og lys |
 | `js/shipdraw.js` | Tegning av moduler og modulære skip |
 | `js/hud.js` | Instrumentpanel, radar og skadediagram |
-| `js/ui.js` | Menyer: tittel, stasjon med skipsbygger, verft, droner, oppdrag |
+| `js/ui.js` | Menyer: tittel, stasjon med marked, verksted, utstyr, verft, droner, oppdrag |
 | `js/input.js` | Tastatur, styrespak og knip-zoom |
 | `js/audio.js` | Syntetisert lyd (Web Audio, ingen lydfiler) |
 
