@@ -25,6 +25,22 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-28: v0.9.2 · Motorflammen bare når motoren brukes
+
+Ønske: hovedmotorene så ut som de var på hele tiden, også når skipet sto i
+ro. Det skal synes at det er en motor, men uten flamme bak når den ikke
+brukes. (Brukeren bekreftet også at autopiloten nå fungerer bra.)
+
+Hva som ble gjort (`js/shipdraw.js`):
+- Flammen tegnes bare når motoren faktisk skyver, og lengden følger hvor
+  mye gass den får.
+- I ro har dysene bare en svak, varm glød innerst, så man ser at det er en
+  motor. Med gass lyser de blått.
+
+Testet (nettleser uten skjerm): skipet i ro viser dysene med svak glød og
+ingen flamme. Med W kommer blå flammer bak begge motorene. Ingen feil i
+konsollen.
+
 ## 2026-09-28: v0.9.1 · Autopilot som styrer unna, og rotasjon uten å svinge forbi
 
 Ønsker fra brukeren:

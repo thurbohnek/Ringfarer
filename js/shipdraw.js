@@ -1056,7 +1056,8 @@
         const big = m.t === 'thruster2';
         const ys = big ? [m.ly - 0.6, m.ly + 0.6] : [m.ly];
         for (const y of ys) {
-          flame(m.lx - h, y, -1, 0, (big ? 4 : 3) + fl * (big ? 14 : 10), big ? 0.55 : 0.8);
+          // Flamme bare når motoren faktisk skyver.
+          if (fl > 0.04) flame(m.lx - h, y, -1, 0, fl * (big ? 18 : 13), big ? 0.55 : 0.8);
           if (fl > 0.05) {
             const g = ctx.createRadialGradient(m.lx - h, y, 0, m.lx - h, y, 2 + fl * 2);
             g.addColorStop(0, `rgba(140,190,255,${0.5 * fl})`);
@@ -1091,7 +1092,9 @@
         for (const y of big ? [-0.55, 0.55] : [0]) {
           const x = m.lx - h - (big ? 1.1 : 1.2);
           const g = ctx.createRadialGradient(x, m.ly + y, 0, x, m.ly + y, big ? 0.7 : 0.95);
-          g.addColorStop(0, `rgba(200,230,255,${0.45 + fx.main * 0.5})`); g.addColorStop(1, 'rgba(80,140,255,0)');
+          // I ro: bare en svak, varm glød inne i dysen. Med gass: blått lys.
+          const on = Math.min(1, fx.main * 1.5);
+          g.addColorStop(0, on > 0.03 ? `rgba(200,230,255,${0.15 + on * 0.75})` : 'rgba(255,140,70,0.16)'); g.addColorStop(1, 'rgba(80,140,255,0)');
           ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, m.ly + y, big ? 0.7 : 0.95, 0, Math.PI * 2); ctx.fill();
         }
       }
