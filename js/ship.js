@@ -148,8 +148,13 @@
       const maxT = st.torque;
       if (input.aim != null) {
         const err = G.wrapAngle(input.aim - b.a);
-        const target = G.clamp(err * 3, -st.maxW, st.maxW);
-        torque = G.clamp((target - b.w) * b.I * 6, -maxT, maxT);
+        // Snu så fort som mulig, men begynn å bremse rotasjonen i tide ut fra
+        // hvor kraftige styredysene er, så skipet stopper på pilen uten å
+        // svinge forbi og tilbake.
+        const alpha = maxT / b.I;
+        const wStop = Math.sqrt(2 * alpha * 0.55 * Math.abs(err));
+        const target = Math.sign(err) * Math.min(st.maxW, wStop, Math.abs(err) * 2.2);
+        torque = G.clamp((target - b.w) * b.I * 10, -maxT, maxT);
         if (input.aimThrust > 0 && Math.cos(err) > 0.8) main = input.aimThrust;
       } else if (input.turn !== 0) {
         if (this.fa > 0) {

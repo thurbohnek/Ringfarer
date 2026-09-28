@@ -453,17 +453,79 @@
   };
 
   // Ønsket akselerasjon mot målet: full fart mot det, og bremsing i tide.
+  // Hva som ligger i veien mellom to punkter: tre parallelle stråler (midt i
+  // skipet og ved begge sider). Løse malmbiter og egne droner teller ikke.
+  function blockedPath(ax, ay, bx, by, R) {
+    const ws = game.sys.world, sb = game.ship.body;
+    const dx = bx - ax, dy = by - ay, L = G.len(dx, dy);
+    if (L < 1) return null;
+    const ux = dx / L, uy = dy / L, px = -uy, py = ux;
+    const skip = (o) => o === sb || o.ghost || o.dead || o.kind === 'ore' || (o.npc && o.npc.own);
+    let best = null;
+    for (const off of [0, R, -R]) {
+      const h = ws.raycast(ax + px * off, ay + py * off, ux, uy, L, (o) => !skip(o));
+      // Treff helt inntil målet (når målet ligger ved en stein) teller ikke.
+      if (h && h.t < L - R * 1.5 && (!best || h.t < best.t)) best = h;
+    }
+    return best;
+  }
+
+  // Et punkt ved siden av hindringen, på den siden som er lettest.
+  function detour(from, to, R) {
+    const h = blockedPath(from.x, from.y, to.x, to.y, R);
+    if (!h) return null;
+    let o = h.body, cx = o.x, cy = o.y, rad = o.radius;
+    const st = game.sys.station, gt = game.sys.gate;
+    if (o.kind === 'station') { cx = st.x; cy = st.y; rad = 125; }
+    else if (o.kind === 'gate') { cx = gt.x; cy = gt.y; rad = RF.GATE_R + 6; }
+    const dx = to.x - from.x, dy = to.y - from.y, L = G.len(dx, dy) || 1;
+    const px = -dy / L, py = dx / L;
+    const clear = rad + R + 12;
+    const s0 = (cx - from.x) * px + (cy - from.y) * py > 0 ? -1 : 1;
+    for (const side of [s0, -s0]) {
+      const w = { x: cx + px * side * clear, y: cy + py * side * clear, body: o };
+      if (!blockedPath(from.x, from.y, w.x, w.y, R)) return w;
+    }
+    return { x: cx + px * s0 * clear * 1.4, y: cy + py * s0 * clear * 1.4, body: o };
+  }
+
   function navInput(inp) {
     const ship = game.ship, b = ship.body, N = ship.nav, st = ship.stats;
     const p = game.navPoint();
     let tvx = 0, tvy = 0;
     if (N.body) { const v = N.body.pointVel(p.x, p.y); tvx = v.x; tvy = v.y; }
     N.x = p.x; N.y = p.y;
-    const dx = p.x - b.x, dy = p.y - b.y, d = G.len(dx, dy) || 1e-6;
+    let dx = p.x - b.x, dy = p.y - b.y;
+    const d = G.len(dx, dy) || 1e-6;
     const rvx = b.vx - tvx, rvy = b.vy - tvy;
     const aB = Math.max(st.retro + st.strafe, (st.thrust || 0) * 0.6) / b.mass;
-    const vd = Math.min(45, Math.sqrt(2 * aB * 0.55 * Math.max(0, d - 0.6)));
-    const ax = ((dx / d) * vd - rvx) * 2.5, ay = ((dy / d) * vd - rvy) * 2.5;
+    let vd = Math.min(45, Math.sqrt(2 * aB * 0.55 * Math.max(0, d - 0.6)));
+    // Unnamanøver: med navigasjonsdatamaskin styrer autopiloten rundt steiner,
+    // stasjonen og andre skip. Veien sjekkes på nytt fire ganger i sekundet.
+    if (!N.rotate && d > b.radius * 2) {
+      N.check = (N.check || 0) - 1;
+      if (N.check <= 0) {
+        N.check = 30;
+        if (st.navcomp) {
+          if (N.via && G.len(N.via.x - b.x, N.via.y - b.y) < b.radius + 6) N.via = null;
+          const from = { x: b.x, y: b.y };
+          if (!N.via || !blockedPath(b.x, b.y, N.via.x, N.via.y, b.radius)) {
+            const w = detour(from, p, b.radius);
+            if (w && !N.via) game.msg('Course plotted around an obstacle', RF.HUD_COLORS.gate);
+            N.via = w;
+          }
+        } else if (!N.warned && blockedPath(b.x, b.y, p.x, p.y, b.radius)) {
+          N.warned = true;
+          game.msg('Obstacle ahead. A navigation computer lets the autopilot steer around it', RF.HUD_COLORS.amber);
+        }
+      }
+      if (N.via && st.navcomp) {
+        dx = N.via.x - b.x; dy = N.via.y - b.y;
+        vd = Math.min(vd, 30);
+      }
+    } else N.via = null;
+    const dl = G.len(dx, dy) || 1e-6;
+    const ax = ((dx / dl) * vd - rvx) * 2.5, ay = ((dy / dl) * vd - rvy) * 2.5;
     if (!N.arrived && !N.rotate && d < 2 && G.len(rvx, rvy) < 0.5) {
       N.arrived = true;
       game.msg('Arrived', RF.HUD_COLORS.ok);

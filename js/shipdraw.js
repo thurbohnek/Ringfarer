@@ -334,6 +334,14 @@
       for (let i = 0; i < 4; i++) { ctx.fillStyle = '#5a2a10'; ctx.fillRect(-0.55 + i * 0.3, -0.45, 0.16, 0.9); }
       label(ctx, -0.75, 0.65);
     },
+    navcomp(ctx, exp) {
+      block(ctx, exp, 'light');
+      circle(ctx, 0, 0, 0.78, '#2a2c30');
+      circle(ctx, 0, 0, 0.66, '#b9b3a4', '#16181a');
+      ctx.strokeStyle = '#16181a'; ctx.lineWidth = 0.07;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0.6, -0.4); ctx.stroke();
+      circle(ctx, 0, 0, 0.14, '#6cc4e0');
+    },
     dronebay(ctx, exp) {
       block(ctx, exp, 'light');
       rr(ctx, -0.85, -0.85, 1.7, 1.7, 0.2);
@@ -712,6 +720,16 @@
           ctx.fillStyle = g; ctx.fill();
           ctx.strokeStyle = 'rgba(25,22,18,0.7)'; ctx.lineWidth = 0.04; ctx.stroke();
         }
+        break;
+      }
+      case 'navcomp': {
+        // Navigasjonsdatamaskin: sensorskål og lysende panel.
+        circle(ctx, 0.12, 0.14, 0.72, 'rgba(0,0,0,0.35)');
+        circle(ctx, 0, 0, 0.7, '#cfc8b8', '#1d1b17');
+        circle(ctx, 0, 0, 0.48, '#8e887b', '#1d1b17');
+        ctx.strokeStyle = '#1d1b17'; ctx.lineWidth = 0.06;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0.55, -0.35); ctx.stroke();
+        circle(ctx, 0, 0, 0.12, '#6cc4e0');
         break;
       }
       case 'rcs':

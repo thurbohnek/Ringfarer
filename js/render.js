@@ -531,7 +531,11 @@
       ctx.lineWidth = this.px * 1.6;
       ctx.setLineDash([this.px * 8, this.px * 6]);
       ctx.strokeStyle = 'rgba(108,196,224,0.45)';
-      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      // Ruten: via et punkt ved siden av hindringen hvis autopiloten styrer unna.
+      ctx.beginPath(); ctx.moveTo(b.x, b.y);
+      if (N.via) ctx.lineTo(N.via.x, N.via.y);
+      ctx.lineTo(p.x, p.y); ctx.stroke();
+      if (N.via) { ctx.fillStyle = 'rgba(108,196,224,0.7)'; ctx.beginPath(); ctx.arc(N.via.x, N.via.y, this.px * 4, 0, Math.PI * 2); ctx.fill(); }
       ctx.setLineDash([]);
       ctx.strokeStyle = game.ship.nav.arrived ? 'rgba(149,196,106,0.9)' : 'rgba(108,196,224,0.95)';
       ctx.lineWidth = this.px * 2;

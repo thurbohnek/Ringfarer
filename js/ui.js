@@ -133,7 +133,7 @@
           <h3>How it works</h3>
           <ul class="tips">
             <li><b>Aiming:</b> tools sit in mounts on the edge of the hull and turn toward where you tap or point. Each turret reaches a little over 90° either way. The crosshair turns green when at least one turret can reach the target.</li>
-            <li><b>Tap to move:</b> a short tap on empty space (for example next to an asteroid) sets a target. The ship flies there and stops, and follows the rock if the target is next to one. Steering yourself switches the autopilot off.</li>
+            <li><b>Tap to move:</b> a short tap on empty space (for example next to an asteroid) sets a target. The ship flies there and stops, and follows the rock if the target is next to one. Steering yourself switches the autopilot off. The autopilot flies straight unless the ship has a <b>navigation computer</b> (Equipment → Tools): then it plots a course around asteroids, stations and ships.</li>
             <li><b>Choose the heading:</b> press and hold on empty space until the target ring appears, then drag toward where the nose should point when the ship arrives. A green arrow shows the heading.</li>
             <li><b>Turn in place:</b> press on your ship and drag. The ship turns to face your finger without moving anywhere.</li>
             <li><b>Camera:</b> drag the screen to look around. The ship always stays on screen. Tap your ship (or ⋯ → Center camera, key O) to center again.</li>

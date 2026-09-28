@@ -14,8 +14,9 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Skygger fra asteroider følger ytterkanten.** Lyset fra skipet kaster
   skygge etter det ytre omrisset av steinen, ikke etter hulene inni. Når man
   er inne i en hule, kastes ingen skygge fra den steinen.
-- **Autopiloten ser ikke hindringer.** Skipet flyr rett mot målet og kan
-  kollidere med steiner som ligger i veien.
+- **Hva som skal låses senere:** navigasjonsdatamaskinen (og annet med
+  `unlock` over 0) skal bli en oppgradering senere i spillet. Nå er alt åpent
+  til brukeren sier fra.
 - **Ytelse:** med større steiner og ny himmel gikk testnettleseren (uten
   grafikkort) ned til rundt 30 bilder i sekundet i asteroidefeltet. Si fra
   hvis det hakker på telefonen.
@@ -23,6 +24,42 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   mange biter. Raketter går mye raskere. Farten kan justeres etter testing.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-28: v0.9.1 · Autopilot som styrer unna, og rotasjon uten å svinge forbi
+
+Ønsker fra brukeren:
+- autopiloten må styre unna asteroider på veien. Det skal være en
+  oppgradering man får senere, men den må være tilgjengelig for testing nå
+- når man drar fra skipet for å snu det, roterer skipet for fort, forbi
+  pilen, og svinger fram og tilbake før det stopper
+
+Hva som ble gjort:
+- **Ny oppgradering: Navigation computer** (Equipment → Tools, 3 500 cr)
+  (`js/modules.js`):
+  - Med den sjekker autopiloten fire ganger i sekundet om noe ligger i veien.
+    Den bruker tre stråler: midt i skipet og ved hver side.
+  - Ligger en stein, stasjonen, porten eller et annet skip i veien, velger
+    den et punkt ved siden av hindringen og flyr via det.
+  - Ruten vises som en stiplet linje med et punkt der den svinger.
+  - Løse malmbiter og egne droner teller ikke som hindringer.
+  - (`js/game.js`, `js/render.js`)
+- Uten navigasjonsdatamaskin flyr autopiloten rett som før, men gir beskjed
+  når noe ligger i veien.
+- Den har nivå 2 i `unlock`, så den kan låses til senere i spillet. Den er
+  åpen nå, og testskipet har den montert.
+- Ny detalj på skipet: en sensorskål der maskinen sitter (`js/shipdraw.js`).
+- **Rotasjon:** skipet regner nå ut når det må begynne å bremse
+  rotasjonen, ut fra hvor kraftige styredysene er og hvor tungt skipet er.
+  Det stopper på pilen uten å svinge forbi (`js/ship.js`). Det gjelder både
+  når man drar fra skipet, retningen ved målet og styrespaken på mobil.
+
+Testet (nettleser uten skjerm):
+- snu 2,5 radianer: før svingte det store testskipet 1,6 radianer forbi
+  (det lille 0,6 og fram og tilbake fire ganger). Nå 0 forbi og ingen
+  svinging, for begge skipene
+- en stein på 35–40 m lagt midt i ruten: med navigasjonsdatamaskin fløy
+  skipet rundt og kom frem uten skade. Uten den krasjet skipet i steinen
+- ingen feil i nettleserkonsollen
 
 ## 2026-09-28: v0.9.0 · Malmbiter hindrer ikke laseren, kjøpsbeskjed, ryddig HUD, snu skipet, bedre menyer
 

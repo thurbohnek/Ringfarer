@@ -72,6 +72,8 @@
       desc: 'Lights up 110 meters ahead.' },
     light2: { name: 'Floodlight', cat: 'Tools', mass: 700, hp: 40, cost: 900, mount: true, light: 200, unlock: 1,
       desc: 'Lights up 200 meters ahead.' },
+    navcomp: { name: 'Navigation computer', cat: 'Tools', mass: 400, hp: 40, cost: 3500, nav: true, unlock: 2,
+      desc: 'Lets the autopilot plot a course around asteroids, stations and ships on the way to the target.' },
     dronebay: { name: 'Drone bay', cat: 'Tools', mass: 2500, hp: 80, cost: 2500, bay: 1, unlock: 1,
       desc: 'Room for one drone: mining drone or repair drone.' },
   };
@@ -280,6 +282,7 @@
       if (D.tractor && !blocked) st.tractors.push({ m, F: D.tractor * eff });
       if (D.light && !blocked) st.lights.push({ m, range: D.light });
       if (D.bay) st.bays += D.bay;
+      if (D.nav) st.navcomp = true;
     }
     st.rocketCap = st.rockets.length * 6;
     return st;
@@ -337,10 +340,10 @@
     return null;
   };
 
-  // Testskipet: Fjellbryter med alt som er, pluss to borehoder.
+  // Testskipet: Fjellbryter med alt som er, pluss to borehoder og navigasjonsdatamaskin.
   RF.testLayout = () => {
     const L = RF.layoutFrom(RF.TEST_LAYOUT);
-    for (const t of ['drill', 'drill']) {
+    for (const t of ['drill', 'drill', 'navcomp']) {
       const m = RF.autoPlace(L, 'fjell', t);
       if (m) L.push(m);
     }
