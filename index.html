@@ -309,14 +309,14 @@
   <div id="stick"><div class="base"></div><div class="knob"></div></div>
   <button id="tc-ctx" class="ctx" data-tap="Interact" hidden></button>
   <div class="tc-winch">
-    <button id="tc-winch" data-hold="winch" hidden>VINSJ INN</button>
-    <button id="tc-winchout" data-hold="winchOut" hidden>GI UT</button>
+    <button id="tc-winch" data-hold="winch" hidden>WINCH IN</button>
+    <button id="tc-winchout" data-hold="winchOut" hidden>PAY OUT</button>
   </div>
   <div class="tc-tools">
     <button data-tap="Digit1" data-tool="laser">LASER</button>
-    <button data-tap="Digit2" data-tool="kanon">KANON</button>
-    <button data-tap="Digit3" data-tool="rakett">RAKETT</button>
-    <button data-tap="Digit4" data-tool="anker">ANKER</button>
+    <button data-tap="Digit2" data-tool="kanon">CANNON</button>
+    <button data-tap="Digit3" data-tool="rakett">ROCKET</button>
+    <button data-tap="Digit4" data-tool="anker">HARPOON</button>
   </div>
   <button id="tc-fire" class="fire" data-hold="fire" data-tap="Fire">LASER</button>
   <div class="tc-row">
@@ -338,7 +338,7 @@
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.8.0 · 2026-09-28';
+  window.RF_VERSION = 'v0.8.1 · 2026-09-28';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
     var files = ['geom', 'physics', 'world', 'voxel', 'modules', 'ship', 'npc', 'missions', 'input', 'audio',

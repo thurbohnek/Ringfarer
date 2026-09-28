@@ -154,6 +154,12 @@
     game.credits = data.credits;
     game.testMode = !!data.test;
     game.missions = data.missions || [];
+    // Eldre lagringer har norske varenavn på oppdragene.
+    const OLD = { 'Medisinsk forsyning': 'Medical supplies', 'Reservedeler': 'Spare parts', 'Forskningsprøver': 'Research samples',
+      'Hydrokultur-moduler': 'Hydroponics modules', 'Post og pakker': 'Mail and parcels', 'Reaktorstaver': 'Reactor rods',
+      'Kryolagrede embryoer': 'Cryo-stored embryos' };
+    for (const m of game.missions) if (OLD[m.goods]) m.goods = OLD[m.goods];
+    for (const c of s.missionCargo || []) if (OLD[c.name]) c.name = OLD[c.name];
     RF.setMissionIdBase(game.missions.reduce((a, m) => Math.max(a, m.id), 0));
     game.lastStation = data.lastStation || 'midgard';
     game.boards = {};

@@ -24,6 +24,24 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-28: v0.8.1 · Resten av spillet på engelsk
+
+Ønske: oversette alt i spillet til engelsk.
+
+Hva som ble gjort:
+- Gikk gjennom all tekst i alle filene på nytt. Fem knapper på mobil var
+  fortsatt på norsk og er nå oversatt (`index.html`): WINCH IN, PAY OUT,
+  CANNON, ROCKET og HARPOON.
+- Oppdrag i gamle lagringer hadde norske varenavn (for eksempel
+  «Reservedeler»). De oversettes nå når en lagring lastes inn (`js/game.js`).
+
+Testet (nettleser uten skjerm, Pixel 7):
+- lastet en gammel lagring med et norsk oppdrag: det vises som «Haul 3 t of
+  spare parts»
+- lest all tekst i alle seks fanene på stasjonen, knappene på mobil,
+  meldinger, pause, hjelp og oppringing: ingen norsk tekst igjen
+- ingen feil i nettleserkonsollen
+
 ## 2026-09-28: v0.8.0 · Organisk skip, bedre menyer, ny himmel, engelsk, større steiner
 
 Ønsker fra brukeren (med et bilde av skip fra Stargate-flåten som mal):
