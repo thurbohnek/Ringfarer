@@ -11,8 +11,9 @@
 
   const CELL = (RF.CELL = 2.4);
 
-  // Kategori brukes i butikken. face: 'fwd' = må ha fri bane forover,
-  // 'aft' = eksosen må ha fri bane bakover.
+  // Kategori brukes i butikken. mount: verktøy som festes i et festepunkt på
+  // skrogets kant og peker utover (kan dreie mot siktepunktet).
+  // face: 'aft' = motoren trenger en åpen rute rett bak seg.
   // unlock: progresjonsnivå som skal kreves senere. Alt er åpent i denne versjonen.
   RF.MODULES = {
     cockpit: { name: 'Cockpit', cat: 'Struktur', mass: 4000, hp: 90, cost: 0, unique: true, shield: 40, unlock: 0,
@@ -39,34 +40,34 @@
       desc: '20 tonn lasterom med forsterkede vegger.' },
     refinery: { name: 'Prosessor', cat: 'Gruvedrift', mass: 3000, hp: 70, cost: 1500, proc: 1500, unlock: 1,
       desc: 'Prosesserer malm raskere og gir 15 % mer ferdig vare.' },
-    laser: { name: 'Borelaser', cat: 'Gruvedrift', mass: 1400, hp: 50, cost: 600, face: 'fwd', unlock: 0,
+    laser: { name: 'Borelaser', cat: 'Gruvedrift', mass: 1400, hp: 50, cost: 600, mount: true, unlock: 0,
       laser: { power: 1, tier: 1, range: 200, color: '255,150,60' },
       desc: 'Skjærer løs biter av myk stein (hardhet 1).' },
-    laser2: { name: 'Tung borelaser', cat: 'Gruvedrift', mass: 2600, hp: 70, cost: 2400, face: 'fwd', unlock: 1,
+    laser2: { name: 'Tung borelaser', cat: 'Gruvedrift', mass: 2600, hp: 70, cost: 2400, mount: true, unlock: 1,
       laser: { power: 1.8, tier: 2, range: 230, color: '255,70,50' },
       desc: 'Klarer metall og kobber (hardhet 2).' },
-    laser3: { name: 'Plasmaskjærer', cat: 'Gruvedrift', mass: 3600, hp: 80, cost: 6500, face: 'fwd', unlock: 2,
+    laser3: { name: 'Plasmaskjærer', cat: 'Gruvedrift', mass: 3600, hp: 80, cost: 6500, mount: true, unlock: 2,
       laser: { power: 3, tier: 3, range: 260, color: '190,110,255' },
       desc: 'Skjærer titan og gull (hardhet 3).' },
-    laser4: { name: 'Fasekutter', cat: 'Gruvedrift', mass: 4800, hp: 90, cost: 14000, face: 'fwd', unlock: 3,
+    laser4: { name: 'Fasekutter', cat: 'Gruvedrift', mass: 4800, hp: 90, cost: 14000, mount: true, unlock: 3,
       laser: { power: 4.5, tier: 4, range: 280, color: '120,255,220' },
       desc: 'Det eneste som skjærer naquadah og trinium (hardhet 4).' },
-    tractor: { name: 'Traktorstråle og inntak', cat: 'Gruvedrift', mass: 1500, hp: 60, cost: 700, tractor: 70e3, face: 'fwd', unlock: 0,
+    tractor: { name: 'Traktorstråle og inntak', cat: 'Gruvedrift', mass: 1500, hp: 60, cost: 700, tractor: 70e3, mount: true, unlock: 0,
       desc: 'Trekker malmbiter og vrakdeler inn og prosesserer dem.' },
-    cannon: { name: 'Massedriver', cat: 'Våpen', mass: 1600, hp: 60, cost: 1400, face: 'fwd', unlock: 1,
+    cannon: { name: 'Massedriver', cat: 'Våpen', mass: 1600, hp: 60, cost: 1400, mount: true, unlock: 1,
       gun: { rate: 4, speed: 450, mass: 20 },
       desc: 'Skyter tunge prosjektiler. Slår løs biter også av hard stein.' },
-    rocket: { name: 'Rakettkaster', cat: 'Våpen', mass: 1800, hp: 50, cost: 2200, face: 'fwd', unlock: 1, ammo: 6,
+    rocket: { name: 'Rakettkaster', cat: 'Våpen', mass: 1800, hp: 50, cost: 2200, mount: true, unlock: 1, ammo: 6,
       desc: 'Sprengraketter som knuser hva som helst. 6 raketter, fylles på stasjonen.' },
-    anchor: { name: 'Ankerkaster', cat: 'Verktøy', mass: 1300, hp: 60, cost: 1200, face: 'fwd', unlock: 0,
+    anchor: { name: 'Ankerkaster', cat: 'Verktøy', mass: 1300, hp: 60, cost: 1200, mount: true, unlock: 0,
       anchor: { range: 120, winch: 4 },
       desc: 'Skyter ut en krok på wire som fester seg i det den treffer. Slep kometer, hold deg fast.' },
-    anchor2: { name: 'Tungt anker', cat: 'Verktøy', mass: 2400, hp: 80, cost: 2800, face: 'fwd', unlock: 1,
+    anchor2: { name: 'Tungt anker', cat: 'Verktøy', mass: 2400, hp: 80, cost: 2800, mount: true, unlock: 1,
       anchor: { range: 250, winch: 8 },
       desc: 'Lengre wire og sterkere vinsj.' },
-    light: { name: 'Arbeidslys', cat: 'Verktøy', mass: 300, hp: 30, cost: 250, face: 'fwd', light: 110, unlock: 0,
+    light: { name: 'Arbeidslys', cat: 'Verktøy', mass: 300, hp: 30, cost: 250, mount: true, light: 110, unlock: 0,
       desc: 'Lyser opp 110 meter forover.' },
-    light2: { name: 'Flomlys', cat: 'Verktøy', mass: 700, hp: 40, cost: 900, face: 'fwd', light: 200, unlock: 1,
+    light2: { name: 'Flomlys', cat: 'Verktøy', mass: 700, hp: 40, cost: 900, mount: true, light: 200, unlock: 1,
       desc: 'Lyser opp 200 meter forover.' },
     dronebay: { name: 'Dronehangar', cat: 'Verktøy', mass: 2500, hp: 80, cost: 2500, bay: 1, unlock: 1,
       desc: 'Plass til én drone: gruvedrone eller reparasjonsdrone.' },
@@ -185,11 +186,27 @@
     return out;
   };
 
-  // Er banen forover (eller bakover for motorer) sperret av egne moduler?
+  // Retningene et verktøy kan peke: 0 = forover, 1 = styrbord, 2 = bakover, 3 = babord.
+  const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  RF.DIR_ANGLE = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+
+  // Et festepunkt er en kant av skroget med tom plass utenfor. Verktøyet
+  // peker ut den veien, helst forover, så til sidene, og til slutt bakover.
+  RF.mountDir = (layout, m) => {
+    const occ = new Set(layout.map((o) => o.x + ',' + o.y));
+    for (const d of [0, 3, 1, 2]) {
+      const [dx, dy] = DIRS[d];
+      if (!occ.has(m.x + dx + ',' + (m.y + dy))) return d;
+    }
+    return -1;
+  };
+
+  // Verktøy uten fri kant, eller motor uten åpen rute bak, virker ikke.
   RF.isBlocked = (layout, m) => {
-    const face = RF.MODULES[m.t].face;
-    if (!face) return false;
-    return layout.some((o) => o !== m && o.y === m.y && (face === 'fwd' ? o.x > m.x : o.x < m.x));
+    const D = RF.MODULES[m.t];
+    if (D.face === 'aft') return layout.some((o) => o.x === m.x - 1 && o.y === m.y);
+    if (D.mount) { m.dir = RF.mountDir(layout, m); return m.dir < 0; }
+    return false;
   };
 
   // Geometri og masse for et sett moduler. Posisjonene blir relative til

@@ -11,6 +11,7 @@
   const VE = 25000;
 
   RF.TOOLS = ['laser', 'kanon', 'rakett', 'anker'];
+  RF.TURRET_ARC = 1.9; // hvor langt et tårn kan dreie hver vei fra retningen det peker ut (rad)
   RF.TOOL_NAMES = { laser: 'Laser', kanon: 'Kanon', rakett: 'Rakett', anker: 'Anker' };
 
   RF.emptyCargo = () => {
@@ -197,28 +198,78 @@
       fx.rotR = G.lerp(fx.rotR, torque > 0 ? torque / maxT : 0, 0.3);
     }
 
-    // Alle borelaserne skyter parallelt forover fra hver sin modul.
+    // Punktet på skrogkanten der et verktøy sitter, og hvilken vei det peker
+    // ut (lokal vinkel). Verktøy uten fri kant har dir -1 og virker ikke.
+    mountOf(m) {
+      const d = m.dir >= 0 ? m.dir : 0;
+      const a = RF.DIR_ANGLE[d];
+      return { lx: m.lx + Math.cos(a) * CELL * 0.35, ly: m.ly + Math.sin(a) * CELL * 0.35, a };
+    }
+
+    // Tårnene dreier mot siktepunktet innenfor sin sektor (litt over 90° hver
+    // vei fra retningen de peker ut). Lys og traktor står fast.
+    updateTurrets(aim, dt) {
+      const b = this.body;
+      const al = b.toLocal(aim.x, aim.y);
+      for (const m of this.s.layout) {
+        const D = RF.MODULES[m.t];
+        if (!D.mount || m.dir < 0) continue;
+        const mp = this.mountOf(m);
+        if (D.light || D.tractor) { m.aimA = mp.a; m.inArc = true; continue; }
+        const want = Math.atan2(al.y - mp.ly, al.x - mp.lx);
+        const diff = G.wrapAngle(want - mp.a);
+        m.inArc = Math.abs(diff) <= RF.TURRET_ARC;
+        const target = mp.a + G.clamp(diff, -RF.TURRET_ARC, RF.TURRET_ARC);
+        const cur = m.aimA != null ? m.aimA : mp.a;
+        const step = G.clamp(G.wrapAngle(target - cur), -5 * dt, 5 * dt);
+        m.aimA = cur + step;
+        m.onTarget = m.inArc && Math.abs(G.wrapAngle(want - m.aimA)) < 0.08;
+      }
+    }
+
+    // Verdens-punkt og retning for tuppen av et tårn.
+    muzzle(m, len = CELL * 0.9) {
+      const mp = this.mountOf(m);
+      const a = m.aimA != null ? m.aimA : mp.a;
+      const p = this.body.toWorld(mp.lx + Math.cos(a) * len, mp.ly + Math.sin(a) * len);
+      const d = this.body.dirWorld(Math.cos(a), Math.sin(a));
+      return { p, d, lx: mp.lx + Math.cos(a) * len, ly: mp.ly + Math.sin(a) * len, a };
+    }
+
+    // Borelaserne skyter mot siktepunktet fra hvert sitt tårn.
     updateLasers(on, dt, game) {
       const b = this.body, st = this.stats;
       this.laser.on = false;
       this.laser.hit = null;
       this.beams = [];
-      if (!on) { this._chip = 0; return; }
-      const d = b.dirWorld(1, 0);
+      if (!on) return;
       for (const L of st.lasers) {
-        const o = this.modPoint(L.m, 1);
+        if (!L.m.onTarget) continue;
+        const { p: o, d, lx, ly, a } = this.muzzle(L.m);
         const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost);
-        const beam = { lx: L.m.lx + CELL / 2, ly: L.m.ly, len: hit ? hit.t : L.range, hit, color: L.color, w: 0.35 + L.tier * 0.12 };
-        this.beams.push(beam);
+        this.beams.push({ lx, ly, a, len: hit ? hit.t : L.range, hit, color: L.color, w: 0.35 + L.tier * 0.12 });
         this.laser.on = true;
         if (!hit) continue;
         if (!this.laser.hit) this.laser.hit = hit;
         const t = hit.body;
-        if (t.kind !== 'rock' && t.kind !== 'ore') continue;
+        if (t.kind === 'ore' || t.kind === 'wreck') {
+          // Løse biter dyttes ut av strålen så de ikke står i veien.
+          const side = (t.x - o.x) * -d.y + (t.y - o.y) * d.x >= 0 ? 1 : -1;
+          const F = 60000 * L.power;
+          t.applyForce(d.x * F * 0.6 - d.y * side * F, d.y * F * 0.6 + d.x * side * F, t.x, t.y, dt);
+          t.heat = Math.min(1, (t.heat || 0) + dt * 1.5);
+          t.hitX = hit.x; t.hitY = hit.y;
+          // De minste fordamper.
+          if (t.kind === 'ore' && t.area < 0.9 && t.heat > 0.8) {
+            t.dead = true;
+            game.particles.burst(t.x, t.y, 8, { type: 'smoke', sMin: 1, sMax: 4, color: RF.MATERIALS[t.mat].light, zMin: 0.5, zMax: 1, grow: 1.5, lMin: 0.8, lMax: 1.6, vx: t.vx, vy: t.vy });
+          }
+          continue;
+        }
+        if (t.kind !== 'rock') continue;
         t.applyImpulse(d.x * 900 * L.power * dt, d.y * 900 * L.power * dt, hit.x, hit.y);
         t.heat = Math.min(1, (t.heat || 0) + dt * 2);
         t.hitX = hit.x; t.hitY = hit.y;
-        if (t.kind !== 'rock') continue;
         const hard = RF.MATERIALS[t.mat].hard;
         if (L.tier < hard) {
           if (!game._hardWarn || game.time - game._hardWarn > 5) {
@@ -262,7 +313,7 @@
       const T = this.tractor, b = this.body, st = this.stats;
       T.targets = [];
       if (!T.on || !st.tractors.length) return;
-      const intakes = st.tractors.map((t) => this.modPoint(t.m, 1.4));
+      const intakes = st.tractors.map((t) => { const mp = this.mountOf(t.m); return b.toWorld(mp.lx + Math.cos(mp.a) * 2.2, mp.ly + Math.sin(mp.a) * 2.2); });
       const fwd = b.dirWorld(1, 0);
       const range = 150;
       const cands = [];

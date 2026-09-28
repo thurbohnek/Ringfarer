@@ -139,6 +139,8 @@
     if (e.touches.length === 2 && !isButton(e.touches[0].target) && !isButton(e.touches[1].target)) {
       pinching = true;
       pinch0 = pdist(e);
+      pointer.down = false;
+      pointer.id = null;
       touch.aim = null;
       touch.aimThrust = 0;
     }
@@ -150,6 +152,34 @@
     pinch0 = d;
   }, { passive: true });
   window.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinching = false; }, { passive: true });
+
+  // Siktepunkt: musen, eller en finger på skjermen utenfor styrespaken og knappene.
+  // down = holdes inne (avfyrer verktøyet).
+  const pointer = (Input.pointer = { x: 0, y: 0, has: false, down: false, id: null });
+  Input.bindAim = (canvas, onTapFirst) => {
+    canvas.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'mouse' || e.pointerId === pointer.id) {
+        pointer.x = e.clientX; pointer.y = e.clientY; pointer.has = true;
+      }
+    });
+    canvas.addEventListener('pointerdown', (e) => {
+      if (onTapFirst && onTapFirst(e)) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (pinching || pointer.id !== null) return;
+      pointer.x = e.clientX; pointer.y = e.clientY; pointer.has = true;
+      pointer.down = true;
+      pointer.id = e.pointerId;
+      pressed.add('Fire');
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* ignorer */ }
+    });
+    const up = (e) => {
+      if (e.pointerId !== pointer.id) return;
+      pointer.down = false;
+      pointer.id = null;
+    };
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', up);
+  };
 
   RF.Input = Input;
 })();

@@ -269,36 +269,274 @@
     }
   };
 
-  // Mørk underplate så modulene flyter sammen til ett skrog.
-  function underplate(ctx, layout) {
-    ctx.fillStyle = '#16181a';
-    for (const m of layout) ctx.fillRect(m.lx - h - 0.08, m.ly - h - 0.08, CELL + 0.16, CELL + 0.16);
+  // ---------- Skroget i flukt ----------
+  // I flukt tegnes ikke klossene. Rutene slås sammen til én skrogform med
+  // avfasede hjørner, stålplater og detaljer der modulene sitter, og
+  // verktøyene sitter som tårn i festepunktene på kanten.
+
+  // Omrisset av alle rutene som lukkede løkker (i lokale meter).
+  function hullLoops(L) {
+    if (!L.length) return [];
+    const ox = L[0].lx - L[0].x * CELL, oy = L[0].ly - L[0].y * CELL;
+    const occ = new Set(L.map((m) => m.x + ',' + m.y));
+    const edges = new Map();
+    const add = (x1, y1, x2, y2) => edges.set(x1 + ',' + y1, [x2, y2]);
+    for (const m of L) {
+      const x = m.x, y = m.y;
+      // Kanter i fast omløpsretning, bare der naboen mangler.
+      if (!occ.has(x + ',' + (y - 1))) add(x - 0.5, y - 0.5, x + 0.5, y - 0.5);
+      if (!occ.has(x + 1 + ',' + y)) add(x + 0.5, y - 0.5, x + 0.5, y + 0.5);
+      if (!occ.has(x + ',' + (y + 1))) add(x + 0.5, y + 0.5, x - 0.5, y + 0.5);
+      if (!occ.has(x - 1 + ',' + y)) add(x - 0.5, y + 0.5, x - 0.5, y - 0.5);
+    }
+    const loops = [];
+    while (edges.size) {
+      const [startKey] = edges.keys();
+      let [cx, cy] = startKey.split(',').map(Number);
+      const pts = [];
+      let guard = 0;
+      while (guard++ < 4000) {
+        const k = cx + ',' + cy;
+        const nx = edges.get(k);
+        if (!nx) break;
+        edges.delete(k);
+        pts.push([cx, cy]);
+        [cx, cy] = nx;
+      }
+      // Fjern punkter midt på rette strekk.
+      const simp = pts.filter((p, i) => {
+        const a = pts[(i - 1 + pts.length) % pts.length], c = pts[(i + 1) % pts.length];
+        return (p[0] - a[0]) * (c[1] - p[1]) - (p[1] - a[1]) * (c[0] - p[0]) !== 0;
+      });
+      // Avfas hjørnene: utoverbøyde hjørner kuttes mer enn innoverbøyde.
+      const out = [];
+      for (let i = 0; i < simp.length; i++) {
+        const a = simp[(i - 1 + simp.length) % simp.length], p = simp[i], c = simp[(i + 1) % simp.length];
+        const cross = (p[0] - a[0]) * (c[1] - p[1]) - (p[1] - a[1]) * (c[0] - p[0]);
+        const k = cross > 0 ? 0.32 : 0.12;
+        const la = Math.hypot(p[0] - a[0], p[1] - a[1]), lc = Math.hypot(c[0] - p[0], c[1] - p[1]);
+        const ka = Math.min(k, la / 2) / la, kc = Math.min(k, lc / 2) / lc;
+        out.push([p[0] + (a[0] - p[0]) * ka, p[1] + (a[1] - p[1]) * ka]);
+        out.push([p[0] + (c[0] - p[0]) * kc, p[1] + (c[1] - p[1]) * kc]);
+      }
+      loops.push(out.map(([x, y]) => ({ x: x * CELL + ox, y: y * CELL + oy })));
+    }
+    return loops;
+  }
+
+  function hullOf(obj) {
+    const L = obj.layout;
+    const key = L.map((m) => m.t[0] + m.x + ',' + m.y + ':' + (m.lx || 0).toFixed(2)).join('|');
+    if (obj._hullKey !== key) { obj._hullKey = key; obj._hull = hullLoops(L); }
+    return obj._hull;
+  }
+
+  function tracePath(ctx, loops, dx = 0, dy = 0) {
+    ctx.beginPath();
+    for (const lp of loops) {
+      lp.forEach((p, i) => (i ? ctx.lineTo(p.x + dx, p.y + dy) : ctx.moveTo(p.x + dx, p.y + dy)));
+      ctx.closePath();
+    }
+  }
+
+  // Detaljer på skroget der modulene sitter (tegnes innenfor skrogformen).
+  function surface(ctx, m, time) {
+    const t = m.t;
+    ctx.save();
+    ctx.translate(m.lx, m.ly);
+    switch (t) {
+      case 'cockpit': {
+        ctx.beginPath();
+        ctx.moveTo(-0.6, -0.95); ctx.lineTo(0.75, -0.7); ctx.quadraticCurveTo(1.25, 0, 0.75, 0.7); ctx.lineTo(-0.6, 0.95); ctx.closePath();
+        const g = ctx.createLinearGradient(-0.6, -0.9, 1.2, 0.9);
+        g.addColorStop(0, '#a8dcea'); g.addColorStop(0.35, '#2f6f8a'); g.addColorStop(1, '#081c26');
+        ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = '#1b1d1f'; ctx.lineWidth = 0.16; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0.1, -0.8); ctx.lineTo(0.1, 0.8); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 0.07;
+        ctx.beginPath(); ctx.moveTo(0.6, -0.5); ctx.lineTo(0.3, -0.65); ctx.stroke();
+        break;
+      }
+      case 'cargo': case 'cargo2': {
+        // Lasteluke: svakt nedsenket, med ribber.
+        ctx.fillStyle = 'rgba(20,22,24,0.18)';
+        ctx.fillRect(-0.7, -0.55, 1.4, 1.1);
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.05;
+        for (let x = -0.5; x <= 0.51; x += 0.25) { ctx.beginPath(); ctx.moveTo(x, -0.5); ctx.lineTo(x, 0.5); ctx.stroke(); }
+        if (t === 'cargo2') hazard(ctx, -0.7, 0.45, 0.5, 0.14);
+        break;
+      }
+      case 'fuel':
+        circle(ctx, 0, 0, 0.62, '#d9dbdc', 'rgba(0,0,0,0.4)');
+        ctx.fillStyle = C.red; ctx.fillRect(-0.12, -0.6, 0.24, 1.2);
+        break;
+      case 'refinery': {
+        ctx.fillStyle = 'rgba(15,16,18,0.7)'; ctx.fillRect(-0.8, -0.6, 1.6, 1.2);
+        const k = 0.6 + 0.4 * Math.sin(time * 3 + m.x);
+        ctx.fillStyle = `rgba(255,${120 + 40 * k},40,${0.7 * k})`;
+        for (let i = 0; i < 4; i++) ctx.fillRect(-0.65 + i * 0.35, -0.45, 0.18, 0.9);
+        break;
+      }
+      case 'shield': {
+        const g = ctx.createRadialGradient(-0.2, -0.2, 0.05, 0, 0, 0.75);
+        g.addColorStop(0, '#dff6ff'); g.addColorStop(0.5, '#3f9fd0'); g.addColorStop(1, '#0d2c40');
+        circle(ctx, 0, 0, 0.7, g, '#1b1d1f');
+        break;
+      }
+      case 'dronebay':
+        ctx.fillStyle = 'rgba(15,16,18,0.6)'; ctx.fillRect(-0.6, -0.5, 1.2, 1);
+        hazard(ctx, -0.6, -0.5, 1.2, 0.14);
+        break;
+      case 'armor':
+        bolts(ctx, 0.7);
+        break;
+      case 'armor2':
+        ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(-1.2, -0.25, 2.4, 0.5);
+        hazard(ctx, -0.5, -0.12, 1, 0.24);
+        break;
+      case 'thruster': case 'thruster2':
+        // Kjøleribber foran motoren.
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 0.07;
+        for (const y of [-0.45, -0.15, 0.15, 0.45]) { ctx.beginPath(); ctx.moveTo(-0.9, y); ctx.lineTo(-0.1, y); ctx.stroke(); }
+        break;
+    }
+    // Skader: sot og sprekker der modulen er truffet.
+    const f = m.hp / RF.MODULES[t].hp;
+    if (f < 0.6) {
+      const g = ctx.createRadialGradient(0.2, 0.1, 0, 0.2, 0.1, 1.4);
+      g.addColorStop(0, `rgba(12,8,4,${0.9 * (1 - f)})`);
+      g.addColorStop(1, 'rgba(40,20,10,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(-h, -h, CELL, CELL);
+    }
+    if (f < 0.3) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.lineWidth = 0.09;
+      ctx.beginPath(); ctx.moveTo(-0.9, -0.3); ctx.lineTo(-0.2, 0.1); ctx.lineTo(0.1, -0.5); ctx.lineTo(0.8, 0.4); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Motorklokker stikker ut bak skroget.
+  function nozzle(ctx, m) {
+    const big = m.t === 'thruster2';
+    const ys = big ? [-0.55, 0.55] : [0];
+    for (const y of ys) {
+      const w = big ? 0.45 : 0.7;
+      ctx.beginPath();
+      ctx.moveTo(m.lx - h + 0.2, m.ly + y - w * 0.7);
+      ctx.lineTo(m.lx - h - 0.9, m.ly + y - w);
+      ctx.lineTo(m.lx - h - 0.9, m.ly + y + w);
+      ctx.lineTo(m.lx - h + 0.2, m.ly + y + w * 0.7);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(m.lx - h - 0.9, 0, m.lx - h + 0.2, 0);
+      g.addColorStop(0, '#2a2d30'); g.addColorStop(1, '#6d7276');
+      ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = '#111314'; ctx.lineWidth = 0.1; ctx.stroke();
+    }
+  }
+
+  // Tårn for verktøy i festepunktene. aimA er vinkelen tårnet peker (lokal).
+  function turret(ctx, m) {
+    const D = RF.MODULES[m.t];
+    if (m.dir == null || m.dir < 0) return;
+    const ma = RF.DIR_ANGLE[m.dir];
+    const px = m.lx + Math.cos(ma) * CELL * 0.35, py = m.ly + Math.sin(ma) * CELL * 0.35;
+    const a = m.aimA != null ? m.aimA : ma;
+    ctx.save();
+    ctx.translate(px, py);
+    // Festebrakett felt inn i skroget.
+    ctx.save();
+    ctx.rotate(ma);
+    ctx.fillStyle = '#2a2d30';
+    ctx.fillRect(-0.55, -0.75, 0.9, 1.5);
+    ctx.fillStyle = C.yellow;
+    ctx.fillRect(-0.55, -0.75, 0.9, 0.14);
+    ctx.fillRect(-0.55, 0.61, 0.9, 0.14);
+    ctx.restore();
+    ctx.rotate(a);
+    const tier = D.laser ? D.laser.tier : 0;
+    if (D.laser) {
+      const w = 0.3 + tier * 0.07;
+      ctx.fillStyle = '#3a3e42'; ctx.fillRect(0, -w / 2, 1.6, w);
+      ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(0, -w / 2, 1.6, w * 0.3);
+      circle(ctx, 0, 0, 0.5, '#8a8f93', '#1b1d1f');
+      circle(ctx, 1.6, 0, w * 0.55, ['#ff9a3c', '#ff4a3a', '#be6eff', '#78ffdc'][tier - 1]);
+    } else if (D.gun) {
+      ctx.fillStyle = '#2f3336';
+      ctx.fillRect(0, -0.42, 1.9, 0.26); ctx.fillRect(0, 0.16, 1.9, 0.26);
+      ctx.fillStyle = '#8a8f93'; ctx.fillRect(-0.45, -0.55, 0.9, 1.1);
+      ctx.strokeStyle = '#1b1d1f'; ctx.lineWidth = 0.08; ctx.strokeRect(-0.45, -0.55, 0.9, 1.1);
+    } else if (D.ammo) {
+      ctx.fillStyle = '#9ea3a7'; ctx.fillRect(-0.5, -0.6, 1.3, 1.2);
+      ctx.strokeStyle = '#1b1d1f'; ctx.lineWidth = 0.08; ctx.strokeRect(-0.5, -0.6, 1.3, 1.2);
+      for (const y of [-0.3, 0, 0.3]) circle(ctx, 0.8, y, 0.12, C.red);
+    } else if (D.anchor) {
+      circle(ctx, 0, 0, 0.5, '#6d7276', '#1b1d1f');
+      ctx.fillStyle = '#d8d2c0';
+      ctx.beginPath(); ctx.moveTo(1.3, 0); ctx.lineTo(0.5, -0.35); ctx.lineTo(0.65, 0); ctx.lineTo(0.5, 0.35); ctx.closePath(); ctx.fill();
+    } else if (D.light) {
+      ctx.fillStyle = '#3a3e42'; ctx.fillRect(-0.2, -0.45, 0.7, 0.9);
+      const g = ctx.createRadialGradient(0.5, 0, 0, 0.5, 0, 0.4);
+      g.addColorStop(0, '#fffbe8'); g.addColorStop(1, '#c8b67a');
+      circle(ctx, 0.5, 0, 0.3, g);
+    } else if (D.tractor) {
+      ctx.fillStyle = '#3a3e42'; ctx.fillRect(-0.2, -0.7, 0.8, 1.4);
+      circle(ctx, 0.55, 0, 0.45, null, '#6fe0bd');
+      circle(ctx, 0.55, 0, 0.18, '#6fe0bd');
+    }
+    ctx.restore();
   }
 
   const P = RF.Renderer.prototype;
 
   P.drawModular = function (obj, time) {
     const ctx = this.ctx, b = obj.body, L = obj.layout;
+    if (!L || !L.length) return;
+    const loops = hullOf(obj);
     ctx.save();
     ctx.translate(b.x, b.y);
     ctx.rotate(b.a);
     // Skygge under skroget.
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    for (const m of L) ctx.fillRect(m.lx - h + 0.5, m.ly - h + 0.5, CELL, CELL);
-    underplate(ctx, L);
-    for (const m of L) {
-      ctx.save();
-      ctx.translate(m.lx, m.ly);
-      RF.drawModule(ctx, m.t, m);
-      ctx.restore();
-    }
-    // Skitt over det hele.
+    tracePath(ctx, loops, 0.5, 0.5);
+    ctx.fill('evenodd');
+    for (const m of L) if (m.t === 'thruster' || m.t === 'thruster2') nozzle(ctx, m);
+    // Selve skroget: lyst, slitt stål med lys fra sola.
+    const la = (this._sunDir || 0) - b.a, r = b.radius;
+    const g = ctx.createLinearGradient(Math.cos(la) * r, Math.sin(la) * r, -Math.cos(la) * r, -Math.sin(la) * r);
+    g.addColorStop(0, '#c9cccd');
+    g.addColorStop(0.5, '#8c9194');
+    g.addColorStop(1, '#43474b');
+    tracePath(ctx, loops);
+    ctx.fillStyle = g;
+    ctx.fill('evenodd');
+    ctx.save();
+    ctx.clip('evenodd');
+    // Store plater: sømmer hver andre rute, forskjøvet så det ikke ser ut som klosser.
+    ctx.strokeStyle = 'rgba(20,22,24,0.45)';
+    ctx.lineWidth = 0.08;
+    const xs = L.map((m) => m.lx), ys = L.map((m) => m.ly);
+    const x0 = Math.min(...xs) - CELL, x1 = Math.max(...xs) + CELL, y0 = Math.min(...ys) - CELL, y1 = Math.max(...ys) + CELL;
+    for (let x = x0 + 0.7; x < x1; x += CELL * 2) { ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke(); }
+    for (let y = y0 + 1.9; y < y1; y += CELL * 1.5) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); }
     const pat = this.grimePattern();
     if (pat.setTransform) pat.setTransform(new DOMMatrix().scale(0.08));
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.4;
     ctx.fillStyle = pat;
-    for (const m of L) ctx.fillRect(m.lx - h, m.ly - h, CELL, CELL);
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
     ctx.globalAlpha = 1;
+    for (const m of L) surface(ctx, m, time);
+    ctx.restore();
+    // Kant: mørk ytterkant og en lys fas innenfor.
+    tracePath(ctx, loops);
+    ctx.strokeStyle = '#141617';
+    ctx.lineWidth = Math.max(0.14, this.px * 1.4);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 0.12;
+    tracePath(ctx, loops, -0.08, -0.08);
+    ctx.stroke();
+    for (const m of L) if (RF.MODULES[m.t].mount) turret(ctx, m);
     ctx.restore();
   };
 
@@ -379,10 +617,10 @@
   P.drawBeams = function (obj) {
     const ctx = this.ctx, b = obj.body;
     if (!obj.beams || !obj.beams.length) return;
-    const d = b.dirWorld(1, 0);
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round';
     for (const B of obj.beams) {
+      const d = b.dirWorld(Math.cos(B.a || 0), Math.sin(B.a || 0));
       const p0 = b.toWorld(B.lx, B.ly);
       const p1 = { x: p0.x + d.x * B.len, y: p0.y + d.y * B.len };
       const flick = 0.75 + Math.random() * 0.25;
@@ -406,26 +644,30 @@
     ctx.globalCompositeOperation = 'source-over';
   };
 
-  // Lyskjegler fra lysmodulene: [{ lx, ly, range }].
+  // Lyskjegler fra lysmodulene: [{ lx, ly, a, range }] i lokale koordinater.
   RF.lightSources = (obj) => {
     const out = [];
     for (const m of obj.layout) {
       const D = RF.MODULES[m.t];
-      if (D.light && !RF.isBlocked(obj.layout, m)) out.push({ lx: m.lx + h, ly: m.ly, range: D.light });
+      if (!D.light || RF.isBlocked(obj.layout, m)) continue;
+      const a = RF.DIR_ANGLE[m.dir];
+      out.push({ lx: m.lx + Math.cos(a) * CELL * 0.8, ly: m.ly + Math.sin(a) * CELL * 0.8, a, range: D.light });
     }
     return out;
   };
 
+  // Svak lysdis i kjeglen, så lyset kan anes i støvet.
   P.drawHaze = function (obj) {
     const ctx = this.ctx, b = obj.body;
     ctx.globalCompositeOperation = 'lighter';
     for (const Ls of obj._lights || []) {
       const n = b.toWorld(Ls.lx, Ls.ly);
+      const dir = b.a + Ls.a;
       const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, Ls.range);
-      g.addColorStop(0, 'rgba(255,236,200,0.12)');
+      g.addColorStop(0, 'rgba(255,236,200,0.05)');
       g.addColorStop(1, 'rgba(255,236,200,0)');
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.arc(n.x, n.y, Ls.range, b.a - 0.4, b.a + 0.4); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.arc(n.x, n.y, Ls.range, dir - 0.5, dir + 0.5); ctx.closePath(); ctx.fill();
     }
     ctx.globalCompositeOperation = 'source-over';
   };

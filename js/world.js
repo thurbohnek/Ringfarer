@@ -15,7 +15,7 @@
     karbon: { name: 'Karbonkondritt', product: 'grafitt', density: 1100, grade: 0.5, hard: 1,
       base: '#2e2c2f', dark: '#121113', light: '#5e5a62' },
     is: { name: 'Is', product: 'vann', density: 750, grade: 0.85, hard: 1,
-      base: '#a9c9dd', dark: '#5f7f98', light: '#effaff' },
+      base: '#9aa6ad', dark: '#3e464c', light: '#e4ecf0' },
     metall: { name: 'Nikkel-jern', product: 'nikkel', density: 2600, grade: 0.6, hard: 2,
       base: '#5f6873', dark: '#2a3038', light: '#b7c2cf' },
     kobber: { name: 'Kobbermalm', product: 'kobber', density: 2300, grade: 0.3, hard: 2,
@@ -150,10 +150,10 @@
     b.shade = Array.from({ length: 12 }, () => G.rand(-0.12, 0.12));
     const r = b.radius;
     b.craters = [];
-    const nc = b.kind === 'ore' ? 0 : G.randInt(0, Math.min(4, Math.floor(r / 5)));
+    const nc = b.kind === 'ore' ? 0 : G.randInt(Math.min(2, Math.floor(r / 6)), Math.min(7, 1 + Math.floor(r / 4)));
     for (let i = 0; i < nc; i++) {
       const a = Math.random() * Math.PI * 2, d = Math.random() * r * 0.5;
-      b.craters.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: r * G.rand(0.08, 0.18) });
+      b.craters.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: r * G.rand(0.07, 0.16), e: G.rand(0.6, 1), rot: Math.random() * 3 });
     }
     b.veins = [];
     const veinMat = M.vein ? mat : b.vein;
@@ -192,9 +192,10 @@
   };
 
   // Lag en ny stein av en bestemt type.
-  RF.spawnRockType = (world, type, r, o) => {
+  RF.spawnRockType = (world, type, r, o, lumpy) => {
     const T = RF.ROCK_TYPES[type];
-    let shape = G.shardShape(r, RF.MATERIALS[T.mat].crystal);
+    // Kometer er klumpete og runde i omrisset, vanlige asteroider kantete.
+    let shape = lumpy ? G.rockShape(r, G.randInt(12, 16)) : G.shardShape(r, RF.MATERIALS[T.mat].crystal);
     const extra = {};
     if (T.core) {
       extra.core = G.weighted(T.core);
@@ -268,12 +269,18 @@
     // Fart på tvers av systemet, omtrent mot sentrum med avvik.
     const dir = ang + Math.PI + G.rand(-0.5, 0.5);
     const sp = G.rand(12, 24);
-    const r = G.rand(9, 20);
+    const r = G.rand(18, 32);
     // Noen kometer har en verdifull kjerne under isen.
     const type = Math.random() < 0.45 ? 'iskledd' : 'is';
     const c = RF.spawnRockType(world, type, r,
-      { x, y, a: Math.random() * 6.28, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, w: G.rand(-0.1, 0.1) });
+      { x, y, a: Math.random() * 6.28, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, w: G.rand(-0.1, 0.1) }, true);
     c.comet = true;
+    // Kometer er grå og gropete, med mange kratre.
+    c.craters = [];
+    for (let i = 0; i < G.randInt(9, 15); i++) {
+      const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * c.radius * 0.7;
+      c.craters.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r: c.radius * G.rand(0.05, 0.2), e: G.rand(0.55, 1), rot: Math.random() * 3 });
+    }
     return c;
   }
 

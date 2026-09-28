@@ -7,7 +7,7 @@
   const Audio = RF.Audio;
 
   // Vises på startskjermen, så man ser hvilken versjon man spiller.
-  RF.VERSION = 'v0.4.1 · 2026-09-28';
+  RF.VERSION = 'v0.5 · 2026-09-28';
   RF.KAWOOSH_TIME = 1.3;
   RF.KAWOOSH_LEN = 36;
   const STEP = 1 / 120;
@@ -370,7 +370,9 @@
     for (const v of t.veins) for (const p of v) { p.x -= c.x; p.y -= c.y; }
     RF.classifyRock(t);
     t.stress = Math.min(t.stress, t.integrity * 0.9);
-    const back = { x: -d.x, y: -d.y };
+    // Bitene spruter ut til siden, ut av laserstrålen.
+    const sgn = Math.random() < 0.5 ? -1 : 1;
+    const back = { x: -d.x * 0.35 - d.y * sgn, y: -d.y * 0.35 + d.x * sgn };
     const made = spawnPieces(pose, pieces, t.mat, back, null, t);
     // Bevar bevegelsesmengde: steinen får motsatt dytt av bitene.
     let px = 0, py = 0;
@@ -784,8 +786,10 @@
     ship.gunCd = Math.max(0, ship.gunCd - dt);
     ship.rocketCd = Math.max(0, ship.rocketCd - dt);
     // Valgt verktøy brukes så lenge avtrekkeren holdes inne.
-    ship.updateLasers(inp.fire && ship.tool === 'laser', dt, game);
-    if (inp.fire && ship.tool === 'kanon') RF.Weapons.fireGuns(ship, game);
+    const fire = inp.fire || Input.pointer.down;
+    ship.updateTurrets(game.aim, dt);
+    ship.updateLasers(fire && ship.tool === 'laser', dt, game);
+    if (fire && ship.tool === 'kanon') RF.Weapons.fireGuns(ship, game);
     ship.updateTractor(dt, game);
     ship.updateProcessing(dt, game);
     ship.updateShield(dt);
@@ -899,6 +903,13 @@
     if (game.state !== 'play') { last = ts; return; }
     let dt = Math.min(0.05, (ts - last) / 1000 || 0);
     last = ts;
+    // Siktepunktet i verden: der musen eller fingeren er, ellers rett frem.
+    if (game.ship) {
+      const P = Input.pointer, R = RF.renderer;
+      game.aim = P.has && !game.ship.docked
+        ? { x: game.cam.x + (P.x - R.w / 2) / game.cam.zoom, y: game.cam.y + (P.y - R.h / 2) / game.cam.zoom }
+        : game.ship.body.toWorld(game.ship.noseX + 80, 0);
+    }
     handleKeys();
     if (!game.paused) {
       acc += dt;
@@ -935,9 +946,14 @@
         const sd = game.sys.def.sky.starDir + Math.PI;
         for (const c of game.sys.world.bodies) {
           if (!c.comet || G.len(c.x - game.cam.x, c.y - game.cam.y) > 900) continue;
-          if (Math.random() < 0.7) {
-            const a = Math.random() * 6.28, r = c.radius * 0.8;
-            game.particles.add({ type: 'smoke', x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, vx: c.vx * 0.3 + Math.cos(sd) * 14 + G.rand(-2, 2), vy: c.vy * 0.3 + Math.sin(sd) * 14 + G.rand(-2, 2), life: G.rand(1.5, 3), size: c.radius * 0.4, grow: 4, color: '#bfe6ff' });
+          if (Math.random() < 0.3) {
+            const a = Math.random() * 6.28, r = c.radius * 0.9;
+            game.particles.add({ type: 'smoke', x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, vx: c.vx * 0.6 + Math.cos(sd) * 6 + G.rand(-1.5, 1.5), vy: c.vy * 0.6 + Math.sin(sd) * 6 + G.rand(-1.5, 1.5), life: G.rand(2, 4), size: c.radius * 0.12, grow: 1.5, color: '#9aa3a9' });
+          }
+          // Småstein og grus som følger kometen.
+          if (Math.random() < 0.5) {
+            const a = Math.random() * 6.28, r = c.radius * G.rand(1, 1.8);
+            game.particles.add({ type: 'debris', x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, vx: c.vx + G.rand(-1.5, 1.5), vy: c.vy + G.rand(-1.5, 1.5), life: G.rand(4, 8), size: G.rand(0.2, 0.9), color: G.pick(['#5d6166', '#7c8186', '#3f4347']) });
           }
         }
       }
@@ -983,10 +999,11 @@
     game.touchUI = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     // Knip med to fingre for å zoome.
     RF.Input.onPinch = (f) => { game.cam.zoom = G.clamp(game.cam.zoom * f, 0.25, 10); };
-    // Trykk på radaren gjør den stor eller liten.
-    canvas.addEventListener('pointerdown', (e) => {
+    // Sikt med musen eller fingeren. Trykk på radaren gjør den stor eller liten.
+    RF.Input.bindAim(canvas, (e) => {
       const rb = game._radarHit;
-      if (rb && G.len(e.clientX - rb.x, e.clientY - rb.y) < rb.r + 8) game.radarBig = !game.radarBig;
+      if (rb && G.len(e.clientX - rb.x, e.clientY - rb.y) < rb.r + 8) { game.radarBig = !game.radarBig; return true; }
+      return game.state !== 'play' || RF.UI.isOpen();
     });
     if (game.touchUI) game.cam.zoom = 2;
     RF.UI.init(game);

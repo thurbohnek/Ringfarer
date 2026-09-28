@@ -10,11 +10,10 @@
 
   W.reset = () => { W.list = []; };
 
+  // Tuppen av tårnet og retningen det sikter.
   function launchFrom(ship, m) {
-    const b = ship.body;
-    const p = ship.modPoint(m, 1.1);
-    const d = b.dirWorld(1, 0);
-    const v = b.pointVel(p.x, p.y);
+    const { p, d } = ship.muzzle(m, CELL * 1.1);
+    const v = ship.body.pointVel(p.x, p.y);
     return { p, d, v };
   }
 
@@ -24,6 +23,7 @@
     if (!st.guns.length || ship.gunCd > 0) return;
     ship.gunCd = 1 / st.guns[0].rate;
     for (const g of st.guns) {
+      if (!g.m.onTarget) continue;
       const { p, d, v } = launchFrom(ship, g.m);
       W.list.push({ type: 'shell', x: p.x, y: p.y, vx: v.x + d.x * g.speed, vy: v.y + d.y * g.speed, mass: g.mass, life: 1.2, owner: ship.body });
       ship.body.applyImpulse(-d.x * g.mass * g.speed, -d.y * g.mass * g.speed, p.x, p.y);
@@ -39,7 +39,9 @@
     if ((ship.s.ammo || 0) <= 0) { game.msg('Tomt for raketter. Fyll på ved en stasjon', RF.HUD_COLORS.amber); return; }
     ship.rocketCd = 0.6;
     ship.s.ammo--;
-    const L = st.rockets[ship.s.ammo % st.rockets.length];
+    const ready = st.rockets.filter((r) => r.m.onTarget);
+    if (!ready.length) { ship.s.ammo++; game.msg('Siktepunktet er utenfor rakettkasterens sektor', RF.HUD_COLORS.amber); return; }
+    const L = ready[ship.s.ammo % ready.length];
     const { p, d, v } = launchFrom(ship, L.m);
     W.list.push({ type: 'rocket', x: p.x, y: p.y, vx: v.x + d.x * 25, vy: v.y + d.y * 25, dx: d.x, dy: d.y, life: 7, owner: ship.body, arm: 0.25 });
     RF.Audio.thud(0.35, true);
@@ -50,7 +52,9 @@
     if (ship.anchor || ship.harpoon) { ship.releaseAnchor(game); return; }
     const st = ship.stats;
     if (!st.anchors.length) { game.msg('Skipet har ingen ankerkaster', RF.HUD_COLORS.amber); return; }
-    const A = st.anchors.reduce((a, b) => (b.range > a.range ? b : a));
+    const inArc = st.anchors.filter((a) => a.m.onTarget);
+    if (!inArc.length) { game.msg('Siktepunktet er utenfor ankerkasterens sektor', RF.HUD_COLORS.amber); return; }
+    const A = inArc.reduce((a, b) => (b.range > a.range ? b : a));
     const { p, d, v } = launchFrom(ship, A.m);
     const h = { type: 'harpoon', x: p.x, y: p.y, vx: v.x + d.x * 70, vy: v.y + d.y * 70, life: 10, owner: ship.body, ship, mod: A.m, range: A.range, winch: A.winch };
     ship.harpoon = h;
@@ -111,7 +115,8 @@
   function hitHarpoon(p, hit, game) {
     const ship = p.ship, o = hit.body;
     if (o.kind === 'gate') { p.dead = true; ship.harpoon = null; game.msg('Kroken preller av porten', RF.HUD_COLORS.amber); return; }
-    const la = { x: p.mod.lx + CELL / 2, y: p.mod.ly };
+    const mp = ship.mountOf(p.mod);
+    const la = { x: mp.lx, y: mp.ly };
     const a = ship.body.toWorld(la.x, la.y);
     const rope = { A: ship.body, la, B: o, lb: o.toLocal(hit.x, hit.y), length: G.len(hit.x - a.x, hit.y - a.y) + 0.5 };
     game.sys.world.ropes.push(rope);
@@ -136,7 +141,8 @@
         if (Math.random() < 0.8) game.particles.add({ type: 'smoke', x: p.x, y: p.y, vx: -p.dx * 10 + G.rand(-2, 2), vy: -p.dy * 10 + G.rand(-2, 2), life: 1.2, size: 0.5, grow: 1.5, color: '#8a8478' });
       }
       if (p.type === 'harpoon') {
-        const a = p.ship.body.toWorld(p.mod.lx + CELL / 2, p.mod.ly);
+        const mp0 = p.ship.mountOf(p.mod);
+        const a = p.ship.body.toWorld(mp0.lx, mp0.ly);
         if (G.len(p.x - a.x, p.y - a.y) > p.range || p.life <= 0) {
           p.dead = true;
           p.ship.harpoon = null;
@@ -188,7 +194,8 @@
         ctx.beginPath(); ctx.arc(-1.4, 0, 2.2, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       } else if (p.type === 'harpoon') {
-        const a = p.ship.body.toWorld(p.mod.lx + CELL / 2, p.mod.ly);
+        const mp1 = p.ship.mountOf(p.mod);
+        const a = p.ship.body.toWorld(mp1.lx, mp1.ly);
         ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = '#8f8878';
         ctx.lineWidth = Math.max(0.15, px);

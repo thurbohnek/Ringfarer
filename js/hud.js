@@ -224,6 +224,18 @@
       ctx.stroke();
       ctx.setLineDash([]);
     }
+    // Trådkors der man sikter. Grønt når minst ett tårn når dit.
+    const P = RF.Input.pointer;
+    if (!ship.docked && !game.dead && P.has && (!touch || P.down)) {
+      const ok = ship.s.layout.some((m) => m.onTarget);
+      ctx.strokeStyle = ok ? 'rgba(149,196,106,0.9)' : 'rgba(226,85,61,0.8)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(P.x, P.y, 9, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(P.x - 15, P.y); ctx.lineTo(P.x - 5, P.y); ctx.moveTo(P.x + 5, P.y); ctx.lineTo(P.x + 15, P.y);
+      ctx.moveTo(P.x, P.y - 15); ctx.lineTo(P.x, P.y - 5); ctx.moveTo(P.x, P.y + 5); ctx.lineTo(P.x, P.y + 15);
+      ctx.stroke();
+    }
     if (!ship.docked) {
       edgeMarker(ctx, game, R, game.sys.station.x, game.sys.station.y, game.sys.station.name, C.ok);
       edgeMarker(ctx, game, R, game.sys.gate.x, game.sys.gate.y, 'Porten', C.gate);

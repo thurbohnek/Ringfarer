@@ -134,7 +134,8 @@
           ${keyList()}
           <h3>Slik fungerer det</h3>
           <ul class="tips">
-            <li><b>Mobil:</b> dra på venstre side for å styre og gi gass. Knip med to fingre for å zoome. Den store knappen bruker valgt verktøy, de små over den bytter verktøy. ⋯ har lys, flygeassistent og droner.</li>
+            <li><b>Sikting:</b> verktøyene sitter i festepunkter på skrogets kant og dreier mot der du trykker eller peker. Hvert tårn når litt over 90° hver vei fra kanten det sitter på. Trådkorset er grønt når minst ett tårn når målet.</li>
+            <li><b>Mobil:</b> dra på venstre side for å styre og gi gass. Trykk og hold hvor som helst ellers på skjermen for å sikte og skyte. Knip med to fingre for å zoome. De små knappene bytter verktøy, ⋯ har lys, flygeassistent og droner.</li>
             <li><b>Hardhet:</b> hver bergart har en hardhet fra 1 til 4. Laseren må ha minst samme nivå. Kanon og raketter knuser alt.</li>
             <li><b>Islag:</b> noen asteroider og kometer har is utenpå og et verdifullt mineral inni.</li>
             <li><b>Anker:</b> kroken skytes ut på en wire og fester seg i det den treffer. Vinsj inn for å lande, eller gi gass og slep kometen dit du vil.</li>
@@ -206,6 +207,7 @@
       ${k(['A', 'D'], 'Drei skipet')}
       ${k(['Q', 'E'], 'Sidestyring')}
       ${k(['1', '2', '3', '4'], 'Velg laser, kanon, rakett, anker')}
+      ${k(['Mus'], 'Sikt, venstreklikk bruker verktøyet')}
       ${k(['Mellomrom'], 'Bruk verktøyet')}
       ${k(['X'], 'Skyt ut / løsne ankeret')}
       ${k(['C', 'V'], 'Vinsj inn / gi ut wire')}
@@ -332,14 +334,15 @@
     const st = ship.stats;
     const g = RF.layoutGeometry(s.layout);
     const full = g.dryMass + st.fuelCap + st.hold * 1000;
-    const warn = st.blocked.map((m) => `${RF.MODULES[m.t].name} i rute ${m.x},${m.y} er sperret ${RF.MODULES[m.t].face === 'fwd' ? 'forover' : 'bakover'}`);
+    const warn = st.blocked.map((m) => `${RF.MODULES[m.t].name} i rute ${m.x},${m.y} ${RF.MODULES[m.t].mount ? 'har ingen fri kant å feste seg på' : 'har ikke åpen plass bak seg'}`);
     if (!st.thrusters.length) warn.push('Ingen motor med fri eksos');
     return `
       <div class="builder">
         <div class="ed-wrap">
           <canvas id="ed-canvas" aria-label="Skipsbygger: rutenett med moduler"></canvas>
           <p class="muted small">Trykk på en tom rute ved siden av skipet for å sette inn <b>${esc(edTool === 'fjern' ? 'ingenting (fjerner)' : sel.name)}</b>.
-          Velg «Fjern» og trykk på en modul for å selge den (70 %). Nesen peker mot høyre.</p>
+          Verktøy (laser, kanon, rakett, anker, lys, traktor) festes i kanten og peker ut der det er ledig plass, vist med pil.
+          Velg «Fjern» og trykk på en modul for å selge den (70 %). Nesen peker mot høyre. I flukt ser skipet ut som ett skrog.</p>
         </div>
         <div class="ed-side">
           <div class="cats">${cats.map((c) => `<button class="tab ${c === edCat ? 'on' : ''}" data-act="edcat" data-id="${c}">${c}</button>`).join('')}
@@ -406,6 +409,15 @@
       ctx.scale(k, k);
       RF.drawModule(ctx, m.t, m);
       ctx.restore();
+      if (RF.MODULES[m.t].mount && m.dir >= 0) {
+        const a = RF.DIR_ANGLE[m.dir];
+        const cx = (m.x - bd.x0 + 0.5) * cell + Math.cos(a) * cell * 0.5, cy = (m.y - bd.y0 + 0.5) * cell + Math.sin(a) * cell * 0.5;
+        ctx.save();
+        ctx.translate(cx, cy); ctx.rotate(a);
+        ctx.fillStyle = '#e3a03a';
+        ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-3, -5); ctx.lineTo(-3, 5); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
       if (RF.isBlocked(L, m)) {
         ctx.fillStyle = 'rgba(226,85,61,0.35)';
         ctx.fillRect((m.x - bd.x0) * cell, (m.y - bd.y0) * cell, cell, cell);

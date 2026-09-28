@@ -20,6 +20,39 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-28: v0.5 · Sikting, festepunkter, glatt skrog, skygger og kometer
+
+Ønske: laseren skal skyte dit man trykker på skjermen, og skyve bort eller
+ødelegge løse biter så de ikke blokkerer. Klossene skal ikke synes når man
+spiller, bare når man bygger. Skipet skal ha festepunkter der verktøy kan
+klikkes inn, for eksempel en laser på siden. Lyset skal være mer realistisk,
+med skygger bak ting og en mindre markert lyskjegle. Kometene skal se ut som
+bilde 2 (grå, gropete stein med rusk rundt).
+
+- **Sikting:** musen på PC, eller trykk og hold hvor som helst utenfor
+  styrespaken på mobil. Trådkorset er grønt når et tårn når målet
+  (`js/input.js`, `js/game.js`, `js/hud.js`).
+- **Festepunkter og tårn:** verktøy (laser, kanon, rakett, anker, lys, traktor)
+  festes i skrogets kant og peker ut der det er ledig plass. Våpen og lasere
+  sitter i tårn som dreier mot siktepunktet, litt over 90° hver vei
+  (`js/modules.js`, `js/ship.js`, `js/weapons.js`). Skipsbyggeren viser
+  retningen med en pil.
+- **Laseren holder banen fri:** løse biter som står i strålen dyttes ut til
+  siden, og de minste fordamper. Nye biter spruter ut til siden i stedet for
+  rett mot skipet.
+- **Glatt skrog i flukt** (`js/shipdraw.js`): rutene slås sammen til én
+  skrogform med avfasede hjørner, store stålplater, glassfront, motorklokker og
+  tårn med festebraketter. Klossene vises bare i skipsbyggeren.
+- **Lys med skygger** (`js/render.js`): lyskasterne kaster skygger bak steiner,
+  skip og stasjonen. Kjeglen har myke kanter, og lysdisen er svakere.
+- **Kometer:** større, grå og gropete med mange kratre og et klumpete omriss,
+  en svak støvsky, og grus og småstein som følger med. Alle asteroider har fått
+  en ru overflate.
+
+Testet i en nettleser uten skjerm (PC og mobilstørrelse): sikting med mus mot
+en stein (laseren traff og steinen sprakk), kanon, rakett, anker, drone, krasj
+med tap av modul, og knip-zoom. Ingen feilmeldinger.
+
 ## 2026-09-28: v0.4.1 · Lesbare menyer
 
 Ønske: bakgrunnen i menyene gjorde den grå teksten nesten umulig å lese, og

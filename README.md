@@ -26,8 +26,9 @@ Se `ENDRINGER.md` for hva som er endret og hva som gjenstår.
 | W / S (piltaster) | Hovedmotor / brems |
 | A / D | Drei skipet |
 | Q / E | Sidestyring |
+| Mus | Sikt; venstreklikk bruker valgt verktøy |
 | 1 / 2 / 3 / 4 | Velg laser, kanon, rakett eller anker |
-| Mellomrom | Bruk valgt verktøy |
+| Mellomrom | Bruk valgt verktøy mot siktepunktet |
 | X | Skyt ut / løsne ankerkroken |
 | C / V | Vinsj inn / gi ut wire |
 | F | Traktorstråle av/på |
@@ -40,7 +41,8 @@ Se `ENDRINGER.md` for hva som er endret og hva som gjenstår.
 | H | Hjelp |
 
 **Mobil:** dra hvor som helst på venstre side for å styre (skipet snur seg dit
-du drar, langt drag gir gass). Knip med to fingre for å zoome. Den store runde
+du drar, langt drag gir gass). Trykk og hold ellers på skjermen for å sikte og
+skyte dit. Knip med to fingre for å zoome. Den store runde
 knappen bruker valgt verktøy, de små over den bytter verktøy. BREMS, TRAKTOR og
 ⋯ (lys, flygeassistent, droner, pause) ligger nederst. Trykk på radaren for å
 gjøre den stor.
@@ -62,8 +64,10 @@ tregere å snu.
 | Våpen | Massedriver (kanon), rakettkaster |
 | Verktøy | Ankerkaster, tungt anker, arbeidslys, flomlys, dronehangar |
 
-Lasere, kanoner, anker og lys må ha fri bane forover. Motorer må ha fri eksos
-bakover. Skipsbyggeren på stasjonen viser det med rødt hvis noe er sperret.
+Verktøy (laser, kanon, rakett, anker, lys, traktor) festes i festepunkter på
+skrogets kant og peker ut der det er ledig plass. Våpen og lasere sitter i tårn
+som dreier mot siktepunktet. Motorer trenger en åpen rute rett bak seg. I flukt
+tegnes skipet som ett glatt skrog; klossene synes bare i skipsbyggeren.
 
 **Skip å kjøpe:** Hoppeskip MK-I (6×5 ruter), Graver G-2 (8×7) og Fjellbryter
 T-3 (9×11). Det gamle skipet tas i innbytte.

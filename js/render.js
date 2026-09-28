@@ -47,6 +47,34 @@
   const hexRgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const mix = (a, b, t) => [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
 
+  // Skyggen bak et konvekst legeme sett fra lyspunktet (x,y): den bortvendte
+  // delen av omrisset pluss en forlengelse bort fra lyset.
+  function shadowPoly(o, x, y, far) {
+    o.updateWorld();
+    const v = o.wv, n = v.length;
+    if (n < 3) return null;
+    const base = Math.atan2(o.y - y, o.x - x);
+    let iMin = 0, iMax = 0, aMin = 1e9, aMax = -1e9;
+    for (let i = 0; i < n; i++) {
+      let a = Math.atan2(v[i].y - y, v[i].x - x) - base;
+      while (a > Math.PI) a -= 2 * Math.PI;
+      while (a < -Math.PI) a += 2 * Math.PI;
+      if (a < aMin) { aMin = a; iMin = i; }
+      if (a > aMax) { aMax = a; iMax = i; }
+    }
+    if (aMax - aMin > Math.PI * 0.95) return null; // lyset er nesten inni
+    const chain = (from, to, step) => {
+      const out = [];
+      for (let i = from; ; i = (i + step + n) % n) { out.push(v[i]); if (i === to) break; }
+      return out;
+    };
+    const c1 = chain(iMin, iMax, 1), c2 = chain(iMin, iMax, -1);
+    const md = (c) => c.reduce((a, p) => a + Math.hypot(p.x - x, p.y - y), 0) / c.length;
+    const back = md(c1) >= md(c2) ? c1 : c2;
+    const proj = (p) => { const dx = p.x - x, dy = p.y - y, d = Math.hypot(dx, dy) || 1; return { x: p.x + (dx / d) * far, y: p.y + (dy / d) * far }; };
+    return back.concat([proj(v[iMax]), proj(v[iMin])]);
+  }
+
   // --- Tekstur: støy til slitt metall ---
   function noiseCanvas(size, seed, dark, light) {
     const c = document.createElement('canvas');
@@ -301,6 +329,7 @@
       this.vis = vis;
       const sys = game.sys;
       const sunDir = sys.def.sky.starDir;
+      this._sunDir = sunDir;
       const ship = game.ship;
       const shipLive = ship && !game.dead;
 
@@ -313,7 +342,7 @@
       this.drawParticles(game.particles, vis, 'solid');
       for (const r of sys.world.ropes) this.drawRope(r);
       for (const b of sys.world.bodies) {
-        if (b.kind === 'wreck' && vis(b.x, b.y, b.radius)) this.drawModular({ body: b, layout: b.modules }, game.time);
+        if (b.kind === 'wreck' && vis(b.x, b.y, b.radius)) this.drawModular(b._draw || (b._draw = { body: b, layout: b.modules }), game.time);
       }
       for (const n of sys.npcs || []) if (n.active && vis(n.body.x, n.body.y, 40)) this.drawModular(n, game.time);
       if (shipLive) {
@@ -346,6 +375,53 @@
       }
       RF.Weapons.draw(ctx, this.px);
       this.drawParticles(game.particles, vis, 'glow');
+    }
+
+    // Lyskaster med skygger: lyset tegnes på et eget lerret, skyggene bak
+    // steiner og skip klippes ut, og resultatet skjærer hull i mørket.
+    shadowedSpot(game, x, y, dir, range, self) {
+      const T = this.spot || (this.spot = document.createElement('canvas'));
+      if (T.width !== this.light.width || T.height !== this.light.height) { T.width = this.light.width; T.height = this.light.height; }
+      const t = T.getContext('2d');
+      t.setTransform(1, 0, 0, 1, 0, 0);
+      t.globalCompositeOperation = 'source-over';
+      t.clearRect(0, 0, T.width, T.height);
+      this.worldTransform(t, game, this.ls);
+      // Myk kjegle: flere lag med økende vinkel og svakere styrke.
+      for (const [half, a] of [[0.95, 0.12], [0.7, 0.2], [0.5, 0.28], [0.32, 0.25]]) {
+        const g = t.createRadialGradient(x, y, 0, x, y, range);
+        g.addColorStop(0, `rgba(0,0,0,${a})`);
+        g.addColorStop(0.5, `rgba(0,0,0,${a * 0.7})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        t.fillStyle = g;
+        t.beginPath(); t.moveTo(x, y); t.arc(x, y, range, dir - half, dir + half); t.closePath(); t.fill();
+      }
+      // Lys rett rundt lampen.
+      const g0 = t.createRadialGradient(x, y, 0, x, y, 12);
+      g0.addColorStop(0, 'rgba(0,0,0,0.4)');
+      g0.addColorStop(1, 'rgba(0,0,0,0)');
+      t.fillStyle = g0;
+      t.beginPath(); t.arc(x, y, 12, 0, Math.PI * 2); t.fill();
+      // Skygger.
+      t.globalCompositeOperation = 'destination-out';
+      t.fillStyle = '#000';
+      for (const o of game.sys.world.bodies) {
+        if (o === self || o.dead || o.kind === 'gate') continue;
+        const dx = o.x - x, dy = o.y - y, dd = Math.hypot(dx, dy);
+        if (dd - o.radius > range || dd < o.radius * 0.3) continue;
+        const poly = shadowPoly(o, x, y, range * 1.6);
+        if (!poly) continue;
+        t.beginPath();
+        poly.forEach((p, i) => (i ? t.lineTo(p.x, p.y) : t.moveTo(p.x, p.y)));
+        t.closePath();
+        t.fill();
+      }
+      const L = this.lctx;
+      L.save();
+      L.setTransform(1, 0, 0, 1, 0, 0);
+      L.globalCompositeOperation = 'destination-out';
+      L.drawImage(T, 0, 0);
+      L.restore();
     }
 
     // Mørket legges over alt, og lyskildene "skjærer" hull i det.
@@ -384,7 +460,8 @@
         glow(b.x, b.y, b.radius + 10, 0.5);
         for (const Ls of o._lights || []) {
           const n = b.toWorld(Ls.lx, Ls.ly);
-          cone(n.x, n.y, b.a, 0.42, Ls.range, 0.95);
+          if (!this.vis(n.x, n.y, Ls.range)) continue;
+          this.shadowedSpot(game, n.x, n.y, b.a + Ls.a, Ls.range, b);
         }
         if (o.fx.main > 0.05) {
           for (const m of o.layout) {
@@ -393,8 +470,8 @@
             glow(t.x, t.y, 8 + o.fx.main * 18, 0.7 * o.fx.main);
           }
         }
-        const d = b.dirWorld(1, 0);
         for (const B of o.beams || []) {
+          const d = b.dirWorld(Math.cos(B.a || 0), Math.sin(B.a || 0));
           const n = b.toWorld(B.lx, B.ly);
           for (let s = 0; s < B.len; s += 14) glow(n.x + d.x * s, n.y + d.y * s, 7, 0.35);
           if (B.hit) glow(B.hit.x, B.hit.y, 18, 1);
@@ -434,6 +511,14 @@
       const rgb = M._rgb || (M._rgb = {
         base: hexRgb(M.base), dark: hexRgb(M.dark), light: hexRgb(M.light),
       });
+      // Kometer har en svak støvsky rundt seg.
+      if (b.comet) {
+        const cg = ctx.createRadialGradient(b.x, b.y, b.radius * 0.6, b.x, b.y, b.radius * 2.2);
+        cg.addColorStop(0, 'rgba(190,200,210,0.16)');
+        cg.addColorStop(1, 'rgba(190,200,210,0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 2.2, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.a);
@@ -457,14 +542,31 @@
       ctx.moveTo(v[0].x, v[0].y);
       for (let i = 1; i < n; i++) ctx.lineTo(v[i].x, v[i].y);
       ctx.closePath();
-      if (b.craters.length || b.veins.length || b.core) {
+      if (b.craters.length || b.veins.length || b.core || r > 3) {
         ctx.save();
         ctx.clip();
+        // Ru overflate.
+        if (r > 3) {
+          const pat = this.grimePattern();
+          if (pat.setTransform) pat.setTransform(new DOMMatrix().scale(r > 15 ? 0.2 : 0.1));
+          ctx.globalAlpha = 0.28;
+          ctx.fillStyle = pat;
+          ctx.fillRect(-r, -r, r * 2, r * 2);
+          ctx.globalAlpha = 1;
+        }
+        // Kratre: mørke groper med lys kant på siden som vender bort fra sola.
         for (const c of b.craters) {
-          ctx.fillStyle = M.dark + '88';
-          ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = M.light + '33';
-          ctx.beginPath(); ctx.arc(c.x - lx * c.r * 0.3, c.y - ly * c.r * 0.3, c.r * 0.7, 0, Math.PI * 2); ctx.fill();
+          ctx.save();
+          ctx.translate(c.x, c.y);
+          ctx.rotate(c.rot || 0);
+          ctx.scale(1, c.e || 1);
+          ctx.fillStyle = M.light + '40';
+          ctx.beginPath(); ctx.arc(-lx * c.r * 0.22, -ly * c.r * 0.22, c.r * 1.08, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(8,8,9,0.82)';
+          ctx.beginPath(); ctx.arc(0, 0, c.r, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(8,8,9,0.5)';
+          ctx.beginPath(); ctx.arc(lx * c.r * 0.25, ly * c.r * 0.25, c.r * 0.8, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
         }
         if (b.veins.length) {
           ctx.strokeStyle = (b.veinColor || M.vein || M.light) + 'bb';
