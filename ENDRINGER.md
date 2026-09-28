@@ -14,11 +14,25 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   de er slått sammen til `main`.
 - **Er ikke prøvd på en ekte telefon.** All testing er gjort i en nettleser
   uten skjerm, i PC- og mobilstørrelse.
-- **Låsing etter progresjon er ikke laget ennå.** Alle skip, moduler og droner
-  kan kjøpes nå, slik at de kan prøves. Moduler og skip har et `unlock`-nivå i
-  `js/modules.js` som kan brukes når progresjonen skal bygges.
+- **Alt er åpent med vilje, for testing.** Ingenting skal låses før brukeren
+  sier fra. Moduler og skip har et `unlock`-nivå i `js/modules.js` som kan
+  brukes når progresjonen skal bygges senere.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-28: v0.5.1 · Alt åpent, ubegrenset penger til testing
+
+Ønske: for å teste må alt være ulåst, så man kan handle og prøve alt. Ingenting
+skal låses, og det skal gis penger om nødvendig.
+
+- Ingenting var låst fra før, men penger kunne stoppe kjøp. «Test alt» er nå
+  hovedknappen på startskjermen: kontoen fylles automatisk opp med 1 000 000 kr
+  når den kommer under 500 000 kr, så pengene tar aldri slutt (`js/game.js`).
+- Knappen «+1 000 000 kr» på stasjonen og «Gi meg 1 000 000 kr» i pausemenyen
+  gir penger når som helst, også i en vanlig karriere (`js/ui.js`).
+
+Testet: kjøpte Fjellbryter, Graver og Fjellbryter igjen på rad, og kontoen ble
+fylt opp igjen. Pengeknappen virket. Ingen feilmeldinger.
 
 ## 2026-09-28: v0.5 · Sikting, festepunkter, glatt skrog, skygger og kometer
 

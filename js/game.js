@@ -7,7 +7,7 @@
   const Audio = RF.Audio;
 
   // Vises på startskjermen, så man ser hvilken versjon man spiller.
-  RF.VERSION = 'v0.5 · 2026-09-28';
+  RF.VERSION = 'v0.5.1 · 2026-09-28';
   RF.KAWOOSH_TIME = 1.3;
   RF.KAWOOSH_LEN = 36;
   const STEP = 1 / 120;
@@ -106,8 +106,19 @@
     RF.Weapons.reset();
     game.ship = new RF.Ship(RF.newShipState('hopper'));
     spawnDocked('midgard');
-    game.msg(test ? 'Testmodus: alt er åpent, og du har 1 000 000 kr' : 'Velkommen om bord i Hoppeskip MK-I', RF.HUD_COLORS.gate);
+    game.msg(test ? 'Testmodus: alt er åpent og pengene tar aldri slutt' : 'Velkommen om bord i Hoppeskip MK-I', RF.HUD_COLORS.gate);
     game.save();
+  };
+
+  // Testing: gi penger når som helst. I testmodus fylles kontoen opp igjen
+  // automatisk, så ingenting stopper på grunn av penger.
+  game.giveMoney = (n = 1000000) => {
+    game.credits += n;
+    game.msg(`+${n.toLocaleString('nb-NO')} kr til testing`, RF.HUD_COLORS.ok);
+    game.save();
+  };
+  game.topUp = () => {
+    if (game.testMode && game.credits < 500000) game.credits += 1000000;
   };
 
   game.save = () => {
@@ -969,6 +980,7 @@
       Audio.update(ship.docked || game.dead ? 0 : Math.max(ship.fx.main, ship.fx.retro * 0.6, (ship.fx.left + ship.fx.right) * 0.4),
         ship.laser.on && !game.dead, ship.tractor.on && !ship.docked && !game.dead, !!ship.laser.hit);
     }
+    game.topUp();
     Input.endFrame();
     RF.renderer.draw(game, dt);
     if (!game.dead) RF.drawHUD(RF.renderer, game);

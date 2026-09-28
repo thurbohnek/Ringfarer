@@ -116,12 +116,12 @@
           slep kometer etter en wire, send ut droner, og reis gjennom den eldgamle ringporten.
           Alt følger ekte fysikk, og skipet kan miste deler når det blir truffet.</p>
           <div class="row">
-            ${cont ? '<button class="btn primary" data-act="continue" data-autofocus>Fortsett karrieren</button>' : ''}
-            <button class="btn ${cont ? '' : 'primary'}" data-act="new" ${cont ? '' : 'data-autofocus'}>Ny karriere</button>
-            <button class="btn" data-act="test">Testmodus</button>
+            <button class="btn primary" data-act="test" data-autofocus>Test alt</button>
+            ${cont ? '<button class="btn" data-act="continue">Fortsett</button>' : ''}
+            <button class="btn" data-act="new">Ny karriere</button>
             <button class="btn ghost" data-act="help">Kontroller</button>
           </div>
-          <p class="muted small">Testmodus gir 1 000 000 kr, så du kan kjøpe alle skip, moduler og droner med en gang.</p>
+          <p class="muted small">«Test alt» gir ubegrenset med penger: kontoen fylles opp av seg selv, så du kan handle, kjøpe alle skip, moduler og droner og prøve alt. Ingenting er låst. I pausemenyen og på stasjonen kan du også når som helst gi deg selv 1 000 000 kr.</p>
           ${keyList()}
         </div>`);
     },
@@ -156,6 +156,7 @@
           <div class="col">
             <button class="btn primary" data-act="close" data-autofocus>Fortsett</button>
             <button class="btn" data-act="help">Kontroller</button>
+            <button class="btn" data-act="money">Gi meg 1 000 000 kr</button>
             <button class="btn" data-act="mute">${RF.Audio.muted ? 'Slå på lyd' : 'Slå av lyd'}</button>
             <button class="btn" data-act="touch">${game.touchUI ? 'Skjul berøringskontroller' : 'Vis berøringskontroller'}</button>
             <button class="btn ghost" data-act="quit">Til tittelskjermen</button>
@@ -243,7 +244,10 @@
             <p class="eyebrow">Dokket · ${esc(game.sys.def.name)} · ${esc(RF.HULLS[s.hull].name)}</p>
             <h2>${esc(st.name)}</h2>
           </div>
-          <div class="wallet"><span class="num">${Math.floor(game.credits).toLocaleString('nb-NO')}</span><span class="muted">kreditter</span></div>
+          <div class="wallet-wrap">
+            <div class="wallet"><span class="num">${Math.floor(game.credits).toLocaleString('nb-NO')}</span><span class="muted">kreditter${game.testMode ? ' · ubegrenset' : ''}</span></div>
+            <button class="btn sm ghost" data-act="money">+1 000 000 kr</button>
+          </div>
         </header>
         <div class="hold-line">
           <span>Last ${tonn(RF.cargoMass(s))} / ${ship.stats.hold} t</span>
@@ -601,6 +605,7 @@
       case 'mute': RF.Audio.setMuted(!RF.Audio.muted); UI.openPause(); break;
       case 'touch': UI.setTouch(!game.touchUI); UI.openPause(); break;
       case 'quit': game.save(); game.state = 'title'; location.reload(); break;
+      case 'money': game.giveMoney(); if (game.ship && game.ship.docked) renderStation(); else UI.openPause(); break;
       case 'respawn': game.respawn(); break;
       case 'dial': game.dial(id); break;
       case 'undock': game.undock(); break;

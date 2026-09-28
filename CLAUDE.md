@@ -32,3 +32,8 @@
   den samme siden (samme lenke) i stedet for å lage en ny.
 - Når endringene er på `main` og GitHub Pages er slått på, legg også ved
   https://thurbohnek.github.io/Ringfarer/ .
+
+## Testing: alt skal være åpent
+
+- Ingenting i spillet skal låses (skip, moduler, droner, handel) før brukeren
+  selv sier fra. «Test alt» på startskjermen gir ubegrenset med penger.
