@@ -153,7 +153,7 @@
         // svinge forbi og tilbake.
         const alpha = maxT / b.I;
         const wStop = Math.sqrt(2 * alpha * 0.55 * Math.abs(err));
-        const target = Math.sign(err) * Math.min(st.maxW, wStop, Math.abs(err) * 2.2);
+        const target = Math.sign(err) * Math.min(input.maxW ? Math.min(st.maxW, input.maxW) : st.maxW, wStop, Math.abs(err) * 2.2);
         torque = G.clamp((target - b.w) * b.I * 10, -maxT, maxT);
         if (input.aimThrust > 0 && Math.cos(err) > 0.8) main = input.aimThrust;
       } else if (input.turn !== 0) {
@@ -161,7 +161,7 @@
           const target = input.turn * st.maxW;
           torque = G.clamp((target - b.w) * b.I * 6, -maxT, maxT);
         } else torque = input.turn * maxT;
-      } else if (this.fa > 0 || input.brake) {
+      } else if (this.fa > 0 || input.brake || input.accel) {
         torque = G.clamp(-b.w * b.I * 5, -maxT, maxT);
         if (Math.abs(b.w) < 0.002) torque = 0;
       }

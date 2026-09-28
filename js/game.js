@@ -461,32 +461,55 @@
     if (L < 1) return null;
     const ux = dx / L, uy = dy / L, px = -uy, py = ux;
     const skip = (o) => o === sb || o.ghost || o.dead || o.kind === 'ore' || (o.npc && o.npc.own);
+    const w = R + 6; // litt margin utenfor skroget
     let best = null;
-    for (const off of [0, R, -R]) {
+    for (const off of [0, w, -w, w / 2, -w / 2]) {
       const h = ws.raycast(ax + px * off, ay + py * off, ux, uy, L, (o) => !skip(o));
       // Treff helt inntil målet (når målet ligger ved en stein) teller ikke.
       if (h && h.t < L - R * 1.5 && (!best || h.t < best.t)) best = h;
     }
+    // Små steiner kan gli mellom strålene: sjekk avstanden fra ruten til dem.
+    for (const o of ws.bodies) {
+      if (o.radius > 20 || o.isStatic || skip(o)) continue;
+      const cx = o.x - ax, cy = o.y - ay;
+      const t = cx * ux + cy * uy;
+      if (t < 0 || t > L - R * 1.5) continue;
+      if (Math.abs(cx * uy - cy * ux) > o.radius + w) continue;
+      const tt = Math.max(0, t - o.radius);
+      if (!best || tt < best.t) best = { body: o, t: tt, x: ax + ux * tt, y: ay + uy * tt };
+    }
     return best;
   }
 
-  // Et punkt ved siden av hindringen, på den siden som er lettest.
-  function detour(from, to, R) {
+  // Omkretsen til hindringen (hele stasjonen og porten regnes som én ting).
+  function obstacleCircle(o) {
+    const st = game.sys.station, gt = game.sys.gate;
+    if (o.kind === 'station') return { x: st.x, y: st.y, r: 125 };
+    if (o.kind === 'gate') return { x: gt.x, y: gt.y, r: RF.GATE_R + 6 };
+    return { x: o.x, y: o.y, r: o.radius };
+  }
+
+  // Et punkt rundt hindringen som kan nås i rett linje, og som gir kortest vei
+  // videre til målet. Siden man valgte sist foretrekkes, så ruten ikke vingler.
+  function detour(from, to, R, prevSide) {
     const h = blockedPath(from.x, from.y, to.x, to.y, R);
     if (!h) return null;
-    let o = h.body, cx = o.x, cy = o.y, rad = o.radius;
-    const st = game.sys.station, gt = game.sys.gate;
-    if (o.kind === 'station') { cx = st.x; cy = st.y; rad = 125; }
-    else if (o.kind === 'gate') { cx = gt.x; cy = gt.y; rad = RF.GATE_R + 6; }
-    const dx = to.x - from.x, dy = to.y - from.y, L = G.len(dx, dy) || 1;
-    const px = -dy / L, py = dx / L;
-    const clear = rad + R + 12;
-    const s0 = (cx - from.x) * px + (cy - from.y) * py > 0 ? -1 : 1;
-    for (const side of [s0, -s0]) {
-      const w = { x: cx + px * side * clear, y: cy + py * side * clear, body: o };
-      if (!blockedPath(from.x, from.y, w.x, w.y, R)) return w;
+    const c = obstacleCircle(h.body);
+    const clear = c.r + R + 20;
+    const base = Math.atan2(from.y - c.y, from.x - c.x);
+    let best = null;
+    for (let k = 1; k <= 9; k++) {
+      for (const side of [1, -1]) {
+        const a = base + side * k * 0.35;
+        const w = { x: c.x + Math.cos(a) * clear, y: c.y + Math.sin(a) * clear, side };
+        if (blockedPath(from.x, from.y, w.x, w.y, R)) continue;
+        let cost = G.len(w.x - from.x, w.y - from.y) + G.len(to.x - w.x, to.y - w.y);
+        if (prevSide && side !== prevSide) cost *= 1.25;
+        if (!best || cost < best.cost) best = Object.assign(w, { cost });
+      }
+      if (best) break;
     }
-    return { x: cx + px * s0 * clear * 1.4, y: cy + py * s0 * clear * 1.4, body: o };
+    return best;
   }
 
   function navInput(inp) {
@@ -500,29 +523,54 @@
     const rvx = b.vx - tvx, rvy = b.vy - tvy;
     const aB = Math.max(st.retro + st.strafe, (st.thrust || 0) * 0.6) / b.mass;
     let vd = Math.min(45, Math.sqrt(2 * aB * 0.55 * Math.max(0, d - 0.6)));
+    const R = b.radius;
     // Unnamanøver: med navigasjonsdatamaskin styrer autopiloten rundt steiner,
-    // stasjonen og andre skip. Veien sjekkes på nytt fire ganger i sekundet.
-    if (!N.rotate && d > b.radius * 2) {
+    // stasjonen og andre skip. Ruten sjekkes på nytt sju ganger i sekundet.
+    if (!N.rotate && d > R * 2) {
       N.check = (N.check || 0) - 1;
       if (N.check <= 0) {
-        N.check = 30;
+        N.check = 18;
         if (st.navcomp) {
-          if (N.via && G.len(N.via.x - b.x, N.via.y - b.y) < b.radius + 6) N.via = null;
-          const from = { x: b.x, y: b.y };
-          if (!N.via || !blockedPath(b.x, b.y, N.via.x, N.via.y, b.radius)) {
-            const w = detour(from, p, b.radius);
-            if (w && !N.via) game.msg('Course plotted around an obstacle', RF.HUD_COLORS.gate);
+          if (N.via && G.len(N.via.x - b.x, N.via.y - b.y) < R + 10) N.via = null;
+          if (!blockedPath(b.x, b.y, p.x, p.y, R)) N.via = null;
+          else if (!N.via || blockedPath(b.x, b.y, N.via.x, N.via.y, R)) {
+            const w = detour({ x: b.x, y: b.y }, p, R, N.via ? N.via.side : N.side);
+            if (w && !N.via && !N.planned) { N.planned = true; game.msg('Course plotted around an obstacle', RF.HUD_COLORS.gate); }
+            if (w) N.side = w.side;
             N.via = w;
           }
-        } else if (!N.warned && blockedPath(b.x, b.y, p.x, p.y, b.radius)) {
+          // Hvor nær er nærmeste hindring? Nær steiner snur ikke skipet fort,
+          // for da feier tuppen av skroget inn i dem.
+          let minC = Infinity;
+          for (const o of game.sys.world.bodies) {
+            if (o === b || o.ghost || o.dead || o.kind === 'ore' || (o.npc && o.npc.own)) continue;
+            const c = G.len(o.x - b.x, o.y - b.y) - o.radius - R;
+            if (c < minC) minC = c;
+          }
+          N.clear = minC;
+          // Fartsgrense: kan skipet stoppe før det den faktisk driver mot?
+          const sp = G.len(rvx, rvy);
+          N.safeV = Infinity;
+          if (sp > 2) {
+            const look = (sp * sp) / (2 * aB) * 1.6 + R + 40;
+            const h = blockedPath(b.x, b.y, b.x + (rvx / sp) * look, b.y + (rvy / sp) * look, R);
+            N.safeT = h ? h.t : Infinity;
+            if (h) N.safeV = Math.sqrt(2 * aB * 0.5 * Math.max(0, h.t - R - 8));
+          }
+        } else if (!N.warned && blockedPath(b.x, b.y, p.x, p.y, R)) {
           N.warned = true;
           game.msg('Obstacle ahead. A navigation computer lets the autopilot steer around it', RF.HUD_COLORS.amber);
         }
       }
       if (N.via && st.navcomp) {
         dx = N.via.x - b.x; dy = N.via.y - b.y;
-        vd = Math.min(vd, 30);
+        vd = Math.min(vd, 25);
       }
+      // Fartsgrensen gjelder ikke når skipet allerede flyr rett mot et
+      // omveispunkt som er sjekket og fritt (ellers kryper det langs steinen).
+      const rs = G.len(rvx, rvy), dd = G.len(dx, dy) || 1;
+      const onCourse = N.via && rs > 0.5 && (rvx * dx + rvy * dy) / (rs * dd) > 0.9 && N.safeT > dd + R;
+      if (st.navcomp && N.safeV != null && !onCourse) vd = Math.min(vd, Math.max(1.5, N.safeV));
     } else N.via = null;
     const dl = G.len(dx, dy) || 1e-6;
     const ax = ((dx / dl) * vd - rvx) * 2.5, ay = ((dy / dl) * vd - rvy) * 2.5;
@@ -531,8 +579,12 @@
       game.msg('Arrived', RF.HUD_COLORS.ok);
     }
     // På vei: nesen mot målet. Nær målet: den retningen spilleren valgte.
-    const aim = d > 30 && !N.arrived ? Math.atan2(dy, dx) : N.heading != null ? N.heading : null;
-    return Object.assign({}, inp, { accel: { x: ax, y: ay }, aim, aimThrust: 0 });
+    const near = st.navcomp && N.clear != null && N.clear < 20;
+    // Nær en hindring: behold retningen og flytt skipet sidelengs med dysene,
+    // og snu bare sakte (tuppen av skroget maks 2,5 m/s).
+    const aim = d > 30 && !N.arrived && !near ? Math.atan2(dy, dx) : N.heading != null ? N.heading : null;
+    const maxW = near ? Math.max(0.1, 2.5 / R) : null;
+    return Object.assign({}, inp, { accel: { x: ax, y: ay }, aim, aimThrust: 0, maxW });
   }
 
   // --- Gruvedrift ---

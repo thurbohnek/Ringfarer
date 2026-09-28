@@ -951,7 +951,9 @@
   // Bilde av skipet i butikken (nesen mot høyre), med alt utstyret.
   // hl: { x, y, kind: 'buy' | 'sell', t } – marker rundt en modul som nettopp
   // ble montert (grønn) eller solgt (rød). t går fra 0 til 1.
-  RF.drawShipPreview = (cv, ship, hl) => {
+  // view: { zoom, cx, cy } – forstørrelse og midtpunkt (lokale meter). Uten
+  // view vises hele skipet. Siste oppsett lagres i cv._view (for mus og fingre).
+  RF.drawShipPreview = (cv, ship, hl, view) => {
     const obj = ship._preview || (ship._preview = {});
     obj.layout = ship.s.layout;
     const art = artOf(obj);
@@ -966,10 +968,14 @@
     ctx.strokeStyle = 'rgba(120,160,200,0.08)'; ctx.lineWidth = 1;
     for (let x = 0; x < W; x += 24) { ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
     for (let y = 0; y < H; y += 24) { ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
-    const k = Math.min(W / art.w, H / art.h) * 0.94;
+    const fit = Math.min(W / art.w, H / art.h) * 0.94;
+    const k = fit * (view && view.zoom ? view.zoom : 1);
+    const cx = view && view.cx != null ? view.cx : art.x0 + art.w / 2;
+    const cy = view && view.cy != null ? view.cy : art.y0 + art.h / 2;
+    cv._view = { k, fit, cx, cy, W, H, art };
     ctx.translate(W / 2, H / 2);
     ctx.scale(k, k);
-    ctx.translate(-(art.x0 + art.w / 2), -(art.y0 + art.h / 2));
+    ctx.translate(-cx, -cy);
     ctx.globalAlpha = 0.5;
     ctx.drawImage(art.sh, art.x0 + 0.8, art.y0 + 0.8, art.w, art.h);
     ctx.globalAlpha = 1;
@@ -989,12 +995,17 @@
       const L = obj.layout, off = { x: L[0].x * CELL - L[0].lx, y: L[0].y * CELL - L[0].ly };
       const x = hl.x * CELL - off.x, y = hl.y * CELL - off.y;
       const col = hl.kind === 'sell' ? '226,85,61' : '149,196,106';
-      const pulse = 0.5 + 0.5 * Math.sin(hl.t * Math.PI * 8);
-      ctx.fillStyle = `rgba(${col},${0.25 + 0.25 * pulse})`;
+      // Først pulserer markeringen, så blir den stående rolig til neste kjøp.
+      const pulse = hl.steady ? 0.3 : 0.5 + 0.5 * Math.sin((hl.sec || 0) * 7);
+      ctx.fillStyle = `rgba(${col},${0.2 + 0.25 * pulse})`;
       ctx.beginPath(); ctx.arc(x, y, CELL * 0.75, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = `rgba(${col},${1 - hl.t * 0.5})`;
-      ctx.lineWidth = 0.25;
-      ctx.beginPath(); ctx.arc(x, y, CELL * (0.8 + hl.t * 1.6), 0, Math.PI * 2); ctx.stroke();
+      if (!hl.steady) {
+        const r = ((hl.sec || 0) % 1.2) / 1.2;
+        ctx.strokeStyle = `rgba(${col},${1 - r})`;
+        ctx.lineWidth = 0.25;
+        ctx.beginPath(); ctx.arc(x, y, CELL * (0.8 + r * 1.8), 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.strokeStyle = `rgb(${col})`;
       ctx.lineWidth = 0.18;
       ctx.beginPath(); ctx.arc(x, y, CELL * 0.8, 0, Math.PI * 2); ctx.stroke();
       if (hl.kind === 'sell') {

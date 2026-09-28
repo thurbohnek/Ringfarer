@@ -25,6 +25,48 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-28: v0.9.3 · Tryggere autopilot, zoom på skipet i utstyrsmenyen, markering som varer
+
+Ønsker fra brukeren (med skjermbilder):
+- autopiloten krasjet flere ganger (i en kjempeasteroide med innhakk)
+- markeringen av endringen på skipet virket, men forsvant for fort
+- å kunne zoome inn og ut på skipet i utstyrsmenyen
+
+Hva som ble gjort:
+- **Autopiloten** (`js/game.js`, `js/ship.js`). Målinger viste flere årsaker:
+  - Skipet fløy fort mot steiner, og farten bar det sidelengs inn når ruten
+    svingte. Nå begrenses farten ut fra hvor langt det er til nærmeste
+    hindring i den retningen skipet faktisk driver, så det alltid kan stoppe.
+  - Store skip som snudde seg nær steiner, feide tuppen av skroget inn i dem
+    i 20–30 m/s. Nærmere enn 20 m fra en hindring snur autopiloten ikke
+    skipet lenger. Den flytter det sidelengs med dysene, og tuppen beveger
+    seg maks 2,5 m/s.
+  - Planleggeren kunne velge ny side rundt steinen flere ganger i sekundet.
+    Nå velger den den korteste frie ruten rundt hindringen og holder seg til
+    samme side.
+  - Ruten sjekkes med fem stråler med margin, pluss en egen sjekk for små
+    steiner som kunne gli mellom strålene. Ruten sjekkes sju ganger i
+    sekundet.
+- **Markering ved kjøp og salg** (`js/ui.js`, `js/shipdraw.js`): pulserer
+  nå i 7 sekunder og blir deretter stående rolig på skipet til neste kjøp
+  eller salg. Vinduet nederst vises også i 7 sekunder.
+- **Zoom på skipet i utstyrsmenyen** (`js/ui.js`, `js/shipdraw.js`,
+  `index.html`):
+  - Knappene +, − og Fit, musehjul, eller knip med to fingre.
+  - Dra for å flytte bildet når det er forstørret.
+  - Opptil 800 %. Er bildet forstørret når du kjøper noe, flyttes det til den
+    nye delen.
+
+Testet (nettleser uten skjerm):
+- turer tvers gjennom asteroidefeltet i Midgard: før krasjet 3 av 6 turer.
+  Nå hadde 9 av 10 turer ingen støt, og den siste bare et lett dult på
+  3,7 m/s som skjoldet tok
+- turer rundt kjempeasteroider (70–105 m): alle kom frem uten krasj
+- zoom med knapper (235 %), musehjul og dra. Markeringen står fortsatt
+  etter 8 sekunder. «Fit» går tilbake til 100 %
+- snu på stedet, retning ved målet, kjøp og salg virker fortsatt
+- ingen feil i nettleserkonsollen
+
 ## 2026-09-28: v0.9.2 · Motorflammen bare når motoren brukes
 
 Ønske: hovedmotorene så ut som de var på hele tiden, også når skipet sto i

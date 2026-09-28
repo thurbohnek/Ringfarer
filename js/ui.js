@@ -294,13 +294,85 @@
 
   // Et vindu som glir inn og viser hvor på skipet delen ble montert eller tatt av.
   function toastHtml() {
-    if (!fitFx || performance.now() - fitFx.t0 > 3200) return '';
+    if (!fitFx || performance.now() - fitFx.t0 > FIT_SECS * 1000) return '';
     const buy = fitFx.kind === 'buy';
     return `<div class="toast ${buy ? 'ok' : 'bad'}" role="status">
       <canvas id="toast-ship" aria-hidden="true"></canvas>
       <div><b>${buy ? '✓ ' + esc(fitFx.name) + ' fitted' : esc(fitFx.name) + ' removed'}</b>
       <span>${buy ? '−' + kr(fitFx.cost) + ' · marked in green on your ship' : '+' + kr(fitFx.cost) + ' · marked in red on your ship'}</span></div>
     </div>`;
+  }
+
+  // Skipsbildet i utstyrsfanen kan zoomes (knapper, musehjul, knip) og flyttes (dra).
+  const gearView = { zoom: 1, cx: null, cy: null };
+  const FIT_SECS = 7;
+
+  function currentHl() {
+    if (!fitFx) return null;
+    const sec = (performance.now() - fitFx.t0) / 1000;
+    return { x: fitFx.x, y: fitFx.y, kind: fitFx.kind, sec, steady: sec > FIT_SECS };
+  }
+
+  function redrawGear() {
+    const cv = $('#gear-canvas'), tc = $('#toast-ship');
+    if (cv) RF.drawShipPreview(cv, game.ship, currentHl(), gearView);
+    if (tc) RF.drawShipPreview(tc, game.ship, currentHl());
+    const z = $('#gear-zoom');
+    if (z) z.textContent = Math.round(gearView.zoom * 100) + ' %';
+  }
+
+  // Zoom rundt et punkt på lerretet (skjermkoordinater i lerretet).
+  function zoomGear(f, mx, my) {
+    const cv = $('#gear-canvas');
+    if (!cv || !cv._view) return;
+    const v = cv._view;
+    const nz = G.clamp(gearView.zoom * f, 1, 8);
+    if (mx == null) { mx = v.W / 2; my = v.H / 2; }
+    const wx = v.cx + (mx - v.W / 2) / v.k, wy = v.cy + (my - v.H / 2) / v.k;
+    const nk = v.fit * nz;
+    gearView.zoom = nz;
+    gearView.cx = wx - (mx - v.W / 2) / nk;
+    gearView.cy = wy - (my - v.H / 2) / nk;
+    if (nz === 1) gearView.cx = gearView.cy = null;
+    redrawGear();
+  }
+
+  function bindGearCanvas(cv) {
+    if (cv._bound) return;
+    cv._bound = true;
+    const pts = new Map();
+    let pinch0 = 0;
+    cv.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const r = cv.getBoundingClientRect();
+      zoomGear(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX - r.left, e.clientY - r.top);
+    }, { passive: false });
+    cv.addEventListener('pointerdown', (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      try { cv.setPointerCapture(e.pointerId); } catch (_) { /* ignorer */ }
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); }
+    });
+    cv.addEventListener('pointermove', (e) => {
+      const p = pts.get(e.pointerId);
+      if (!p) return;
+      const v = cv._view;
+      if (pts.size === 1 && v && gearView.zoom > 1) {
+        gearView.cx = v.cx - (e.clientX - p.x) / v.k;
+        gearView.cy = v.cy - (e.clientY - p.y) / v.k;
+        redrawGear();
+      }
+      p.x = e.clientX; p.y = e.clientY;
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        const r = cv.getBoundingClientRect();
+        if (pinch0 > 0) zoomGear(d / pinch0, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+        pinch0 = d;
+      }
+    });
+    const up = (e) => { pts.delete(e.pointerId); pinch0 = 0; };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
   }
 
   let fitAnim = 0;
@@ -311,14 +383,19 @@
       const li = row.closest('li');
       if (li) li.classList.add('flash');
     }
+    // Er skipsbildet forstørret, flyttes det så den nye delen synes.
+    if (gearView.zoom > 1 && performance.now() - fitFx.t0 < 300) {
+      const L = game.ship.s.layout;
+      if (L.length) {
+        gearView.cx = fitFx.x * RF.CELL - (L[0].x * RF.CELL - L[0].lx);
+        gearView.cy = fitFx.y * RF.CELL - (L[0].y * RF.CELL - L[0].ly);
+      }
+    }
     const step = () => {
       if (!fitFx) return;
-      const t = (performance.now() - fitFx.t0) / 2600;
-      const hl = t < 1 ? { x: fitFx.x, y: fitFx.y, kind: fitFx.kind, t } : null;
-      const cv = $('#gear-canvas'), tc = $('#toast-ship');
-      if (cv) RF.drawShipPreview(cv, game.ship, hl);
-      if (tc) RF.drawShipPreview(tc, game.ship, hl);
-      if (t < 1) fitAnim = requestAnimationFrame(step);
+      const hl = currentHl();
+      redrawGear();
+      if (!hl.steady) fitAnim = requestAnimationFrame(step);
       else { const el = root.querySelector('.toast'); if (el) el.classList.add('gone'); }
     };
     fitAnim = requestAnimationFrame(step);
@@ -416,7 +493,15 @@
     const list = `<nav class="catchips">${chips}</nav><ul class="gear-grid">${items}</ul>`;
     return `
       <div class="gear-top">
-        <canvas id="gear-canvas" aria-label="Your ship with all its equipment"></canvas>
+        <div class="gear-view">
+          <canvas id="gear-canvas" aria-label="Your ship with all its equipment. Scroll, pinch or use the buttons to zoom, drag to move."></canvas>
+          <div class="gv-btns">
+            <button class="btn sm" data-act="gearzoom" data-id="in" aria-label="Zoom in">+</button>
+            <button class="btn sm" data-act="gearzoom" data-id="out" aria-label="Zoom out">−</button>
+            <button class="btn sm ghost" data-act="gearzoom" data-id="fit">Fit</button>
+          </div>
+          <span id="gear-zoom" class="gv-zoom num">100 %</span>
+        </div>
         <div class="ed-side">
           <p class="small">Equipment is fitted automatically where there is room on the hull. Tools and weapons go on the edge pointing out, engines at the back. Everything you buy shows on the ship.</p>
           <dl class="stats">
@@ -438,7 +523,7 @@
 
   function drawGear() {
     const cv = $('#gear-canvas');
-    if (cv) RF.drawShipPreview(cv, game.ship);
+    if (cv) { bindGearCanvas(cv); redrawGear(); }
     document.querySelectorAll('.pal-ico').forEach((c) => {
       const x = c.getContext('2d');
       const k = c.width / (RF.CELL * 2.2);
@@ -615,6 +700,9 @@
       case 'undock': game.undock(); break;
       case 'tab': { tab = id; const tb = root.querySelector('.tab-body'); if (tb) tb.scrollTop = 0; renderStation(); break; }
       case 'gearcat': gearCat = id; renderStation(); break;
+      case 'gearzoom':
+        if (id === 'fit') { gearView.zoom = 1; gearView.cx = gearView.cy = null; redrawGear(); } else zoomGear(id === 'in' ? 1.4 : 1 / 1.4);
+        break;
       case 'gearbuy': buyGear(id); break;
       case 'gearsell': sellGear(id); break;
       case 'sell': {
