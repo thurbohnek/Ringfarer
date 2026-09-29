@@ -127,25 +127,36 @@
       sym([[0, 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'rcs'], [2, 'reactor', 'shield', 'cannon'], [3, 'cockpit', 'armor', 'cannon'], [4, 'armor2', 'armor2'], [5, 'rocket']])],
     ['rampart', 'war', 3, 'Rampart K-3', 'Frigate', 90000, 'Escort with drones and a sensor core.',
       sym([[0, 'thruster2', 'thruster2', 'thruster'], [1, 'fuel', 'fuel', 'rcs'], [2, 'reactor', 'shield', 'cannon'], [3, 'lifesup', 'dronebay', 'armor'], [4, 'cockpit', 'shield', 'cannon'], [5, 'navcomp', 'armor2', 'armor2'], [6, 'armor2', 'rocket'], [7, 'cannon']])],
-    ['grimtide', 'war', 4, 'Grimtide K-4', 'Destroyer', 200000, 'Lance in the bow, turrets down both flanks.',
+    ['grimtide', 'war', 4, 'Grimtide K-4', 'Destroyer', 200000, 'Lance in the bow, heavy mass drivers on both flanks.',
       sym([[0, 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'fuel', 'rcs'], [2, 'reactor', 'reactor', 'shield', 'cannon'], [3, 'frame', 'lifesup', 'armor', 'armor2'], [4, 'frame', 'dronebay', 'cannon'], [5, 'cockpit', 'shield', 'armor2', 'armor2'],
-        [6, 'navcomp', 'armor2', 'cannon'], [7, 'frame', 'rocket', 'armor2'], [8, 'armor2'], [9, 'laser4']])],
-    ['thunder', 'war', 5, 'Thunderhold K-5', 'Battlecruiser', 520000, 'Two lances, hangars and armor all round.',
+        [6, 'navcomp', 'armor2', 'cannon'], [7, 'frame', 'armor2', 'rocket']]).concat([['lance', 8, -1], ['cannon2', 3, 4], ['cannon2', 3, -5]])],
+    ['thunder', 'war', 5, 'Thunderhold K-5', 'Battlecruiser', 520000, 'A lance in the bow, heavy guns and missile batteries, hangars and armor all round.',
       sym([[0, 'thruster2', 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'fuel', 'fuel', 'rcs'], [2, 'reactor', 'reactor', 'fuel', 'shield', 'cannon'], [3, 'reactor', 'frame', 'lifesup', 'armor2', 'armor2'], [4, 'frame', 'hangar', 'dronebay', 'cannon'],
         [5, 'frame', 'hangar', 'dronebay', 'armor2', 'armor2'], [6, 'lifesup', 'shield', 'armor', 'cannon'], [7, 'cockpit', 'navcomp', 'shield', 'armor2', 'armor2'], [8, 'frame', 'frame', 'rocket', 'cannon'], [9, 'shield', 'armor', null, 'armor2'],
-        [10, 'frame', 'rocket', 'cannon'], [11, 'frame', null, 'armor2'], [12, 'armor2', 'laser4'], [13, 'laser4']])],
+        [10, 'frame', 'rocket', 'cannon'], [11, 'frame', null, 'armor2'], [12, null, null, 'armor2']]).concat([['lance', 12, -1], ['cannon2', 5, 5], ['cannon2', 5, -6], ['rocket2', 7, 5], ['rocket2', 7, -6]])],
   ];
 
   // De tre skipene som fantes fra før, er gruveskip.
-  Object.assign(RF.HULLS.hopper, { line: 'min', tier: 1, cls: 'Starter' });
-  Object.assign(RF.HULLS.graver, { line: 'min', tier: 3, cls: 'Miner' });
-  Object.assign(RF.HULLS.fjell, { line: 'min', tier: 4, cls: 'Heavy miner' });
+  Object.assign(RF.HULLS.hopper, { line: 'min', tier: 1, cls: 'Starter', len: 12 });
+  Object.assign(RF.HULLS.graver, { line: 'min', tier: 3, cls: 'Miner', len: 40 });
+  Object.assign(RF.HULLS.fjell, { line: 'min', tier: 4, cls: 'Heavy miner', len: 90 });
+
+  // Hvor lange skipene er i virkeligheten (meter). Små skip har rutene sine
+  // på 2,4 m, store skip får større ruter (se hullScale i modules.js).
+  const LEN = {lark: 10, ferrier: 24, coach: 60, tide: 180, ark: 450, dart: 12, oxcart: 24, caravan: 60, longhaul: 220, stonewain: 500, pickaxe: 18, quarry: 300, spindle: 12, warren: 30, hivekeep: 70, brood: 200, skyvault: 450, gadfly: 10, needle: 20, brawler: 26, cudgel: 32, vigil: 55, rampart: 110, grimtide: 300, thunder: 800};
 
   for (const [id, line, tier, name, cls, cost, desc, layout] of NEW) {
     let mx = 0, my = 0;
     for (const [, x, y] of layout) { mx = Math.max(mx, x); my = Math.max(my, Math.abs(y)); }
     // Litt plass rundt skroget til utstyr man kjøper senere.
-    RF.HULLS[id] = { name, cost, desc, layout, line, tier, cls, w: mx + 2, h: 2 * my + 3, unlock: 0 };
+    RF.HULLS[id] = { name, cost, desc, layout, line, tier, cls, w: mx + 2, h: 2 * my + 3, unlock: 0, len: LEN[id] };
+  }
+  // Målestokken: ønsket lengde delt på lengden rutene gir.
+  for (const id in RF.HULLS) {
+    const H = RF.HULLS[id];
+    let x0 = 99, x1 = -99;
+    for (const [t, x] of H.layout) { x0 = Math.min(x0, x); x1 = Math.max(x1, x + (RF.MODULES[t].size || 1) - 1); }
+    H.scale = H.len ? Math.max(1, H.len / ((x1 - x0 + 1) * RF.CELL)) : 1;
   }
 
   RF.hullLine = (hullId) => RF.LINES[(RF.HULLS[hullId] && RF.HULLS[hullId].line) || 'min'];

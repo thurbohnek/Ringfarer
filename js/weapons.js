@@ -25,8 +25,10 @@
     for (const g of st.guns) {
       if (!g.m.onTarget) continue;
       const { p, d, v } = launchFrom(ship, g.m);
-      W.list.push({ type: 'shell', x: p.x, y: p.y, vx: v.x + d.x * g.speed, vy: v.y + d.y * g.speed, mass: g.mass, life: 1.2, owner: ship.body });
-      ship.body.applyImpulse(-d.x * g.mass * g.speed, -d.y * g.mass * g.speed, p.x, p.y);
+      // Større kanoner og større skip skyter tyngre prosjektiler.
+      const mass = g.mass * (st.gunMul || 1), pow = (RF.MODULES[g.m.t].pow || 1) * Math.sqrt(st.gunMul || 1);
+      W.list.push({ type: 'shell', x: p.x, y: p.y, vx: v.x + d.x * g.speed, vy: v.y + d.y * g.speed, mass, pow, life: 1.2 + pow * 0.2, owner: ship.body });
+      ship.body.applyImpulse(-d.x * mass * g.speed, -d.y * mass * g.speed, p.x, p.y);
       game.particles.burst(p.x, p.y, 6, { type: 'glow', dir: Math.atan2(d.y, d.x), spread: 0.4, sMin: 10, sMax: 40, color: '#ffd28a', zMin: 0.2, zMax: 0.4, lMin: 0.05, lMax: 0.15, vx: v.x, vy: v.y });
     }
     RF.Audio.thud(0.25, true);
@@ -43,7 +45,8 @@
     if (!ready.length) { ship.s.ammo++; game.msg('Target is outside the rocket launcher arc', RF.HUD_COLORS.amber); return; }
     const L = ready[ship.s.ammo % ready.length];
     const { p, d, v } = launchFrom(ship, L.m);
-    W.list.push({ type: 'rocket', x: p.x, y: p.y, vx: v.x + d.x * 25, vy: v.y + d.y * 25, dx: d.x, dy: d.y, life: 7, owner: ship.body, arm: 0.25 });
+    const pow = (RF.MODULES[L.m.t].pow || 1) * Math.sqrt(st.gunMul || 1);
+    W.list.push({ type: 'rocket', x: p.x, y: p.y, vx: v.x + d.x * 25, vy: v.y + d.y * 25, dx: d.x, dy: d.y, life: 7, owner: ship.body, arm: 0.25 * Math.sqrt(pow), pow });
     RF.Audio.thud(0.35, true);
   };
 
@@ -62,8 +65,8 @@
     RF.Audio.blip(140, 0.12, 'square', 0.1);
   };
 
-  function explode(x, y, game, owner) {
-    const R = 22;
+  function explode(x, y, game, pow = 1) {
+    const R = 22 * Math.sqrt(pow), sp = Math.min(3, Math.sqrt(pow));
     const ws = game.sys.world;
     for (const o of ws.bodies.slice()) {
       if (o.dead || o.isStatic) continue;
@@ -84,23 +87,23 @@
       }
       if (d > R) continue;
       const k = 1 - d / R;
-      const J = 5e5 * k;
+      const J = 5e5 * k * pow;
       if (hx != null) o.applyImpulse(ux * J, uy * J, hx, hy);
       else o.applyImpulse(ux * J, uy * J, o.x - ux * o.radius * 0.3, o.y - uy * o.radius * 0.3);
       if (o.vox) {
         // Slå ut et krater der smellet treffer.
         if (d < R * 0.45) {
           const kk = 1 - d / (R * 0.45);
-          RF.Vox.blast(o, hx + ux * 1.2, hy + uy * 1.2, 1.5 + 4 * kk, G.randInt(3, 5), game, 8);
+          RF.Vox.blast(o, hx + ux * 1.2, hy + uy * 1.2, (1.5 + 4 * kk) * sp, G.randInt(3, 5), game, 8);
           if (!o.dead) {
-            o.stress += 2.5 * kk;
+            o.stress += 2.5 * kk * pow;
             if (o.stress >= o.integrity) RF.Vox.crack(o, { x: hx, y: hy }, { x: ux, y: uy }, game);
           }
         }
       } else if (o.ship) {
-        o.ship.takeImpact(0, x, y, game, 90 * k);
+        o.ship.takeImpact(0, x, y, game, 90 * k * pow);
       } else if (o.npc) {
-        o.npc.takeImpact(12 * k + 3, x, y, game);
+        o.npc.takeImpact((12 * k + 3) * pow, x, y, game);
       }
     }
     game.particles.burst(x, y, 60, { type: 'glow', sMin: 5, sMax: 40, color: '#ffb050', zMin: 0.3, zMax: 0.9, lMin: 0.3, lMax: 0.9 });
@@ -118,18 +121,19 @@
     o.applyImpulse(rvx * p.mass, rvy * p.mass, hit.x, hit.y);
     game.particles.burst(hit.x, hit.y, 10, { dir: Math.atan2(hit.ny, hit.nx), spread: 1.2, sMin: 5, sMax: 25, color: '#ffd28a', zMin: 0.15, zMax: 0.35, lMin: 0.2, lMax: 0.5 });
     const d = { x: p.vx / (G.len(p.vx, p.vy) || 1), y: p.vy / (G.len(p.vx, p.vy) || 1) };
+    const pow = p.pow || 1;
     if (o.kind === 'rock' && o.vox) {
       // Kuler bryr seg ikke om hardheten: de slår løs biter uansett.
-      RF.Vox.blast(o, hit.x + d.x * 0.5, hit.y + d.y * 0.5, 1.4, G.randInt(1, 2), game, 3);
+      RF.Vox.blast(o, hit.x + d.x * 0.5, hit.y + d.y * 0.5, Math.min(9, 1.4 * Math.pow(pow, 0.7)), G.randInt(1, 2 + Math.floor(pow)), game, 3);
       game.laserDust(hit);
       if (!o.dead) {
-        o.stress += 0.35;
+        o.stress += 0.35 * pow;
         if (o.stress >= o.integrity) RF.Vox.crack(o, hit, d, game);
       }
     } else if (o.npc) {
-      o.npc.takeImpact(6, hit.x, hit.y, game);
+      o.npc.takeImpact(6 * pow, hit.x, hit.y, game);
     } else if (o.ship) {
-      o.ship.takeImpact(0, hit.x, hit.y, game, 12);
+      o.ship.takeImpact(0, hit.x, hit.y, game, 12 * pow);
     }
   }
 
@@ -178,14 +182,14 @@
         const hit = ws.raycast(p.x, p.y, p.vx / sp, p.vy / sp, step, (o) => o !== p.owner && !o.ghost && (o.kind !== 'ore' || p.type === 'harpoon'));
         if (hit) {
           if (p.type === 'shell') { hitShell(p, hit, game); p.dead = true; continue; }
-          if (p.type === 'rocket') { if (p.arm <= 0 || hit.body.kind !== 'ship') { explode(hit.x, hit.y, game); p.dead = true; continue; } }
+          if (p.type === 'rocket') { if (p.arm <= 0 || hit.body.kind !== 'ship') { explode(hit.x, hit.y, game, p.pow); p.dead = true; continue; } }
           if (p.type === 'harpoon') { hitHarpoon(p, hit, game); continue; }
         }
       }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       if (p.life <= 0) {
-        if (p.type === 'rocket') explode(p.x, p.y, game);
+        if (p.type === 'rocket') explode(p.x, p.y, game, p.pow);
         p.dead = true;
       }
     }

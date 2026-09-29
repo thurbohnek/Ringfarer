@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.12.0', date: '2026-09-30', title: 'Ships at their real size',
+      items: [
+        'Ships now have real sizes: fighters 10 to 30 m, frigates about 110 m, destroyers 300 m and the battlecruiser 800 m.',
+        'Big ships are heavy and slow to turn. A battlecruiser needs about a minute to turn around.',
+        'New big weapons and gear that take 2×2 or 3×3 slots: heavy mass driver, siege driver, missile battery, lance, capital engine and more.',
+        'Big ships hold position next to the station instead of using the docking arm.',
+      ],
+    },
+    {
       v: 'v0.11.0', date: '2026-09-29', title: 'Drones and passengers',
       items: [
         'Drones come in three sizes. Small ones live in drone bays, medium ones in hangar decks and large ones on docking clamps outside the hull.',

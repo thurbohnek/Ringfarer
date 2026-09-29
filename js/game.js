@@ -226,7 +226,7 @@
   // Zoom slik at skipet fyller en fornuftig del av skjermen.
   game.fitZoom = () => {
     const r = game.ship.body.radius;
-    game.cam.zoom = G.clamp((game.touchUI ? 42 : 64) / r, 1.2, 7);
+    game.cam.zoom = G.clamp((game.touchUI ? 42 : 64) / r, 0.03, 7);
   };
 
   function spawnDocked(stationId) {
@@ -244,8 +244,9 @@
 
   // Der skipet ligger når det er dokket. Lange skip legges lenger ut, så
   // baugen ikke stikker inn i dokkingarmen.
+  game.parkPoint = (st) => parkPoint(st);
   function parkPoint(st) {
-    const dp = RF.dockPoint(st), out = Math.max(0, (game.ship.noseX || 0) - 7);
+    const dp = RF.dockPoint(st), out = Math.max(0, (game.ship.noseX || 0) * game.ship.body.s - 7);
     return { x: dp.x + Math.cos(st.a) * out, y: dp.y + Math.sin(st.a) * out, a: dp.a };
   }
 
@@ -687,12 +688,14 @@
   // cockpiten driver bort som vrak. Mistes cockpiten, er skipet tapt.
   game.loseModules = (ship, dead) => {
     const s = ship.s, b = ship.body;
+    // En stor modul tar med seg sine egne ruter.
+    dead = dead.concat(...dead.map((m) => RF.partsOf(s.layout, m)));
     const lostCockpit = dead.some((m) => m.t === 'cockpit');
     for (const m of dead) {
       const p = b.toWorld(m.lx, m.ly);
       game.particles.burst(p.x, p.y, 30, { sMin: 4, sMax: 25, color: '#ffcf80', zMin: 0.2, zMax: 0.5, lMin: 0.3, lMax: 1, vx: b.vx, vy: b.vy });
       game.particles.burst(p.x, p.y, 14, { type: 'smoke', sMin: 1, sMax: 5, color: '#5d5a52', zMin: 1, zMax: 2.5, grow: 3, lMin: 1, lMax: 2.5, vx: b.vx, vy: b.vy });
-      game.msg(`Lost ${RF.MODULES[m.t].name.toLowerCase()}`, RF.HUD_COLORS.danger);
+      if (m.t !== 'part') game.msg(`Lost ${RF.MODULES[m.t].name.toLowerCase()}`, RF.HUD_COLORS.danger);
     }
     Audio.thud(0.9);
     game.shake = Math.min(1, game.shake + 0.6);
@@ -981,7 +984,7 @@
     ns.blueprint = s.blueprint;
     ns.drones = s.drones.filter((d) => !d.out);
     const st = RF.layoutStats(ns.layout);
-    ns.fuel = st.fuelCap;
+    ns.fuel = 1e12; // fylt opp, se Ship.rebuild
     ns.ammo = st.rocketCap;
     RF.Weapons.reset();
     game.ship = new RF.Ship(ns);
@@ -1079,12 +1082,16 @@
     game.dockReady = false;
     if (ship.docked || game.dead) return;
     const dp = RF.dockPoint(sys.station);
-    const dd = G.len(b.x - dp.x, b.y - dp.y);
+    let dd = G.len(b.x - dp.x, b.y - dp.y);
     const spd = G.len(b.vx, b.vy);
+    // Store skip passer ikke i dokkingarmen. De legger seg ved stasjonen, og
+    // folk og last går over med skyttel.
+    const big = b.radius > 30;
+    if (big) dd = G.len(b.x - sys.station.x, b.y - sys.station.y) - b.radius - 150 < 150 ? 0 : 1e9;
     if (dd < DOCK_RANGE) {
       if (spd < DOCK_SPEED) {
         game.dockReady = true;
-        game.prompt = `[T] Dock at ${sys.station.name}`;
+        game.prompt = big ? `[T] Hold position at ${sys.station.name} (shuttles take you aboard)` : `[T] Dock at ${sys.station.name}`;
         game.action = 'dock';
       } else {
         game.prompt = `Slow down to dock (${spd.toFixed(1)} > ${DOCK_SPEED} m/s)`;
@@ -1276,11 +1283,11 @@
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const f = Math.exp(-e.deltaY * 0.0015);
-      game.cam.zoom = G.clamp(game.cam.zoom * f, 0.25, 10);
+      game.cam.zoom = G.clamp(game.cam.zoom * f, 0.02, 10);
     }, { passive: false });
     game.touchUI = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     // Knip med to fingre for å zoome.
-    RF.Input.onPinch = (f) => { game.cam.zoom = G.clamp(game.cam.zoom * f, 0.25, 10); };
+    RF.Input.onPinch = (f) => { game.cam.zoom = G.clamp(game.cam.zoom * f, 0.02, 10); };
     // Sikt med musen eller fingeren. Trykk på radaren gjør den stor eller liten.
     RF.Input.bindAim(canvas, (e) => {
       const rb = game._radarHit;

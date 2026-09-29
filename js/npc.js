@@ -250,12 +250,13 @@
       const C = RF.CELL;
       let inner, outer;
       if (this.dockKind === 'clamp') {
-        const off = C / 2 + this.halfW + 0.2;
+        const S = ob.s;
+        const off = C / 2 + (this.halfW + 0.2) / S;
         inner = { x: m.lx + cx * off, y: m.ly + cy * off };
-        outer = { x: inner.x + cx * 7, y: inner.y + cy * 7 };
+        outer = { x: inner.x + (cx * 7) / S, y: inner.y + (cy * 7) / S };
       } else {
         inner = { x: m.lx, y: m.ly };
-        const clear = Math.max(C * 1.2, this.distToEdge(m, cx, cy)) + this.body.radius + 3;
+        const clear = Math.max(C * 1.2, this.distToEdge(m, cx, cy)) + (this.body.radius + 3) / ob.s;
         outer = { x: m.lx + cx * clear, y: m.ly + cy * clear };
       }
       const wi = ob.toWorld(inner.x, inner.y), wo = ob.toWorld(outer.x, outer.y);

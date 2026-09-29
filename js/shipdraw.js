@@ -653,6 +653,8 @@
     const D = RF.MODULES[m.t];
     ctx.save();
     ctx.translate(m.lx, m.ly);
+    // Store moduler tegnes som en forstørret utgave over hele fotavtrykket.
+    if (D.size > 1) ctx.scale(D.size, D.size);
     switch (m.t) {
       case 'cockpit': {
         // Broen: et hevet tårn med vindusbånd foran.
@@ -668,7 +670,7 @@
         for (let y = -0.45; y <= 0.46; y += 0.3) circle(ctx, 0.58, y, 0.05, '#ffe6a8');
         break;
       }
-      case 'shield': {
+      case 'shield': case 'shield2': {
         circle(ctx, 0, 0, 0.9, 'rgba(0,0,0,0.35)');
         circle(ctx, -0.05, -0.05, 0.85, '#8d877a', '#1d1b17');
         const g = ctx.createRadialGradient(-0.25, -0.25, 0.05, 0, 0, 0.62);
@@ -676,7 +678,7 @@
         circle(ctx, -0.05, -0.05, 0.6, g, '#10151a');
         break;
       }
-      case 'cargo': case 'cargo2': {
+      case 'cargo': case 'cargo2': case 'cargo3': {
         const w = m.t === 'cargo2' ? 1.9 : 1.6;
         rr(ctx, -w / 2, -0.7, w, 1.4, 0.12);
         ctx.fillStyle = 'rgba(40,36,30,0.55)'; ctx.fill();
@@ -708,7 +710,7 @@
         ctx.strokeStyle = '#5a554b'; ctx.lineWidth = 0.05;
         ctx.beginPath(); ctx.moveTo(-0.9, 0.05); ctx.lineTo(0.9, 0.05); ctx.stroke();
         break;
-      case 'armor': case 'armor2': {
+      case 'armor': case 'armor2': case 'armor3': {
         const n = m.t === 'armor2' ? 2 : 1;
         for (let i = 0; i < n; i++) {
           const s = 1 - i * 0.3;
@@ -738,11 +740,11 @@
           circle(ctx, x, y, 0.11, '#0e0d0b');
         }
         break;
-      case 'thruster': case 'thruster2': {
+      case 'thruster': case 'thruster2': case 'thruster3': {
         // Motorhus: ribbet sylinder bakover.
-        const ys = m.t === 'thruster2' ? [-0.55, 0.55] : [0];
+        const ys = m.t !== 'thruster' ? [-0.55, 0.55] : [0];
         for (const y of ys) {
-          const w = m.t === 'thruster2' ? 0.48 : 0.75;
+          const w = m.t !== 'thruster' ? 0.48 : 0.75;
           rr(ctx, -1.5, y - w, 2.0, w * 2, w);
           const g = ctx.createLinearGradient(0, y - w, 0, y + w);
           g.addColorStop(0, '#6d685e'); g.addColorStop(0.35, '#d0cabb'); g.addColorStop(1, '#4e4a42');
@@ -887,7 +889,14 @@
     cv.width = cw; cv.height = ch;
     const ctx = cv.getContext('2d');
     ctx.setTransform(ppm, 0, 0, ppm, -x0 * ppm, -y0 * ppm);
-    for (const m of L) if (m.t === 'thruster' || m.t === 'thruster2') nozzle(ctx, m);
+    for (const m of L) {
+      if (m.t === 'thruster' || m.t === 'thruster2') nozzle(ctx, m);
+      else if (m.t === 'thruster3') {
+        ctx.save(); ctx.translate(m.lx, m.ly); ctx.scale(2, 2);
+        nozzle(ctx, Object.assign({}, m, { lx: 0, ly: 0, t: 'thruster2' }));
+        ctx.restore();
+      }
+    }
     const W = Math.ceil((x1 - x0) / RES) + 1, H = Math.ceil((y1 - y0) / RES) + 1;
     const hull = hullArt(L, ctx, { x0, y0, W, H });
     for (const m of L) moduleDetail(ctx, m, 0);
@@ -908,11 +917,13 @@
     const D = RF.MODULES[m.t];
     if (m.dir == null || m.dir < 0) return;
     const ma = RF.DIR_ANGLE[m.dir];
-    const px = m.lx + Math.cos(ma) * CELL * 0.35, py = m.ly + Math.sin(ma) * CELL * 0.35;
+    const sz = D.size || 1;
+    const px = m.lx + Math.cos(ma) * CELL * 0.35 * sz, py = m.ly + Math.sin(ma) * CELL * 0.35 * sz;
     const a = m.aimA != null ? m.aimA : ma;
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(a);
+    if (sz > 1) ctx.scale(sz, sz);
     const housing = (r, tone = 'light') => {
       const c = TONES[tone];
       const g = ctx.createRadialGradient(-r * 0.4, -r * 0.4, 0.05, 0, 0, r);
@@ -1212,18 +1223,18 @@
     let maxY = -1e9, minY = 1e9, minX = 1e9;
     for (const m of L) {
       maxY = Math.max(maxY, m.ly); minY = Math.min(minY, m.ly); minX = Math.min(minX, m.lx);
-      if (m.t === 'thruster' || m.t === 'thruster2') {
-        const big = m.t === 'thruster2';
-        const ys = big ? [m.ly - 0.6, m.ly + 0.6] : [m.ly];
+      if (m.t === 'thruster' || m.t === 'thruster2' || m.t === 'thruster3') {
+        const big = m.t !== 'thruster', k = m.t === 'thruster3' ? 2 : 1;
+        const ys = big ? [m.ly - 0.6 * k, m.ly + 0.6 * k] : [m.ly];
         for (const y of ys) {
           // Flamme bare når motoren faktisk skyver.
-          if (fl > 0.04) flame(m.lx - h, y, -1, 0, fl * (big ? 18 : 13), big ? 0.55 : 0.8);
+          if (fl > 0.04) flame(m.lx - h * k, y, -1, 0, fl * (big ? 18 : 13) * k, (big ? 0.55 : 0.8) * k);
           if (fl > 0.05) {
-            const g = ctx.createRadialGradient(m.lx - h, y, 0, m.lx - h, y, 2 + fl * 2);
+            const g = ctx.createRadialGradient(m.lx - h * k, y, 0, m.lx - h * k, y, (2 + fl * 2) * k);
             g.addColorStop(0, `rgba(140,190,255,${0.5 * fl})`);
             g.addColorStop(1, 'rgba(60,120,255,0)');
             ctx.fillStyle = g;
-            ctx.beginPath(); ctx.arc(m.lx - h, y, 2 + fl * 2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(m.lx - h * k, y, (2 + fl * 2) * k, 0, Math.PI * 2); ctx.fill();
           }
         }
       } else if (m.t === 'rcs') {

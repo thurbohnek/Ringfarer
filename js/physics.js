@@ -23,6 +23,9 @@
       this.density = density;
       this.isStatic = !(density > 0);
       this.dead = false;
+      // Målestokk: lokale koordinater ganges med s i verden. Store skip
+      // tegnes og regnes i sine egne ruter, men er s ganger større.
+      this.s = 1;
       this.wv = [];
       this.wn = [];
       this.setShape(verts);
@@ -64,11 +67,12 @@
 
     // For legemer satt sammen av moduler (skip): verts er allerede relative
     // til tyngdepunktet, og masse og treghetsmoment er regnet ut på forhånd.
-    setRaw(verts, mass, I) {
+    setRaw(verts, mass, I, s = 1) {
       if (G.polyArea(verts) < 0) verts = verts.slice().reverse();
+      this.s = s;
       this.verts = verts.map((p) => ({ x: p.x, y: p.y }));
-      this.area = G.polyArea(this.verts);
-      this.radius = G.polyRadius(this.verts);
+      this.area = G.polyArea(this.verts) * s * s;
+      this.radius = G.polyRadius(this.verts) * s;
       this.normals = [];
       for (let i = 0, n = this.verts.length; i < n; i++) {
         const a = this.verts[i], b = this.verts[(i + 1) % n];
@@ -87,6 +91,7 @@
 
     // Flytt origo til lokalpunktet (lx,ly) uten at noe flytter seg i verden.
     shiftOrigin(lx, ly) {
+      lx *= this.s; ly *= this.s;
       const cs = Math.cos(this.a), sn = Math.sin(this.a);
       const ox = lx * cs - ly * sn, oy = lx * sn + ly * cs;
       this.x += ox;
@@ -112,22 +117,22 @@
         this.wn = this.verts.map(() => ({ x: 0, y: 0 }));
       }
       for (let i = 0; i < n; i++) {
-        const p = this.verts[i], q = this.normals[i];
-        this.wv[i].x = this.x + p.x * cs - p.y * sn;
-        this.wv[i].y = this.y + p.x * sn + p.y * cs;
+        const p = this.verts[i], q = this.normals[i], s = this.s;
+        this.wv[i].x = this.x + (p.x * cs - p.y * sn) * s;
+        this.wv[i].y = this.y + (p.x * sn + p.y * cs) * s;
         this.wn[i].x = q.x * cs - q.y * sn;
         this.wn[i].y = q.x * sn + q.y * cs;
       }
     }
 
     toWorld(lx, ly) {
-      const cs = Math.cos(this.a), sn = Math.sin(this.a);
-      return { x: this.x + lx * cs - ly * sn, y: this.y + lx * sn + ly * cs };
+      const cs = Math.cos(this.a), sn = Math.sin(this.a), s = this.s;
+      return { x: this.x + (lx * cs - ly * sn) * s, y: this.y + (lx * sn + ly * cs) * s };
     }
 
     toLocal(px, py) {
       const cs = Math.cos(this.a), sn = Math.sin(this.a);
-      const dx = px - this.x, dy = py - this.y;
+      const dx = (px - this.x) / this.s, dy = (py - this.y) / this.s;
       return { x: dx * cs + dy * sn, y: -dx * sn + dy * cs };
     }
 

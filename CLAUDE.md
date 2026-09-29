@@ -60,3 +60,9 @@
   være lik første del av `RF_VERSION` i `index.html`.
 - Spillet viser nyhetene på tittelskjermen første gang det startes etter en
   oppdatering, og et lite varsel i hjørnet når en ny versjon er lagt ut.
+
+## Svarformat
+
+- Rett over lenkene til spillet (som står helt sist) skal hvert svar ha en
+  markert kopi av brukerens siste melding (sitatblokk med overskriften
+  «Siste melding fra deg»), så brukeren ser hva forrige forespørsel var.

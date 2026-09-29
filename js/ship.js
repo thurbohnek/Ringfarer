@@ -27,7 +27,7 @@
       hull,
       layout,
       blueprint: layout.map((m) => ({ t: m.t, x: m.x, y: m.y })),
-      fuel: st.fuelCap,
+      fuel: 1e12, // fylles helt opp (Ship begrenser til tankene med målestokk)
       ammo: st.rocketCap,
       cargo: RF.emptyCargo(),
       missionCargo: [],
@@ -69,6 +69,8 @@
     }
 
     get layout() { return this.s.layout; }
+    // Tegnes s ganger større enn rutene (store skip).
+    get scale() { return this.body.s !== 1 ? this.body.s : 0; }
     get scars() { return []; }
 
     // Regn ut masse, form og egenskaper på nytt etter at moduler er lagt til,
@@ -77,11 +79,16 @@
       const s = this.s;
       const L = s.layout;
       const extra = this.extraMass();
-      const g = RF.layoutGeometry(L, extra);
+      const g = RF.layoutGeometry(L, 0);
+      // Store skip: s ganger lengre enn rutene tilsier. Massen følger
+      // volumet (s³) og treghetsmomentet s⁵, så de blir tunge å snu.
+      const sc = RF.hullScale(s.hull);
       if (this.com) this.body.shiftOrigin(g.com.x - this.com.x, g.com.y - this.com.y);
       this.com = g.com;
-      this.body.setRaw(g.verts, g.mass, g.I);
-      this.dryMass = g.dryMass;
+      const dry = g.dryMass * sc ** 3;
+      const mass = dry + extra;
+      this.body.setRaw(g.verts, mass, g.I * sc ** 5 * (mass / dry), sc);
+      this.dryMass = dry;
       this.refreshStats();
       s.fuel = Math.min(s.fuel, this.stats.fuelCap);
       s.ammo = Math.min(s.ammo || 0, this.stats.rocketCap);
@@ -115,6 +122,24 @@
       st.torque *= st.torqueMul;
       st.strafe *= st.strafeMul;
       st.tractor *= st.tractorMul;
+      // Større skip har større utstyr: kraft og plass vokser med størrelsen.
+      const sc = (st.scale = RF.hullScale(this.s.hull));
+      if (sc !== 1) {
+        const kT = sc ** 2.5, kR = sc ** 3;
+        for (const t of st.thrusters) t.F *= kT;
+        st.thrust *= kT;
+        st.torque *= kR * sc; // kraften fra styredysene ganger lengre arm
+        st.strafe *= kR; st.retro *= kR;
+        st.shieldMax *= sc * sc;
+        st.fuelCap *= sc ** 3; // tankene følger volumet, som massen
+        st.hold = Math.round(st.hold * sc ** 1.5);
+        for (const l of st.lasers) { l.power *= sc; l.range *= Math.sqrt(sc); }
+        for (const d of st.drills) { d.power *= sc; d.range *= sc; }
+        st.tractor *= sc * sc;
+        st.light *= Math.sqrt(sc);
+      }
+      st.gunMul = sc * sc;
+      st.hullMul = sc * sc; // modulene tåler s² mer
       st.shieldMax = Math.round(st.shieldMax);
       return st;
     }
@@ -224,7 +249,7 @@
       for (const t of st.thrusters) {
         const F = t.F * main;
         Fx += F;
-        Tq += -t.m.ly * F;
+        Tq += -t.m.ly * this.body.s * F;
       }
       Fx -= retro * st.retro;
       const Fy = strafe * st.strafe;
@@ -259,7 +284,8 @@
     mountOf(m) {
       const d = m.dir >= 0 ? m.dir : 0;
       const a = RF.DIR_ANGLE[d];
-      return { lx: m.lx + Math.cos(a) * CELL * 0.35, ly: m.ly + Math.sin(a) * CELL * 0.35, a };
+      const n = RF.MODULES[m.t].size || 1;
+      return { lx: m.lx + Math.cos(a) * CELL * 0.35 * n, ly: m.ly + Math.sin(a) * CELL * 0.35 * n, a };
     }
 
     // Tårnene dreier mot siktepunktet innenfor sin sektor (litt over 90° hver
@@ -286,6 +312,7 @@
     // Verdens-punkt og retning for tuppen av et tårn.
     muzzle(m, len = CELL * 0.9) {
       const mp = this.mountOf(m);
+      len *= RF.MODULES[m.t].size || 1;
       const a = m.aimA != null ? m.aimA : mp.a;
       const p = this.body.toWorld(mp.lx + Math.cos(a) * len, mp.ly + Math.sin(a) * len);
       const d = this.body.dirWorld(Math.cos(a), Math.sin(a));
@@ -326,7 +353,7 @@
         // Løse mineralbiter stopper ikke strålen, den går rett gjennom dem.
         // Småstein av gråstein treffes og fordamper.
         const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost && (x.kind !== 'ore' || RF.isStone(x)));
-        this.beams.push({ lx, ly, a, len: hit ? hit.t : L.range, hit, color: L.color, w: 0.35 + L.tier * 0.12 });
+        this.beams.push({ lx, ly, a, len: hit ? hit.t : L.range, hit, color: L.color, w: (0.35 + L.tier * 0.12) * Math.sqrt(b.s) });
         this.laser.on = true;
         if (!hit) continue;
         if (!this.laser.hit) this.laser.hit = hit;
@@ -401,7 +428,7 @@
       if (!T.on || !st.tractors.length) return;
       const intakes = st.tractors.map((t) => { const mp = this.mountOf(t.m); return b.toWorld(mp.lx + Math.cos(mp.a) * 2.2, mp.ly + Math.sin(mp.a) * 2.2); });
       const fwd = b.dirWorld(1, 0);
-      const range = 150;
+      const range = 150 * Math.sqrt(b.s);
       const cands = [];
       for (const o of game.sys.world.bodies) {
         const small = o.kind === 'ore' || (o.kind === 'wreck' && o.modules.length <= 2);
@@ -431,7 +458,7 @@
         o.w *= 1 - Math.min(1, dt * 2);
         o._tractorFrom = ip;
         T.targets.push(o);
-        if (dist < 4.5 + Math.sqrt(o.area)) {
+        if (dist < 4.5 * b.s + Math.sqrt(o.area)) {
           if (G.len(o.vx - rv.x, o.vy - rv.y) < 5) game.tryIntake(o);
         }
       }
@@ -473,7 +500,7 @@
           if (d < bd) { bd = d; best = m; }
         }
         if (!best) continue;
-        const gap = bd - H - o.radius;
+        const gap = (bd - H) * b.s - o.radius;
         if (gap > reach + 25) continue;
         const nl = { x: (l.x - best.lx) / (bd || 1), y: (l.y - best.ly) / (bd || 1) };
         const n = b.dirWorld(nl.x, nl.y);
@@ -534,10 +561,12 @@
       const dead = [];
       const st = this.stats;
       near.forEach((e, i) => {
+        // Treff på en del av en stor modul går til selve modulen.
+        if (e.m.t === 'part') e.m = RF.mainOf(this.s.layout, e.m) || e.m;
         const t = e.m.t;
         const k = t === 'cockpit' ? st.bridgeMul || 1 : t === 'hab' || t === 'cabin' || t === 'lifesup' ? st.deckMul || 1 : 1;
-        e.m.hp -= (dmg * w[i] * k) / sum;
-        if (e.m.hp <= 0) dead.push(e.m);
+        e.m.hp -= (dmg * w[i] * k) / sum / (st.hullMul || 1);
+        if (e.m.hp <= 0 && !dead.includes(e.m)) dead.push(e.m);
       });
       if (dead.length) game.loseModules(this, dead);
       else this.refreshStats();

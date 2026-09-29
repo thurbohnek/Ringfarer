@@ -74,6 +74,34 @@
       desc: 'Lights up 200 meters ahead.' },
     navcomp: { name: 'Navigation computer', cat: 'Tools', mass: 400, hp: 40, cost: 3500, nav: true, unlock: 2,
       desc: 'Lets the autopilot plot a course around asteroids, stations and ships on the way to the target.' },
+    // Store moduler (size = hvor mange ruter de tar på hver led). De fyller
+    // resten av plassen med usynlige 'part'-ruter.
+    thruster3: { name: 'Capital engine', cat: 'Engines', mass: 9000, hp: 260, cost: 9000, thrust: 1.3e6, face: 'aft', size: 2, unlock: 2,
+      desc: 'Takes 2×2 slots. The engine for big ships. The exhaust needs a clear path aft along the whole width.' },
+    armor3: { name: 'Bulkhead armor', cat: 'Protection', mass: 16000, hp: 1600, cost: 4000, size: 2, unlock: 2,
+      desc: 'Takes 2×2 slots. Thick armor for warships and anything that gets shot at.' },
+    shield2: { name: 'Shield array', cat: 'Protection', mass: 7000, hp: 200, cost: 7500, shield: 420, size: 2, unlock: 2,
+      desc: 'Takes 2×2 slots. A shield strong enough for capital ships.' },
+    cargo3: { name: 'Cargo hold', cat: 'Cargo', mass: 6000, hp: 300, cost: 4500, hold: 95, size: 2, unlock: 1,
+      desc: 'Takes 2×2 slots. 95 tonnes of cargo space.' },
+    tractor2: { name: 'Heavy tractor', cat: 'Mining', mass: 5000, hp: 160, cost: 5000, tractor: 350e3, mount: true, size: 2, unlock: 2,
+      desc: 'Takes 2×2 slots. Pulls in big chunks and salvage five times as hard.' },
+    laser5: { name: 'Heavy cutting array', cat: 'Mining', mass: 11000, hp: 220, cost: 30000, mount: true, size: 2, unlock: 3,
+      laser: { power: 9, tier: 4, range: 330, color: '120,255,220' },
+      desc: 'Takes 2×2 slots. Twice the power of a phase cutter and cuts anything.' },
+    cannon2: { name: 'Heavy mass driver', cat: 'Weapons', mass: 6000, hp: 200, cost: 8000, mount: true, size: 2, pow: 2.2, unlock: 2,
+      gun: { rate: 2, speed: 520, mass: 110 },
+      desc: 'Takes 2×2 slots. Heavy slugs that crack big rocks and ships.' },
+    cannon3: { name: 'Siege driver', cat: 'Weapons', mass: 16000, hp: 480, cost: 26000, mount: true, size: 3, pow: 4, unlock: 3,
+      gun: { rate: 0.8, speed: 620, mass: 520 },
+      desc: 'Takes 3×3 slots. The main gun of a battleship.' },
+    rocket2: { name: 'Missile battery', cat: 'Weapons', mass: 6000, hp: 180, cost: 9000, mount: true, size: 2, ammo: 18, pow: 2, unlock: 2,
+      desc: 'Takes 2×2 slots. 18 heavy missiles with twice the blast.' },
+    lance: { name: 'Lance', cat: 'Weapons', mass: 24000, hp: 500, cost: 60000, mount: true, size: 3, unlock: 3,
+      laser: { power: 22, tier: 4, range: 460, color: '160,220,255' },
+      desc: 'Takes 3×3 slots. A spinal beam weapon that burns through anything.' },
+    part: { name: 'Module (part)', cat: 'Structure', mass: 0, hp: 1, cost: 0, unique: true, part: true,
+      desc: 'The rest of a big module.' },
     cabin: { name: 'Passenger cabin', cat: 'Passengers', mass: 700, hp: 60, cost: 600, pax: 2, unlock: 0,
       desc: 'Seats for 2 passengers with windows along the side.' },
     hab: { name: 'Habitat module', cat: 'Passengers', mass: 1600, hp: 90, cost: 1800, pax: 10, unlock: 1,
@@ -240,7 +268,18 @@
     porter: [['thruster', 0, -1], ['thruster', 0, 1], ['frame', 0, 0], ['cargo2', 1, -1], ['cargo2', 1, 0], ['cargo2', 1, 1], ['cargo2', 2, -1], ['cockpit', 2, 0], ['cargo2', 2, 1], ['tractor', 3, 0]],
     ferryman: [['thruster', 0, -1], ['thruster', 0, 1], ['lifesup', 0, 0], ['hab', 1, -1], ['hab', 1, 0], ['hab', 1, 1], ['airlock', 2, -1], ['cockpit', 2, 0], ['airlock', 2, 1], ['light', 3, 0]],
   };
-  RF.layoutFrom = (list) => list.map(([t, x, y]) => ({ t, x, y, hp: RF.MODULES[t].hp }));
+  // Målestokken til et skrog (1 = 2,4 m per rute).
+  RF.hullScale = (id) => (RF.HULLS[id] && RF.HULLS[id].scale) || 1;
+  // Store moduler: ankeret er ruten øverst til venstre (lavest x og y),
+  // resten fylles med 'part'-ruter som viser til ankeret.
+  RF.withParts = (m) => {
+    const n = RF.MODULES[m.t].size || 1, out = [m];
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i || j) out.push({ t: 'part', x: m.x + i, y: m.y + j, px: m.x, py: m.y, hp: 1 });
+    return out;
+  };
+  RF.partsOf = (layout, m) => layout.filter((p) => p.t === 'part' && p.px === m.x && p.py === m.y);
+  RF.mainOf = (layout, p) => (p.t === 'part' ? layout.find((m) => m.x === p.px && m.y === p.py && m.t !== 'part') : p);
+  RF.layoutFrom = (list) => list.flatMap(([t, x, y]) => RF.withParts({ t, x, y, hp: RF.MODULES[t].hp }));
 
   // Rutenettets grenser for et skrog. Cockpiten ligger på rad 0.
   RF.hullBounds = (hullId) => {
@@ -249,8 +288,7 @@
     return { x0: 0, x1: H.w - 1, y0: -half, y1: H.h - 1 - half };
   };
 
-  RF.defaultLayout = (hullId) =>
-    RF.HULLS[hullId].layout.map(([t, x, y]) => ({ t, x, y, hp: RF.MODULES[t].hp }));
+  RF.defaultLayout = (hullId) => RF.layoutFrom(RF.HULLS[hullId].layout);
 
   const key = (x, y) => x + ',' + y;
 
@@ -301,17 +339,29 @@
   // peker ut den veien, helst forover, så til sidene, og til slutt bakover.
   RF.mountDir = (layout, m) => {
     const occ = new Set(layout.map((o) => o.x + ',' + o.y));
+    const n = RF.MODULES[m.t].size || 1;
     for (const d of [0, 3, 1, 2]) {
-      const [dx, dy] = DIRS[d];
-      if (!occ.has(m.x + dx + ',' + (m.y + dy))) return d;
+      if (sideCells(m, n, d).every(([x, y]) => !occ.has(x + ',' + y))) return d;
     }
     return -1;
   };
+  // Rutene rett utenfor en side av en (stor) modul.
+  function sideCells(m, n, d) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      if (d === 0) out.push([m.x + n, m.y + i]);
+      else if (d === 2) out.push([m.x - 1, m.y + i]);
+      else if (d === 1) out.push([m.x + i, m.y + n]);
+      else out.push([m.x + i, m.y - 1]);
+    }
+    return out;
+  }
+  RF.sideCells = sideCells;
 
   // Verktøy uten fri kant, eller motor uten åpen rute bak, virker ikke.
   RF.isBlocked = (layout, m) => {
     const D = RF.MODULES[m.t];
-    if (D.face === 'aft') return layout.some((o) => o.x === m.x - 1 && o.y === m.y);
+    if (D.face === 'aft') { const n = D.size || 1; return layout.some((o) => o.x === m.x - 1 && o.y >= m.y && o.y < m.y + n); }
     if (D.mount) { m.dir = RF.mountDir(layout, m); return m.dir < 0; }
     return false;
   };
@@ -320,9 +370,10 @@
   // tyngdepunktet (lx, ly), som er det fysikken bruker som origo.
   RF.layoutGeometry = (layout, extraMass = 0) => {
     let M = 0, cx = 0, cy = 0;
+    const half = (m) => ((RF.MODULES[m.t].size || 1) - 1) / 2;
     for (const m of layout) {
       const mm = RF.MODULES[m.t].mass;
-      M += mm; cx += m.x * CELL * mm; cy += m.y * CELL * mm;
+      M += mm; cx += (m.x + half(m)) * CELL * mm; cy += (m.y + half(m)) * CELL * mm;
     }
     cx /= M; cy /= M;
     let I = 0;
@@ -330,8 +381,8 @@
     const h = CELL / 2;
     for (const m of layout) {
       const mm = RF.MODULES[m.t].mass;
-      m.lx = m.x * CELL - cx;
-      m.ly = m.y * CELL - cy;
+      m.lx = (m.x + half(m)) * CELL - cx;
+      m.ly = (m.y + half(m)) * CELL - cy;
       I += mm * (m.lx * m.lx + m.ly * m.ly + (CELL * CELL) / 6);
       pts.push({ x: m.lx - h, y: m.ly - h }, { x: m.lx + h, y: m.ly - h }, { x: m.lx + h, y: m.ly + h }, { x: m.lx - h, y: m.ly + h });
     }
@@ -381,7 +432,7 @@
     // Cockpiten holder liv i et lite mannskap. Flere passasjerer krever livsopprettholdelse.
     st.paxCap = Math.min(st.pax, st.life) + st.cryo;
     st.shieldMax += st.power * 40;
-    st.rocketCap = st.rockets.length * 6;
+    st.rocketCap = st.rockets.reduce((a, r) => a + (RF.MODULES[r.m.t].ammo || 6), 0);
     st.bays = st.bayS * st.bayPer + st.hangars * 2 + st.clamps;
     return st;
   };
@@ -396,13 +447,18 @@
     const before = layout.map((m) => [RF.isBlocked(layout, m), m.dir]);
     const cy = layout.reduce((a, m) => a + m.y, 0) / (layout.length || 1);
     let best = null, bs = -Infinity;
-    for (let x = B.x0; x <= B.x1; x++) {
-      for (let y = B.y0; y <= B.y1; y++) {
-        if (occ.has(key(x, y))) continue;
-        const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => occ.has(key(x + dx, y + dy))).length;
+    const n = D.size || 1;
+    for (let x = B.x0; x <= B.x1 - n + 1; x++) {
+      for (let y = B.y0; y <= B.y1 - n + 1; y++) {
+        // Hele fotavtrykket må være ledig, og det må ligge inntil skipet.
+        let free = true, nb = 0;
+        for (let i = 0; i < n && free; i++) for (let j = 0; j < n; j++) if (occ.has(key(x + i, y + j))) { free = false; break; }
+        if (!free) continue;
+        for (let i = 0; i < n; i++) for (const [dx, dy] of [[i, -1], [i, n], [-1, i], [n, i]]) if (occ.has(key(x + dx, y + dy))) nb++;
         if (!nb) continue;
         const m = { t, x, y, hp: D.hp };
-        const L2 = layout.concat([m]);
+        const all = RF.withParts(m);
+        const L2 = layout.concat(all);
         if (RF.isBlocked(L2, m)) continue;
         let bad = false;
         for (let i = 0; i < layout.length && !bad; i++) {
@@ -419,7 +475,7 @@
         else if (t === 'rcs') sc += Math.abs(y - cy) * 6 + Math.abs(x - B.x1 / 2) * 2;
         else if (t === 'armor' || t === 'armor2') sc += (4 - nb) * 10 + x * 2;
         else sc += nb * 12 - Math.abs(y - cy) * 2 - Math.abs(x - B.x1 / 2);
-        if (sc > bs) { bs = sc; best = m; }
+        if (sc > bs) { bs = sc; best = m; m.parts = all.slice(1); }
       }
     }
     // Sett retningene tilbake slik de var.
@@ -432,7 +488,8 @@
     for (let i = layout.length - 1; i >= 0; i--) {
       const m = layout[i];
       if (m.t !== t || RF.MODULES[t].unique) continue;
-      const rest = layout.filter((o) => o !== m);
+      const parts = RF.partsOf(layout, m);
+      const rest = layout.filter((o) => o !== m && !parts.includes(o));
       if (!RF.disconnected(rest).length) return m;
     }
     return null;
@@ -447,6 +504,10 @@
     }
     return L;
   };
+
+  // Oppgradering på samme plass: neste utgave av samme størrelse.
+  RF.UPGRADE = { laser: 'laser2', laser2: 'laser3', laser3: 'laser4', thruster: 'thruster2', armor: 'armor2', cargo: 'cargo2',
+    light: 'light2', anchor: 'anchor2', cannon2: null, dronebay: null };
 
   RF.layoutValue = (layout) => layout.reduce((s, m) => s + RF.MODULES[m.t].cost, 0);
 })();

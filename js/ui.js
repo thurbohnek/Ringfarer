@@ -460,7 +460,8 @@
     for (const m of s.layout) { const miss = RF.MODULES[m.t].hp - m.hp; if (miss > 0.5) { rep += miss * 6; dmg++; } }
     const lost = missingModules();
     const rebuild = lost.reduce((a, m) => a + RF.MODULES[m.t].cost, 0);
-    const fuel = (st.fuelCap - s.fuel) * 0.9;
+    // Drivstoff koster mindre per kilo jo større skipet er (kjøpes i bulk).
+    const fuel = ((st.fuelCap - s.fuel) * 0.9) / (st.scale || 1) ** 2;
     const ammo = (st.rocketCap - s.ammo) * 120;
     return { rep: Math.ceil(rep), dmg, lost, rebuild, fuel: Math.ceil(fuel), ammo };
   }
@@ -488,7 +489,7 @@
   function gearTab() {
     const ship = game.ship, s = ship.s, st = ship.stats;
     const g = RF.layoutGeometry(s.layout);
-    const full = g.dryMass + st.fuelCap + st.hold * 1000;
+    const full = ship.dryMass + st.fuelCap + st.hold * 1000;
     const warn = st.blocked.map((m) => `${RF.MODULES[m.t].name} ${RF.MODULES[m.t].mount ? 'has no free edge to point out of' : 'has no open space behind it'}`);
     if (!st.thrusters.length) warn.push('No engine with a clear exhaust');
     const count = {};
@@ -524,9 +525,10 @@
           <p class="small">Equipment is fitted automatically where there is room on the hull. Tools and weapons go on the edge pointing out, engines at the back. Everything you buy shows on the ship.</p>
           <dl class="stats">
             <dt>Hull space</dt><dd class="num">${s.layout.length} / ${cells} slots</dd>
-            <dt>Dry mass</dt><dd class="num">${t1(g.dryMass / 1000)} t</dd>
+            <dt>Dry mass</dt><dd class="num">${t1(ship.dryMass / 1000)} t</dd>
+            <dt>Size</dt><dd class="num">about ${Math.round(ship.body.radius * 2)} m</dd>
             <dt>Thrust</dt><dd class="num">${Math.round(st.thrust / 1000)} kN</dd>
-            <dt>Acceleration</dt><dd class="num">${t1(st.thrust / (g.dryMass + st.fuelCap))} / ${t1(st.thrust / full)} m/s² (full)</dd>
+            <dt>Acceleration</dt><dd class="num">${t1(st.thrust / (ship.dryMass + st.fuelCap))} / ${t1(st.thrust / full)} m/s² (full)</dd>
             <dt>Cargo hold</dt><dd class="num">${st.hold} t</dd>
             <dt>Shield</dt><dd class="num">${st.shieldMax}</dd>
             <dt>Lasers / drills</dt><dd class="num">${st.lasers.length} / ${st.drills.length}</dd>
@@ -559,7 +561,8 @@
     const m = RF.autoPlace(s.layout, s.hull, id);
     if (!m) { game.msg('No room on the hull. Sell something, or buy a bigger ship at the shipyard', RF.HUD_COLORS.amber); renderStation(); return; }
     game.credits -= M.cost;
-    s.layout.push(m);
+    s.layout.push(m, ...(m.parts || []));
+    delete m.parts;
     game.msg(`${M.name} fitted`, RF.HUD_COLORS.ok);
     fitFx = { kind: 'buy', id, x: m.x, y: m.y, name: M.name, cost: M.cost, t0: performance.now() };
     afterEdit();
@@ -569,7 +572,8 @@
     const ship = game.ship, s = ship.s, M = RF.MODULES[id];
     const m = RF.autoRemove(s.layout, id);
     if (!m) { game.msg('Cannot remove it without the ship falling apart', RF.HUD_COLORS.amber); return; }
-    s.layout = s.layout.filter((o) => o !== m);
+    const parts = RF.partsOf(s.layout, m);
+    s.layout = s.layout.filter((o) => o !== m && !parts.includes(o));
     const got = Math.round(M.cost * 0.7 * (m.hp / M.hp));
     game.credits += got;
     game.msg(`Sold ${M.name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
@@ -580,7 +584,7 @@
   function afterEdit() {
     const ship = game.ship;
     ship.rebuild();
-    const dp = RF.dockPoint(ship.docked);
+    const dp = game.parkPoint(ship.docked);
     Object.assign(ship.body, { x: dp.x, y: dp.y, a: dp.a, vx: 0, vy: 0, w: 0 });
     ship.s.blueprint = ship.s.layout.map((m) => ({ t: m.t, x: m.x, y: m.y }));
     game.save();
@@ -655,7 +659,8 @@
       const H = RF.HULLS[id], sh = yardShip(id), st = sh.stats, lay = sh.s.layout;
       let x0 = 99, x1 = -99, ym = 0;
       for (const m of lay) { x0 = Math.min(x0, m.x); x1 = Math.max(x1, m.x); ym = Math.max(ym, Math.abs(m.y)); }
-      const size = `${Math.round((x1 - x0 + 1) * RF.CELL)} × ${Math.round((2 * ym + 1) * RF.CELL)} m`;
+      const sc = RF.hullScale(id);
+      const size = `${Math.round((x1 - x0 + 1) * RF.CELL * sc)} × ${Math.round((2 * ym + 1) * RF.CELL * sc)} m`;
       const price = H.cost - tv;
       const mine = id === cur;
       const facts = [

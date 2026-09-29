@@ -26,6 +26,11 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   Jern, silisium og grafitt kommer nå bare fra biter som løsner når steinen
   sprekker, eller fra kanon og raketter. Si fra om det gjør det for vanskelig
   å tjene penger i starten.
+- **Kjempeskip og flåte:** skip på flere kilometer som fungerer som en
+  flyvende by (dokker, marked, verft, oppdrag, tunge våpen) og hovedsenter
+  for en nasjon. Målet er at spilleren styrer en flåte med et slikt skip.
+  Nasjoner finnes ikke i spillet ennå.
+- **Vrakdeler fra store skip** tegnes i småskip-størrelse.
 - **Planeter:** personelltransport til og fra planeter kommer senere.
 - **Droner på vei når spillet lagres** kommer hjem ved neste innlasting, men
   passasjerer de hadde med seg akkurat da, blir borte.
@@ -33,6 +38,51 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   rundt 34 m lang. Skal kapitalskipene føles større, må de skaleres opp.
 - - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-30: v0.12.0 · Skipene i virkelig størrelse, store våpen og utstyr
+
+Ønske fra brukeren: den største klassen skal være gigantisk og lite
+manøvrerbar. Svar på oppfølgingsspørsmålene: alle skip skaleres opp til
+virkelige størrelser. Kjempeskipene på flere kilometer venter vi med (målet
+er å styre en flåte med et slikt hovedskip). Våpen og utstyr skal kunne
+oppgraderes, og større skip kan ha større kanoner, lasere og raketter som
+tar flere ruter.
+
+Hva som er gjort:
+- `js/physics.js`: et legeme kan ha en målestokk. Skipet regnes og tegnes i
+  sine egne ruter, men er s ganger større i verden.
+- `js/classes.js`: hvert skip har en virkelig lengde, og målestokken regnes
+  ut fra den. Jagere 10–32 m, korvett 55 m, fregatt 110 m, destroyer 300 m og
+  slagkrysser 800 m. De andre linjene går opp til 450–500 m. Destroyeren og
+  slagkrysseren har fått lanse i baugen, tunge massedrivere og
+  rakettbatterier.
+- `js/ship.js`: masse og drivstofftanker følger volumet (s³) og
+  treghetsmomentet s⁵, mens motorkraften vokser med s^2,5. Store skip blir
+  derfor trege: Skiff snur 180° på 3 s, destroyeren på 30 s og slagkrysseren
+  på 65 s. Skjold, lasterom, laser og kanonkraft vokser med størrelsen, og
+  modulene tåler mer.
+- `js/modules.js`, `js/shipdraw.js`, `js/ui.js`, `js/game.js`: store moduler
+  som tar 2×2 eller 3×3 ruter: kapitalmotor, skottpanser, skjoldarray, stort
+  lasterom, tung traktorstråle, tungt skjærearray, tung massedriver,
+  beleiringskanon, rakettbatteri og lanse. De tegnes forstørret, sikter,
+  skyter og tar skade som én modul, og kan kjøpes og selges som vanlig.
+- `js/weapons.js`: prosjektiler og raketter fra store kanoner og store skip
+  slår hardere og lager større kratre.
+- `js/game.js`: skip over 60 m legger seg ved stasjonen i stedet for i
+  dokkingarmen («Hold position»). Kameraet kan zoome langt nok ut til de
+  største skipene. Drivstoff koster mindre per kilo for store skip.
+- `js/npc.js`: dronene dokker riktig mot store skip.
+- `CLAUDE.md`: regel om at hvert svar har en markert kopi av brukerens siste
+  melding rett over lenkene.
+- `js/news.js`, `index.html`: nyheter og versjon v0.12.0.
+
+Testet:
+- Alle 28 skipene: ingen sperrede verktøy eller motorer, ingen overlappende
+  ruter, og alt henger sammen med cockpiten.
+- Gadfly, Excavator, Rockbreaker, Vigil, Tidewater, Grimtide, Thunderhold og
+  Stonewain fløy med autopilot fra stasjonen og kom fram (slagkrysseren på
+  51 s). Kanonene skyter, og store skip får «Hold position» ved stasjonen.
+- Ingen feil i konsollen.
 
 ## 2026-09-29: v0.11.0 · Oppdateringsnyheter, droner i tre størrelser, passasjerer og mannskapsbytte
 
