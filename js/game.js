@@ -86,9 +86,11 @@
   game.sellPrice = (stationId, prod) => {
     const def = RF.stationById(stationId);
     const mod = (game.priceMod[stationId] && game.priceMod[stationId][prod]) || 1;
-    return Math.round(RF.PRODUCTS[prod].price * (def.station.prices[prod] || 1) * mod);
+    return Math.round(RF.PRODUCTS[prod].price * (def.station.prices[prod] || 1) * mod * tradeMul());
   };
-  game.buyPrice = (stationId, prod) => Math.round(game.sellPrice(stationId, prod) * 1.2);
+  game.buyPrice = (stationId, prod) => Math.round((game.sellPrice(stationId, prod) * 1.2) / (tradeMul() * tradeMul()));
+  // Fraktskip med lasteracker på sidene handler litt bedre.
+  const tradeMul = () => (game.ship && game.ship.stats && game.ship.stats.tradeMul) || 1;
 
   function refreshPrices(stationId) {
     const m = {};
@@ -202,7 +204,7 @@
     game.ship = new RF.Ship(ns);
     game.ship.fa = fa;
     game.ship.docked = st;
-    const dp = RF.dockPoint(st);
+    const dp = parkPoint(st);
     Object.assign(game.ship.body, { x: dp.x, y: dp.y, a: dp.a });
     game.fitZoom();
     game.save();
@@ -219,13 +221,20 @@
     const def = RF.stationById(stationId);
     game.sys = game.getSystem(def.id);
     const st = game.sys.station;
-    const dp = RF.dockPoint(st);
+    const dp = parkPoint(st);
     const b = game.ship.body;
     b.x = dp.x; b.y = dp.y; b.a = dp.a; b.vx = b.vy = b.w = 0;
     game.cam.x = b.x; game.cam.y = b.y;
     game.dead = false;
     game.fitZoom();
     dock(true);
+  }
+
+  // Der skipet ligger når det er dokket. Lange skip legges lenger ut, så
+  // baugen ikke stikker inn i dokkingarmen.
+  function parkPoint(st) {
+    const dp = RF.dockPoint(st), out = Math.max(0, (game.ship.noseX || 0) - 7);
+    return { x: dp.x + Math.cos(st.a) * out, y: dp.y + Math.sin(st.a) * out, a: dp.a };
   }
 
   // --- Dokking ---
@@ -238,7 +247,7 @@
     ship.nav = null;
     game.camOff.x = game.camOff.y = 0;
     ship.tractor.on = false;
-    const dp = RF.dockPoint(st);
+    const dp = parkPoint(st);
     Object.assign(ship.body, { x: dp.x, y: dp.y, a: dp.a, vx: 0, vy: 0, w: 0 });
     game.lastStation = st.id;
     refreshPrices(st.id);

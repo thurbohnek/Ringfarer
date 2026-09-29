@@ -44,6 +44,11 @@
 
 ## Språk
 
-- Alt spilleren ser i spillet (menyer, meldinger, navn på moduler, varer og
-  steder) skal være på engelsk.
+- Alle navn og all tekst i spillet skal være på engelsk. Det gjelder alt
+  spilleren ser: menyer, knapper, meldinger, hjelpetekst, navn på skip,
+  skipsklasser og linjer, moduler, varer, stasjoner, systemer og oppdrag.
+  Nye navn lages på engelsk fra starten, og skal ikke kopiere kjente skip
+  eller merkenavn fra andre spill og filmer.
+- Interne id-er i koden (for eksempel `fjell` eller `jern`) kan være norske,
+  men de skal aldri vises for spilleren.
 - Kommentarer i koden, `ENDRINGER.md` og svarene til brukeren er på norsk.

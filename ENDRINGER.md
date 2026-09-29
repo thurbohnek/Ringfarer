@@ -26,8 +26,65 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   Jern, silisium og grafitt kommer nå bare fra biter som løsner når steinen
   sprekker, eller fra kanon og raketter. Si fra om det gjør det for vanskelig
   å tjene penger i starten.
-- **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
+- **Passasjerer har ingen oppdrag ennå.** Skipene har plass til
+  passasjerer, men det finnes ikke passasjeroppdrag. Det er neste naturlige
+  steg for personell-linjen.
+- **Skipene følger spillets rutenett (2,4 m per modul).** Slagkrysseren er
+  rundt 34 m lang. Skal kapitalskipene føles større, må de skaleres opp.
+- - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-29: v0.10.0 · Skipsklasser: 28 skip i seks linjer, klassebonuser og fordeler fra formen
+
+Ønske fra brukeren: klasser for personelltransport (fra 2 til rundt 1000
+personer), frakt, gruvedrift, droner, jagere, større jagere, destroyere og
+slagkrysser. Egne navn, ikke kopier av kjente skip. Skipene skal formes etter
+hva de skal brukes til. Svar på spørsmålene fra forslaget: «Bonuser for
+forskjellige klasser. Utforming gir også fordel på de forskjellige klasser»
+og «Må ha penger for å kjøpe men kan hoppe over skip. Må ikke gå gradvis.»
+
+Hva som er gjort:
+- `js/classes.js` (ny): seks linjer i fem nivåer, 28 skip i alt (25 nye og
+  de tre gamle som gruveskip). Hver linje gir en bonus:
+  - Personell: +30 % skjold, 20 % mindre drivstoff.
+  - Frakt: +25 % lasterom, +10 % skyvekraft.
+  - Gruvedrift: +25 % laser og bor, prosessering og traktorstråle.
+  - Droner: +50 % droneplass, dronene jobber 25 % raskere.
+  - Jagere: +50 % dreiekraft, 40 % raskere snuing, kanonene skyter 25 % fortere.
+  - Krigsskip: +40 % skjold, 20 % mindre skade, kanonene skyter 10 % fortere.
+- Fordeler fra formen, regnet ut fra hvor modulene sitter (gjelder også når
+  man bygger om skipet): pansret baug (30 % mindre skade forfra), styredyser
+  ytterst (+20 % dreiekraft), smalt skrog (+20 % snuing og sidestyring),
+  beskyttet bro (cockpiten tar halv skade), skjermede dekk (passasjermoduler
+  tar 40 % mindre skade når tanker og reaktor sitter mellom dem og motorene)
+  og lasteracker på sidene (10 % bedre priser i markedet).
+- Alle skip kan kjøpes når man har råd. Man må ikke eie skipet før i linjen.
+- `js/modules.js`: nye moduler: passasjerkabin (2), boligmodul (10),
+  kryokøyer (30, trenger ikke livsopprettholdelse), livsopprettholdelse
+  (120 personer), luftsluse, reaktor (+40 skjold, raskere opplading, 8 %
+  sterkere laser) og hangardekk (2 droner). Maks 30 droner per skip.
+- `js/shipdraw.js`: tegninger av de nye modulene, også som ikoner i butikken.
+  Skrogfargen følger klassen: passasjerskip lyse, droneskip grønngrå og
+  militære skip blågrå.
+- `js/ship.js`, `js/weapons.js`, `js/game.js`, `js/npc.js`: bonusene virker i
+  fysikken, skaden, skuddtakten, markedsprisene og dronene. Lange skip legges
+  lenger ut når de dokker, så baugen ikke stikker inn i dokkingarmen.
+- `js/ui.js`, `index.html`: verftet har nå en fane per linje med bonusen
+  øverst. Hvert skip vises med bilde, nivå, størrelse, masse, akselerasjon,
+  tid for å snu 180°, skjold, lasterom, passasjerer, droner, våpen og
+  fordelene fra formen. Utstyrsoversikten viser passasjerer og klasse. Raden
+  med kategorier klemmes ikke lenger sammen på mobil.
+- `README.md`: `js/classes.js` er lagt inn i oversikten.
+- `index.html`: versjon v0.10.0.
+
+Testet:
+- Alle 28 skipene: ingen verktøy eller motorer er sperret, og alle moduler
+  henger sammen med cockpiten.
+- Hvert skip ble kjøpt i testmodus, dokket av og fløy med autopilot til et
+  punkt 150 m ut. Alle kom fram. Ingen feil i konsollen.
+- Thunderhold (det største krigsskipet) ligger riktig ved dokkingarmen.
+- Kjøp av boligmodul, lagring og innlasting virker.
+- Laser, malmstøt, skjoldet og autopiloten gir samme resultater som før.
 
 ## 2026-09-29: v0.9.6 · Laseren fordamper gråstein, malm dytter ikke skipet, skjold mot småstein
 

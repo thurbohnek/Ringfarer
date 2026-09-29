@@ -105,6 +105,17 @@
       st.anchorRange = st.anchors.reduce((a, l) => Math.max(a, l.range), 0);
       st.tractor = st.tractors.reduce((a, t) => a + t.F, 0);
       st.maxTier = st.lasers.reduce((a, l) => Math.max(a, l.tier), 0);
+      // Klassebonus og fordeler fra formen på skipet.
+      RF.applyClass(st, this.s.hull, this.s.layout);
+      const lm = st.laserMul * (1 + 0.08 * st.power);
+      for (const l of st.lasers) l.power *= lm;
+      for (const d of st.drills) d.power *= st.laserMul;
+      for (const t of st.thrusters) t.F *= st.thrustMul;
+      st.thrust *= st.thrustMul;
+      st.torque *= st.torqueMul;
+      st.strafe *= st.strafeMul;
+      st.tractor *= st.tractorMul;
+      st.shieldMax = Math.round(st.shieldMax);
       return st;
     }
 
@@ -231,7 +242,7 @@
       }
       b.w += (torque + Tq) * b.invI * dt;
 
-      const use = (accF ? accF.F : brakeF > 0 ? brakeF : main * st.thrust + retro * st.retro + Math.abs(strafe) * st.strafe + Math.abs(torque) * 0.05) / VE;
+      const use = st.fuelMul * (accF ? accF.F : brakeF > 0 ? brakeF : main * st.thrust + retro * st.retro + Math.abs(strafe) * st.strafe + Math.abs(torque) * 0.05) / VE;
       s.fuel = Math.max(0, s.fuel - use * dt);
 
       const fx = this.fx;
@@ -485,7 +496,7 @@
 
     updateShield(dt) {
       if (this.shieldDelay > 0) this.shieldDelay -= dt;
-      else this.shield = Math.min(this.stats.shieldMax, this.shield + dt * Math.max(4, this.stats.shieldMax * 0.07));
+      else this.shield = Math.min(this.stats.shieldMax, this.shield + dt * Math.max(4, this.stats.shieldMax * 0.07) * (1 + 0.25 * this.stats.power));
       this.shieldFlash = Math.max(0, this.shieldFlash - dt * 2.5);
     }
 
@@ -496,6 +507,10 @@
       this.shieldHitDir = Math.atan2(loc.y, loc.x);
       if (dv < 1.6 && !force) return 0;
       let dmg = force || Math.pow(dv - 1.6, 1.55) * 2.3;
+      // Krigsskip tåler mer, og en pansret baug tar støyten forfra.
+      const st = this.stats;
+      dmg *= st.dmgMul || 1;
+      if (loc.x > 0 && Math.abs(Math.atan2(loc.y, loc.x)) < 0.7) dmg *= st.bowMul || 1;
       if (this.shield > 0) {
         const absorbed = Math.min(this.shield, dmg);
         this.shield -= absorbed;
@@ -517,8 +532,11 @@
       const w = [0.7, 0.18, 0.12].slice(0, near.length);
       const sum = w.reduce((a, b) => a + b, 0);
       const dead = [];
+      const st = this.stats;
       near.forEach((e, i) => {
-        e.m.hp -= (dmg * w[i]) / sum;
+        const t = e.m.t;
+        const k = t === 'cockpit' ? st.bridgeMul || 1 : t === 'hab' || t === 'cabin' || t === 'lifesup' ? st.deckMul || 1 : 1;
+        e.m.hp -= (dmg * w[i] * k) / sum;
         if (e.m.hp <= 0) dead.push(e.m);
       });
       if (dead.length) game.loseModules(this, dead);

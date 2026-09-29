@@ -74,6 +74,20 @@
       desc: 'Lights up 200 meters ahead.' },
     navcomp: { name: 'Navigation computer', cat: 'Tools', mass: 400, hp: 40, cost: 3500, nav: true, unlock: 2,
       desc: 'Lets the autopilot plot a course around asteroids, stations and ships on the way to the target.' },
+    cabin: { name: 'Passenger cabin', cat: 'Passengers', mass: 700, hp: 60, cost: 600, pax: 2, unlock: 0,
+      desc: 'Seats for 2 passengers with windows along the side.' },
+    hab: { name: 'Habitat module', cat: 'Passengers', mass: 1600, hp: 90, cost: 1800, pax: 10, unlock: 1,
+      desc: 'Pressurized deck with bunks and room for 10 passengers.' },
+    cryo: { name: 'Cryo berths', cat: 'Passengers', mass: 2000, hp: 70, cost: 3500, cryo: 30, unlock: 2,
+      desc: '30 colonists asleep in cryo pods. Needs power but no life support.' },
+    lifesup: { name: 'Life support', cat: 'Passengers', mass: 900, hp: 50, cost: 1200, life: 120, unlock: 0,
+      desc: 'Air, water and heat for 120 people. Passengers beyond what life support can carry do not count.' },
+    airlock: { name: 'Airlock', cat: 'Passengers', mass: 600, hp: 70, cost: 500, locks: 1, unlock: 0,
+      desc: 'Docking hatch. Passengers board and leave through airlocks.' },
+    reactor: { name: 'Reactor', cat: 'Engines', mass: 4200, hp: 120, cost: 5000, power: 1, unlock: 2,
+      desc: 'Extra power: +40 shield, faster shield recharge and 8 % stronger lasers.' },
+    hangar: { name: 'Hangar deck', cat: 'Tools', mass: 3600, hp: 140, cost: 6000, bay: 2, unlock: 2,
+      desc: 'Flight deck with room for 2 drones.' },
     dronebay: { name: 'Drone bay', cat: 'Tools', mass: 2500, hp: 80, cost: 2500, bay: 1, unlock: 1,
       desc: 'Room for one drone: mining drone or repair drone.' },
   };
@@ -259,6 +273,7 @@
     const st = {
       thrust: 0, thrusters: [], rcs: 0, rcsList: [], fuelCap: 0, hold: 0, shieldMax: 0, proc: 800, yield: 1,
       lasers: [], drills: [], guns: [], rockets: [], anchors: [], tractors: [], lights: [], bays: 0, hpMax: 0, hp: 0, blocked: [],
+      pax: 0, cryo: 0, life: 6, locks: 0, power: 0,
     };
     for (const m of layout) {
       const D = RF.MODULES[m.t];
@@ -283,7 +298,15 @@
       if (D.light && !blocked) st.lights.push({ m, range: D.light });
       if (D.bay) st.bays += D.bay;
       if (D.nav) st.navcomp = true;
+      if (D.pax) st.pax += D.pax;
+      if (D.cryo) st.cryo += D.cryo;
+      if (D.life) st.life += D.life;
+      if (D.locks) st.locks += D.locks;
+      if (D.power) st.power += D.power;
     }
+    // Cockpiten holder liv i et lite mannskap. Flere passasjerer krever livsopprettholdelse.
+    st.paxCap = Math.min(st.pax, st.life) + st.cryo;
+    st.shieldMax += st.power * 40;
     st.rocketCap = st.rockets.length * 6;
     return st;
   };

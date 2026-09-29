@@ -21,7 +21,7 @@
   W.fireGuns = (ship, game) => {
     const st = ship.stats;
     if (!st.guns.length || ship.gunCd > 0) return;
-    ship.gunCd = 1 / st.guns[0].rate;
+    ship.gunCd = 1 / (st.guns[0].rate * (st.gunRateMul || 1));
     for (const g of st.guns) {
       if (!g.m.onTarget) continue;
       const { p, d, v } = launchFrom(ship, g.m);

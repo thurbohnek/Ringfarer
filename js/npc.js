@@ -212,7 +212,7 @@
       t.heat = Math.min(1, (t.heat || 0) + dt * 2);
       t.hitX = hit.x; t.hitY = hit.y;
       if (game.sys === this.sys && Math.random() < 0.4) game.laserDust(hit);
-      if (t.vox) RF.Vox.laser(t, hit, dir, 0.6, 1, dt, game);
+      if (t.vox) RF.Vox.laser(t, hit, dir, 0.6 * (this.own && game.ship ? game.ship.stats.droneMul || 1 : 1), 1, dt, game);
       return true;
     }
 

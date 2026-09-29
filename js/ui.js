@@ -11,6 +11,7 @@
   // Siste kjøp eller salg av utstyr, for å vise hva som skjedde.
   let fitFx = null;
   let gearCat = 'Mining';
+  let yardLine = null;
 
   const $ = (sel) => document.querySelector(sel);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -289,6 +290,7 @@
     const nb = root.querySelector('.tab-body');
     if (nb) nb.scrollTop = y;
     if (tab === 'utstyr') drawGear();
+    if (tab === 'verft') drawYard();
     if (fitFx) animateFit();
   }
 
@@ -514,6 +516,8 @@
             <dt>Lasers / drills</dt><dd class="num">${st.lasers.length} / ${st.drills.length}</dd>
             <dt>Weapons</dt><dd class="num">${st.guns.length} cannon, ${st.rockets.length} rocket</dd>
             <dt>Drone bays</dt><dd class="num">${st.bays}</dd>
+            ${st.pax + st.cryo ? `<dt>Passengers</dt><dd class="num">${st.paxCap}${st.pax > st.life ? ' (needs life support)' : ''}</dd>` : ''}
+            <dt>Class</dt><dd class="num">${esc(st.line.name)}</dd>
           </dl>
           ${warn.length ? `<ul class="warn">${warn.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
         </div>
@@ -570,23 +574,73 @@
 
   // ---------- Verft ----------
 
+  // Egenskapene til et skip slik det leveres fra verftet (med klassebonus).
+  const yardShips = {};
+  function yardShip(id) {
+    if (!yardShips[id]) yardShips[id] = new RF.Ship(RF.newShipState(id));
+    return yardShips[id];
+  }
+
+  // Tid for å snu skipet en halv runde: aksellerer og bremser rotasjonen,
+  // med høyeste dreiefart maxW.
+  function turnTime(alpha, maxW) {
+    const th = Math.PI;
+    return Math.sqrt(th * alpha) <= maxW ? 2 * Math.sqrt(th / alpha) : th / maxW + maxW / alpha;
+  }
+
   function yardTab() {
     const cur = game.ship.s.hull;
     const tv = game.tradeInValue();
-    return `<p class="small">Trade-in value of your ship with all modules: <b class="num">${kr(tv)}</b>. Cargo is moved over as far as there is room.</p>
-      <ul class="missions">${Object.keys(RF.HULLS).map((id) => {
-        const H = RF.HULLS[id];
-        const L = RF.defaultLayout(id);
-        const st = RF.layoutStats(L);
-        const g = RF.layoutGeometry(L);
-        const price = H.cost - tv;
-        const mine = id === cur;
-        return `<li class="mission"><div><b>${esc(H.name)}</b>
-          <span class="muted">${esc(H.desc)}</span>
-          <span class="muted small num">Grid ${H.w}×${H.h} · ${L.length} modules · ${t1(g.dryMass / 1000)} t · cargo ${st.hold} t · ${Math.round(st.thrust / 1000)} kN</span></div>
-          <div class="m-side"><span class="num reward">${kr(H.cost)}</span>
-          <button class="btn sm" data-act="buyhull" data-id="${id}" ${mine || game.credits < price ? 'disabled' : ''}>${mine ? 'Your ship' : price >= 0 ? 'Buy · ' + kr(price) : 'Trade · get ' + kr(-price)}</button></div></li>`;
-      }).join('')}</ul>`;
+    if (!yardLine) yardLine = (RF.HULLS[cur].line) || 'min';
+    const chips = RF.LINE_ORDER.map((k) => `<button class="catchip ${k === yardLine ? 'on' : ''}" data-act="yardline" data-id="${k}" style="--lc:${RF.LINES[k].color}">${esc(RF.LINES[k].name)}</button>`).join('');
+    const L = RF.LINES[yardLine];
+    const ids = Object.keys(RF.HULLS).filter((id) => RF.HULLS[id].line === yardLine).sort((a, b) => RF.HULLS[a].tier - RF.HULLS[b].tier);
+    const cards = ids.map((id) => {
+      const H = RF.HULLS[id], sh = yardShip(id), st = sh.stats, lay = sh.s.layout;
+      let x0 = 99, x1 = -99, ym = 0;
+      for (const m of lay) { x0 = Math.min(x0, m.x); x1 = Math.max(x1, m.x); ym = Math.max(ym, Math.abs(m.y)); }
+      const size = `${Math.round((x1 - x0 + 1) * RF.CELL)} × ${Math.round((2 * ym + 1) * RF.CELL)} m`;
+      const price = H.cost - tv;
+      const mine = id === cur;
+      const facts = [
+        ['Size', size], ['Mass', t1(sh.body.mass / 1000) + ' t'],
+        ['Accel', t1(st.thrust / sh.body.mass) + ' m/s²'], ['Turn 180°', t1(turnTime(st.torque / sh.body.I, st.maxW)) + ' s'],
+        ['Shield', st.shieldMax],
+      ];
+      if (st.hold) facts.push(['Cargo', st.hold + ' t']);
+      if (st.paxCap) facts.push(['People', st.paxCap]);
+      if (st.bays) facts.push(['Drones', st.bays]);
+      if (st.guns.length || st.rockets.length) facts.push(['Weapons', st.guns.length + st.rockets.length]);
+      if (st.lasers.length + st.drills.length) facts.push(['Mining tools', st.lasers.length + st.drills.length]);
+      const traits = st.traits.map((t) => `<span class="trait" title="${esc(t.desc)}"><b>${esc(t.name)}</b> ${esc(t.desc)}</span>`).join('');
+      return `<li class="mission yard-card ${mine ? 'mine' : ''}" style="--lc:${L.color}">
+        <canvas class="yard-ship" data-hull="${id}" aria-label="${esc(H.name)}"></canvas>
+        <div class="yc-body">
+          <div class="yc-head"><span class="yc-tier">Tier ${RF.TIER_NAMES[(H.tier || 1) - 1]} · ${esc(H.cls || '')}</span><b>${esc(H.name)}</b></div>
+          <p class="muted small">${esc(H.desc)}</p>
+          <dl class="yc-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd class="num">${v}</dd></div>`).join('')}</dl>
+          ${traits ? `<div class="traits">${traits}</div>` : ''}
+          <div class="gc-foot"><span class="num reward">${kr(H.cost)}</span>
+          <button class="btn sm ${mine ? '' : 'primary'}" data-act="buyhull" data-id="${id}" ${mine || game.credits < price ? 'disabled' : ''}>${mine ? 'Your ship' : price >= 0 ? 'Buy · ' + kr(price) : 'Trade · get ' + kr(-price)}</button></div>
+        </div></li>`;
+    }).join('');
+    return `<nav class="catchips">${chips}</nav>
+      <div class="line-bonus" style="--lc:${L.color}"><b>${esc(L.name)} bonus</b><span>${esc(L.bonus)}</span></div>
+      <p class="small muted">Any ship can be bought as long as you can afford it. Trade-in value of your ship with all modules: <b class="num">${kr(tv)}</b>. Cargo is moved over as far as there is room.</p>
+      <ul class="yard-grid">${cards}</ul>`;
+  }
+
+  // Tegn skipene i verftet ett og ett, så menyen ikke henger.
+  function drawYard() {
+    const list = [...document.querySelectorAll('canvas.yard-ship')];
+    let i = 0;
+    const next = () => {
+      if (i >= list.length || tab !== 'verft') return;
+      const cv = list[i++];
+      if (cv.isConnected) RF.drawShipPreview(cv, yardShip(cv.dataset.hull), null, { zoom: 0.92 });
+      requestAnimationFrame(next);
+    };
+    requestAnimationFrame(next);
   }
 
   // ---------- Droner ----------
@@ -700,6 +754,7 @@
       case 'undock': game.undock(); break;
       case 'tab': { tab = id; const tb = root.querySelector('.tab-body'); if (tb) tb.scrollTop = 0; renderStation(); break; }
       case 'gearcat': gearCat = id; renderStation(); break;
+      case 'yardline': yardLine = id; renderStation(); break;
       case 'gearzoom':
         if (id === 'fit') { gearView.zoom = 1; gearView.cx = gearView.cy = null; redrawGear(); } else zoomGear(id === 'in' ? 1.4 : 1 / 1.4);
         break;
@@ -748,7 +803,7 @@
         after();
         break;
       }
-      case 'trip': { const d = s.drones[Number(id)]; if (d) d.trip = { end: Date.now() + TRIP }; after(); break; }
+      case 'trip': { const d = s.drones[Number(id)]; if (d) d.trip = { end: Date.now() + TRIP / (ship.stats.droneMul || 1) }; after(); break; }
       case 'tripdone': { const d = s.drones[Number(id)]; if (d && d.trip && Date.now() >= d.trip.end) tripResult(d); after(); break; }
       case 'accept': {
         const board = game.boards[st.id];

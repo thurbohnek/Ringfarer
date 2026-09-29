@@ -146,7 +146,7 @@
     bevelPath(ctx, () => rr(ctx, x, y, w, hh, r), x, y, w, hh, k, lw);
   }
 
-  const TONES = {
+  let TONES = {
     light: ['#ddd7c8', '#b3ad9d', '#7f796c'],
     mid: ['#c4beaf', '#9a9486', '#686357'],
     dark: ['#918b7e', '#6b665b', '#433f37'],
@@ -513,7 +513,7 @@
     return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000; };
   }
 
-  const HULL = {
+  let HULL = {
     base: ['#8f897c', '#6f6a5f', '#4a463e'],
     deck: ['#bdb6a6', '#9a9486', '#6d685d'],
     spine: ['#d6d0c0', '#b2ab9b', '#838074'],
@@ -753,6 +753,72 @@
         }
         break;
       }
+      case 'cabin': case 'hab': {
+        // Passasjermoduler: rader med opplyste vinduer.
+        const big = m.t === 'hab';
+        rr(ctx, -0.95, -0.85, 1.9, 1.7, 0.3);
+        ctx.fillStyle = 'rgba(30,28,24,0.35)'; ctx.fill();
+        const rows = big ? [-0.55, -0.18, 0.18, 0.55] : [-0.4, 0.4];
+        for (const y of rows) for (let x = -0.7; x <= 0.71; x += big ? 0.28 : 0.35) {
+          ctx.fillStyle = '#15171a'; ctx.fillRect(x - 0.09, y - 0.08, 0.18, 0.16);
+          ctx.fillStyle = (Math.sin(x * 13 + y * 7 + m.x * 3 + m.y) > -0.5) ? '#ffe3a1' : '#5b6f80';
+          ctx.fillRect(x - 0.06, y - 0.05, 0.12, 0.1);
+        }
+        break;
+      }
+      case 'cryo': {
+        // Kryokøyer: rader med blålysende kapsler.
+        rr(ctx, -0.95, -0.85, 1.9, 1.7, 0.25);
+        ctx.fillStyle = 'rgba(20,26,32,0.6)'; ctx.fill();
+        for (const y of [-0.5, 0, 0.5]) for (const x of [-0.45, 0.45]) {
+          rr(ctx, x - 0.38, y - 0.16, 0.76, 0.32, 0.16);
+          const g = ctx.createLinearGradient(x - 0.38, 0, x + 0.38, 0);
+          g.addColorStop(0, '#1d4d66'); g.addColorStop(0.5, '#9fe6ff'); g.addColorStop(1, '#1d4d66');
+          ctx.fillStyle = g; ctx.fill();
+          ctx.strokeStyle = '#0d1a22'; ctx.lineWidth = 0.04; ctx.stroke();
+        }
+        break;
+      }
+      case 'airlock': {
+        circle(ctx, 0.1, 0.12, 0.78, 'rgba(0,0,0,0.35)');
+        circle(ctx, 0, 0, 0.75, '#2a2721');
+        ctx.save(); ctx.beginPath(); ctx.arc(0, 0, 0.75, 0, Math.PI * 2); ctx.clip();
+        for (let a = 0; a < 12; a++) { ctx.fillStyle = a % 2 ? '#1b1a17' : C.yellow; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 0.75, a * Math.PI / 6, (a + 1) * Math.PI / 6); ctx.fill(); }
+        ctx.restore();
+        circle(ctx, 0, 0, 0.55, '#b8b2a3', '#1d1b17');
+        circle(ctx, 0, 0, 0.3, '#6d685e', '#1d1b17');
+        circle(ctx, 0.18, -0.18, 0.06, '#7affc8');
+        break;
+      }
+      case 'lifesup':
+        for (const [x, y] of [[-0.45, -0.42], [0.45, -0.42], [-0.45, 0.42], [0.45, 0.42]]) {
+          circle(ctx, x + 0.05, y + 0.06, 0.36, 'rgba(0,0,0,0.35)');
+          const g = ctx.createRadialGradient(x - 0.12, y - 0.12, 0.02, x, y, 0.34);
+          g.addColorStop(0, '#e6fff0'); g.addColorStop(0.5, '#6cc59a'); g.addColorStop(1, '#1e4a36');
+          circle(ctx, x, y, 0.33, g, '#15251d');
+        }
+        ctx.strokeStyle = '#3a3630'; ctx.lineWidth = 0.12;
+        ctx.beginPath(); ctx.moveTo(-0.45, 0); ctx.lineTo(0.45, 0); ctx.moveTo(0, -0.42); ctx.lineTo(0, 0.42); ctx.stroke();
+        break;
+      case 'reactor': {
+        circle(ctx, 0.1, 0.12, 0.95, 'rgba(0,0,0,0.4)');
+        circle(ctx, 0, 0, 0.92, '#5a564d', '#1d1b17');
+        for (let a = 0; a < 8; a++) { const x = Math.cos(a * Math.PI / 4) * 0.72, y = Math.sin(a * Math.PI / 4) * 0.72; circle(ctx, x, y, 0.1, '#2a2721'); }
+        const g = ctx.createRadialGradient(0, 0, 0.02, 0, 0, 0.55);
+        g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, '#9fe8ff'); g.addColorStop(1, '#0d3a52');
+        circle(ctx, 0, 0, 0.52, g, '#0b1d28');
+        break;
+      }
+      case 'hangar': {
+        rr(ctx, -1.1, -1.0, 2.2, 2.0, 0.08);
+        ctx.fillStyle = '#0e0f11'; ctx.fill();
+        hazard(ctx, -1.1, -1.0, 2.2, 0.14);
+        hazard(ctx, -1.1, 0.86, 2.2, 0.14);
+        for (let x = -0.9; x <= 0.91; x += 0.3) { circle(ctx, x, -0.55, 0.05, '#7affc8'); circle(ctx, x, 0.55, 0.05, '#ff9a6a'); }
+        ctx.strokeStyle = 'rgba(200,200,190,0.25)'; ctx.lineWidth = 0.04;
+        ctx.beginPath(); ctx.moveTo(-1.0, 0); ctx.lineTo(1.0, 0); ctx.stroke();
+        break;
+      }
       default:
         if (D.mount) {
           const a = RF.DIR_ANGLE[m.dir >= 0 ? m.dir : 0];
@@ -781,7 +847,16 @@
   // Ferdig tegnet skip (uten tårn) i et eget lerret, laget på nytt når
   // oppsettet endrer seg eller en modul blir skadet.
   const PPM = 24;
+  // Skrogfargen følger skipsklassen (sivil, passasjer, drone eller militær).
   function artOf(obj) {
+    const pal = obj.pal || (obj.s && RF.hullLine ? RF.hullLine(obj.s.hull).pal : null);
+    if (!pal) return artOf0(obj);
+    const sv = [HULL, TONES];
+    HULL = pal.hull; TONES = pal.tones;
+    try { return artOf0(obj); } finally { HULL = sv[0]; TONES = sv[1]; }
+  }
+
+  function artOf0(obj) {
     const L = obj.layout;
     const key = L.map((m) => m.t + m.x + ',' + m.y + ':' + (m.lx || 0).toFixed(2) + ':' + (m.ly || 0).toFixed(2) + ':' + m.dir + ':' +
       (m.hp / RF.MODULES[m.t].hp < 0.3 ? 2 : m.hp / RF.MODULES[m.t].hp < 0.6 ? 1 : 0)).join('|');
@@ -927,10 +1002,13 @@
   }
 
   // Tegn én modul sentrert i (0,0), til butikken. m kan være null.
+  const ICON_DETAIL = new Set(['cabin', 'hab', 'cryo', 'airlock', 'lifesup', 'reactor', 'hangar']);
   RF.drawModule = (ctx, t, m) => {
     const mm = { t, x: 0, y: 0, lx: 0, ly: 0, dir: 0, aimA: 0, hp: m ? m.hp : RF.MODULES[t].hp };
     moduleArt(ctx, mm, { n: true, s: true, e: true, w: true });
     if (RF.MODULES[t].mount) tool(ctx, mm, 0);
+    // Passasjer- og hangarmodulene har bare tegningen sin i detaljlaget.
+    else if (ICON_DETAIL.has(t)) moduleDetail(ctx, mm, 0);
   };
 
   let glowCv = null;
@@ -956,6 +1034,7 @@
   RF.drawShipPreview = (cv, ship, hl, view) => {
     const obj = ship._preview || (ship._preview = {});
     obj.layout = ship.s.layout;
+    obj.pal = RF.hullLine ? RF.hullLine(ship.s.hull).pal : null;
     const art = artOf(obj);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const W = cv.clientWidth || 320, H = cv.clientHeight || 240;
