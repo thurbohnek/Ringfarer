@@ -76,6 +76,8 @@
   RF.ORE_MAX_AREA = 4.5;
   // Biter under dette blir bare støv.
   RF.DUST_AREA = 0.22;
+  // Løse steiner under dette (m²) blir runde klumper (se voxel.js).
+  RF.RUBBLE_AREA = 140;
 
   RF.SYSTEMS = [
     {
@@ -203,15 +205,20 @@
   RF.spawnRockType = (world, type, r, o, opts) => RF.Vox.generate(world, type, r, o, opts || {});
 
   function makeGateBodies(g) {
-    const R = RF.GATE_R;
+    const R = g.R, k = R / RF.GATE_R;
     const out = [];
     for (const s of [-1, 1]) {
-      const b = new RF.Body(G.box(-3, s * R - 2.6, 3, s * R + 2.6), 0,
+      const b = new RF.Body(G.box(-3 * k, s * R - 2.6 * k, 3 * k, s * R + 2.6 * k), 0,
         { x: g.x, y: g.y, a: g.a, kind: 'gate', restitution: 0.3 });
+      b.gate = g;
       out.push(b);
     }
     return out;
   }
+
+  // Kapitalporten: en stor ring for skip som ikke får plass i den vanlige.
+  RF.BIG_GATE_R = 420;
+  RF.gatesOf = (sys) => [sys.gate, sys.gate2].filter(Boolean);
 
   function makeStationBodies(st) {
     // Nav, dokkingsarm, to solpanel-master med paneler, og antennemast.
@@ -294,13 +301,19 @@
     const station = Object.assign({}, def.station);
     station.bodies = makeStationBodies(station);
     station.bodies.forEach((b) => world.add(b));
-    const gate = Object.assign({ state: 'idle', t: 0, chevrons: 0, dest: null, incoming: false }, def.gate);
+    const gate = Object.assign({ state: 'idle', t: 0, chevrons: 0, dest: null, incoming: false, R: RF.GATE_R, key: 'gate', name: 'Gate' }, def.gate);
     gate.bodies = makeGateBodies(gate);
     gate.bodies.forEach((b) => world.add(b));
-    // Hold stasjonen og porten fri for stein ved start.
-    const avoid = [{ x: station.x, y: station.y, r: 260 }, { x: gate.x, y: gate.y, r: 140 }];
+    // Kapitalporten står et godt stykke unna, på motsatt side av stasjonen.
+    const ga = Math.atan2(gate.y - station.y, gate.x - station.x) + Math.PI * 0.8;
+    const gate2 = Object.assign({ state: 'idle', t: 0, chevrons: 0, dest: null, incoming: false, R: RF.BIG_GATE_R, key: 'gate2', name: 'Capital gate',
+      x: station.x + Math.cos(ga) * 3200, y: station.y + Math.sin(ga) * 3200, a: ga }, def.gate2);
+    gate2.bodies = makeGateBodies(gate2);
+    gate2.bodies.forEach((b) => world.add(b));
+    // Hold stasjonen og portene fri for stein ved start.
+    const avoid = [{ x: station.x, y: station.y, r: 260 }, { x: gate.x, y: gate.y, r: 140 }, { x: gate2.x, y: gate2.y, r: gate2.R + 400 }];
     for (const f of def.fields) spawnField(world, f, avoid);
-    const st = { def, world, station, gate, time: 0 };
+    const st = { def, world, station, gate, gate2, time: 0 };
     for (let i = 0; i < def.comets; i++) spawnComet(world, def, i < 2);
     st.respawnComet = (near) => spawnComet(world, def, near);
     return st;

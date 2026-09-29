@@ -181,7 +181,7 @@
       this.canvas.style.width = this.w + 'px';
       this.canvas.style.height = this.h + 'px';
       // Lyskartet trenger ikke full oppløsning, lys er mykt uansett.
-      this.ls = 0.5;
+      this.ls = 0.4;
       this.light.width = Math.ceil(this.w * this.ls);
       this.light.height = Math.ceil(this.h * this.ls);
     }
@@ -290,6 +290,47 @@
       ctx.globalAlpha = 1;
     }
 
+    // Støvkorn som ligger stille i rommet. Når skipet flyr, suser de forbi,
+    // og i fart blir de til korte striper, så man ser at man beveger seg.
+    drawDust(game) {
+      const ctx = this.ctx, cam = game.cam, z = cam.zoom, { w, h } = this;
+      const vw = w / z, vh = h / z;
+      // Rutenett for støvet: grovere når man zoomer ut, så det ikke blir for mange.
+      let C = 30;
+      while ((vw * vh) / (C * C) > 700) C *= 3;
+      const x0 = Math.floor((cam.x - vw / 2) / C), x1 = Math.floor((cam.x + vw / 2) / C);
+      const y0 = Math.floor((cam.y - vh / 2) / C), y1 = Math.floor((cam.y + vh / 2) / C);
+      const sb = game.ship && game.ship.body;
+      const vx = sb ? sb.vx : 0, vy = sb ? sb.vy : 0, sp = Math.hypot(vx, vy);
+      const shutter = 0.07; // sekunder «eksponering» for stripene
+      const px = 1 / z;
+      ctx.lineCap = 'round';
+      const sx = sp > 3 ? vx * shutter : 0, sy = sp > 3 ? vy * shutter : 0;
+      // Tre lysstyrker, én sti hver (mye raskere enn én strek om gangen).
+      const paths = [new Path2D(), new Path2D(), new Path2D()];
+      for (let i = x0; i <= x1; i++) {
+        for (let j = y0; j <= y1; j++) {
+          let hsh = (i * 73856093) ^ (j * 19349663) ^ (C * 83492791);
+          for (let k = 0; k < 2; k++) {
+            hsh = (hsh * 1103515245 + 12345) & 0x7fffffff;
+            const fx = (hsh % 1000) / 1000;
+            hsh = (hsh * 1103515245 + 12345) & 0x7fffffff;
+            const fy = (hsh % 1000) / 1000;
+            hsh = (hsh * 1103515245 + 12345) & 0x7fffffff;
+            const x = (i + fx) * C, y = (j + fy) * C;
+            const P = paths[hsh % 3];
+            P.moveTo(x, y);
+            P.lineTo(x - sx + px * 0.01, y - sy);
+          }
+        }
+      }
+      [0.14, 0.24, 0.36].forEach((a, i) => {
+        ctx.strokeStyle = `rgba(200,205,215,${a})`;
+        ctx.lineWidth = px * (1 + i * 0.35);
+        ctx.stroke(paths[i]);
+      });
+    }
+
     drawMotes(game, dt) {
       const { ctx, w, h, dpr } = this;
       const cam = game.cam, z = cam.zoom;
@@ -333,8 +374,10 @@
       const ship = game.ship;
       const shipLive = ship && !game.dead;
 
+      this.drawDust(game);
+
       // 2. Faste ting.
-      this.drawGateRing(sys.gate, game.time, vis);
+      for (const g of RF.gatesOf(sys)) this.drawGateRing(g, game.time, vis);
       this.drawStation(sys.station, game, vis);
       for (const b of sys.world.bodies) {
         if ((b.kind === 'rock' || b.kind === 'ore') && vis(b.x, b.y, b.radius)) this.drawRock(b, sunDir);
@@ -348,8 +391,11 @@
       for (const n of sys.npcs || []) if (n.active && vis(n.body.x, n.body.y, 40)) this.drawModular(n, game.time);
       if (shipLive) {
         ship._lights = ship.lightOn && !ship.docked ? RF.lightSources(ship) : [];
+        // Delen av skipet som har gått gjennom en åpen port, synes ikke.
+        const clip = this.gateClip(ctx, game, ship.body);
         this.drawModular(ship, game.time);
         this.drawClamped(ship, game);
+        if (clip) ctx.restore();
       }
       this.drawMotes(game, dt);
 
@@ -358,7 +404,10 @@
 
       // 4. Selvlysende.
       this.worldTransform(ctx, game, this.dpr);
-      this.drawGateGlow(sys.gate, game.time, vis);
+      for (const g of RF.gatesOf(sys)) this.drawGateGlow(g, game.time, vis);
+      // Skipet foran horisonten tegnes oppå den, så det ser ut som det glir inn.
+      const inGate = shipLive && this.gateClip(ctx, game, ship.body);
+      if (inGate) { this.drawModular(ship, game.time); ctx.restore(); }
       this.drawStationLights(sys.station, game, vis);
       for (const b of sys.world.bodies) {
         if (b.heat > 0.02 && b.hitX != null && vis(b.hitX, b.hitY, 10)) this.drawHeat(b);
@@ -372,7 +421,9 @@
       }
       if (shipLive) {
         if (ship.tractor.on && !ship.docked) this.drawTractor(ship, game.time);
+        const c2 = this.gateClip(ctx, game, ship.body);
         this.drawModularFx(ship, game.time);
+        if (c2) ctx.restore();
         this.drawBeams(ship);
       }
       RF.Weapons.draw(ctx, this.px);
@@ -381,34 +432,46 @@
 
     // Lyskaster med skygger: lyset tegnes på et eget lerret, skyggene bak
     // steiner og skip klippes ut, og resultatet skjærer hull i mørket.
-    shadowedSpot(game, x, y, dir, range, self) {
+    // En lyskjegle (lykt) med myke kanter, lagt på lyslaget. Steiner og skip i
+    // kjeglen kaster skygge bort fra lampen.
+    shadowedSpot(game, x, y, dir, range, self, col = '255,236,205', power = 1) {
       const T = this.spot || (this.spot = document.createElement('canvas'));
       if (T.width !== this.light.width || T.height !== this.light.height) { T.width = this.light.width; T.height = this.light.height; }
       const t = T.getContext('2d');
+      // Bare området lampen lyser på, ikke hele lerretet (mye raskere).
+      const cam = game.cam, z = cam.zoom, ls = this.ls;
+      const sx = ls * (z * (x - cam.x) + this.w / 2), sy = ls * (z * (y - cam.y) + this.h / 2), sr = range * z * ls + 2;
+      const bx = Math.max(0, Math.floor(sx - sr)), by = Math.max(0, Math.floor(sy - sr));
+      const bw = Math.min(T.width, Math.ceil(sx + sr)) - bx, bh = Math.min(T.height, Math.ceil(sy + sr)) - by;
+      if (bw <= 0 || bh <= 0) return;
       t.setTransform(1, 0, 0, 1, 0, 0);
       t.globalCompositeOperation = 'source-over';
-      t.clearRect(0, 0, T.width, T.height);
+      t.clearRect(bx, by, bw, bh);
       this.worldTransform(t, game, this.ls);
-      // Myk kjegle: flere lag med økende vinkel og svakere styrke.
-      for (const [half, a] of [[0.95, 0.12], [0.7, 0.2], [0.5, 0.28], [0.32, 0.25]]) {
+      t.globalCompositeOperation = 'lighter';
+      // Flere svake lag med økende vinkel gir en kjegle uten skarpe kanter.
+      for (const [half, a] of [[1.2, 0.08], [0.85, 0.12], [0.58, 0.16], [0.36, 0.17]]) {
         const g = t.createRadialGradient(x, y, 0, x, y, range);
-        g.addColorStop(0, `rgba(0,0,0,${a})`);
-        g.addColorStop(0.5, `rgba(0,0,0,${a * 0.7})`);
-        g.addColorStop(1, 'rgba(0,0,0,0)');
+        const k = a * power;
+        g.addColorStop(0, `rgba(${col},${k})`);
+        g.addColorStop(0.25, `rgba(${col},${k * 0.85})`);
+        g.addColorStop(0.6, `rgba(${col},${k * 0.4})`);
+        g.addColorStop(1, `rgba(${col},0)`);
         t.fillStyle = g;
         t.beginPath(); t.moveTo(x, y); t.arc(x, y, range, dir - half, dir + half); t.closePath(); t.fill();
       }
-      // Lys rett rundt lampen.
-      const g0 = t.createRadialGradient(x, y, 0, x, y, 12);
-      g0.addColorStop(0, 'rgba(0,0,0,0.4)');
-      g0.addColorStop(1, 'rgba(0,0,0,0)');
+      // Litt spredt lys rett rundt lampen.
+      const r0 = Math.min(range * 0.2, 14);
+      const g0 = t.createRadialGradient(x, y, 0, x, y, r0);
+      g0.addColorStop(0, `rgba(${col},${0.3 * power})`);
+      g0.addColorStop(1, `rgba(${col},0)`);
       t.fillStyle = g0;
-      t.beginPath(); t.arc(x, y, 12, 0, Math.PI * 2); t.fill();
+      t.beginPath(); t.arc(x, y, r0, 0, Math.PI * 2); t.fill();
       // Skygger.
       t.globalCompositeOperation = 'destination-out';
       t.fillStyle = '#000';
       for (const o of game.sys.world.bodies) {
-        if (o === self || o.dead || o.kind === 'gate') continue;
+        if (o === self || o.dead || o.kind === 'gate' || o.kind === 'ore') continue;
         const dx = o.x - x, dy = o.y - y, dd = Math.hypot(dx, dy);
         if (dd - o.radius > range || dd < o.radius * 0.3) continue;
         const poly = shadowPoly(o, x, y, range * 1.6);
@@ -421,45 +484,84 @@
       const L = this.lctx;
       L.save();
       L.setTransform(1, 0, 0, 1, 0, 0);
-      L.globalCompositeOperation = 'destination-out';
-      L.drawImage(T, 0, 0);
+      L.globalCompositeOperation = 'lighter';
+      L.drawImage(T, bx, by, bw, bh, bx, by, bw, bh);
       L.restore();
     }
 
-    // Mørket legges over alt, og lyskildene "skjærer" hull i det.
+    // Lys: et eget lag som starter med sollyset i systemet. Steiner og skip
+    // kaster skygge bort fra sola. Lamper, motorer og stråler legger lys til
+    // (så to lys oppå hverandre blir lysere, ikke rare). Til slutt ganges
+    // bildet med laget, så det som blir belyst, lyser opp.
     drawLighting(game) {
       const L = this.lctx, ls = this.ls, sys = game.sys, ship = game.ship;
+      const sky = sys.def.sky;
+      const sun = this.sunColor || (this.sunColor = {});
+      if (sun.key !== sky.star) {
+        const c = parseInt((sky.star || '#ffffff').slice(1), 16);
+        Object.assign(sun, { key: sky.star, r: (c >> 16) & 255, g: (c >> 8) & 255, b: c & 255 });
+      }
+      const amb = 0.66, sh = 0.26;
+      const mix = (k, v) => Math.round(v * k + 150 * k * 0.25);
       L.setTransform(1, 0, 0, 1, 0, 0);
       L.globalCompositeOperation = 'source-over';
-      L.clearRect(0, 0, this.light.width, this.light.height);
-      L.fillStyle = 'rgba(1,2,6,0.5)';
+      L.fillStyle = `rgb(${mix(amb, sun.r)},${mix(amb, sun.g)},${mix(amb, sun.b)})`;
       L.fillRect(0, 0, this.light.width, this.light.height);
-      L.globalCompositeOperation = 'destination-out';
       this.worldTransform(L, game, ls);
       const vis = this.vis;
 
-      const glow = (x, y, r, a) => {
+      // Skygger fra sola: hver stein og hvert skip skygger bort fra stjerna.
+      const sd = sky.starDir, ux = -Math.cos(sd), uy = -Math.sin(sd);
+      L.fillStyle = `rgb(${mix(sh, sun.r) + 4},${mix(sh, sun.g) + 6},${mix(sh, sun.b) + 14})`;
+      // Skyggen faller bare på andre ting (steiner, skip, stasjonen), ikke på
+      // planeten og stjernene langt bak. Klipp derfor til omrisset av dem.
+      const recv = sys.world.bodies.filter((o) => !o.dead && o.kind !== 'gate' && vis(o.x, o.y, o.radius));
+      L.save();
+      L.beginPath();
+      for (const o of recv) {
+        o.updateWorld();
+        o.wv.forEach((p, i) => (i ? L.lineTo(p.x, p.y) : L.moveTo(p.x, p.y)));
+        L.closePath();
+      }
+      L.clip();
+      for (const o of sys.world.bodies) {
+        if (o.dead || o.kind === 'ore' || o.kind === 'gate' || o.radius < 2.5 || !vis(o.x, o.y, o.radius * 3)) continue;
+        // Skyggeformen regnes i steinens egne koordinater og lagres til steinen
+        // har snudd seg litt eller endret form.
+        const c = o._sunSh;
+        if (!c || c.verts !== o.verts || Math.abs(G.wrapAngle(o.a - c.a)) > 0.06 || c.sd !== sd) {
+          const cs = Math.cos(-o.a), sn = Math.sin(-o.a);
+          const lx = ux * cs - uy * sn, ly = ux * sn + uy * cs, len = (o.radius * 1.3) / o.s;
+          const pts = [];
+          for (const p of o.verts) { pts.push(p); pts.push({ x: p.x + lx * len, y: p.y + ly * len }); }
+          o._sunSh = { verts: o.verts, a: o.a, sd, hull: G.convexHull(pts) };
+        }
+        const hull = o._sunSh.hull;
+        if (hull.length < 3) continue;
+        L.save();
+        L.translate(o.x, o.y);
+        L.rotate(o.a);
+        if (o.s !== 1) L.scale(o.s, o.s);
+        L.beginPath();
+        hull.forEach((p, i) => (i ? L.lineTo(p.x, p.y) : L.moveTo(p.x, p.y)));
+        L.closePath();
+        L.fill();
+        L.restore();
+      }
+      L.restore();
+
+      L.globalCompositeOperation = 'lighter';
+      const glow = (x, y, r, a, col = '255,226,190') => {
         if (!vis(x, y, r)) return;
         const g = L.createRadialGradient(x, y, 0, x, y, r);
-        g.addColorStop(0, `rgba(0,0,0,${a})`);
-        g.addColorStop(0.5, `rgba(0,0,0,${a * 0.45})`);
-        g.addColorStop(1, 'rgba(0,0,0,0)');
+        g.addColorStop(0, `rgba(${col},${a})`);
+        g.addColorStop(0.4, `rgba(${col},${a * 0.45})`);
+        g.addColorStop(1, `rgba(${col},0)`);
         L.fillStyle = g;
         L.beginPath(); L.arc(x, y, r, 0, Math.PI * 2); L.fill();
       };
-      const cone = (x, y, dir, half, r, a) => {
-        for (const [k, f] of [[1.5, 0.35], [1, 1]]) {
-          const g = L.createRadialGradient(x, y, 0, x, y, r);
-          g.addColorStop(0, `rgba(0,0,0,${a * f})`);
-          g.addColorStop(0.6, `rgba(0,0,0,${a * f * 0.6})`);
-          g.addColorStop(1, 'rgba(0,0,0,0)');
-          L.fillStyle = g;
-          L.beginPath(); L.moveTo(x, y); L.arc(x, y, r, dir - half * k, dir + half * k); L.closePath(); L.fill();
-        }
-      };
       const shipLights = (o) => {
         const b = o.body;
-        glow(b.x, b.y, b.radius + 10, 0.5);
         for (const Ls of o._lights || []) {
           const n = b.toWorld(Ls.lx, Ls.ly);
           if (!this.vis(n.x, n.y, Ls.range)) continue;
@@ -467,43 +569,46 @@
         }
         if (o.fx.main > 0.05) {
           for (const m of o.layout) {
-            if (m.t !== 'thruster' && m.t !== 'thruster2') continue;
-            const t = b.toWorld(m.lx - RF.CELL, m.ly);
-            glow(t.x, t.y, 8 + o.fx.main * 18, 0.7 * o.fx.main);
+            if (m.t !== 'thruster' && m.t !== 'thruster2' && m.t !== 'thruster3') continue;
+            const t = b.toWorld(m.lx - RF.CELL * (m.t === 'thruster3' ? 2 : 1), m.ly);
+            glow(t.x, t.y, (8 + o.fx.main * 18) * Math.sqrt(b.s), 0.5 * o.fx.main, '150,190,255');
           }
         }
         for (const B of o.beams || []) {
           const d = b.dirWorld(Math.cos(B.a || 0), Math.sin(B.a || 0));
           const n = b.toWorld(B.lx, B.ly);
-          for (let s = 0; s < B.len; s += 14) glow(n.x + d.x * s, n.y + d.y * s, 7, 0.35);
-          if (B.hit) glow(B.hit.x, B.hit.y, 18, 1);
+          for (let s = 0; s < B.len; s += 14) glow(n.x + d.x * s, n.y + d.y * s, 7, 0.18, B.color || '255,150,60');
+          if (B.hit) glow(B.hit.x, B.hit.y, 18, 0.7, B.color || '255,150,60');
         }
       };
 
       if (ship && !game.dead) shipLights(ship);
       for (const n of sys.npcs || []) if (n.active) shipLights(n);
-      for (const p of RF.Weapons.list) if (p.type === 'rocket') glow(p.x, p.y, 20, 0.8);
+      for (const p of RF.Weapons.list) if (p.type === 'rocket') glow(p.x, p.y, 20, 0.6, '255,190,120');
 
       const st = sys.station;
-      glow(st.x, st.y, 230, 0.55);
+      glow(st.x, st.y, 230, 0.25);
       const dp = RF.dockPoint(st);
-      glow(dp.x, dp.y, 50, 0.6);
-      const g = sys.gate;
-      const open = g.state === 'open' || g.state === 'kawoosh' || g.state === 'closing';
-      if (open) glow(g.x, g.y, 90, 0.9);
-      else glow(g.x, g.y, 40, 0.25 + g.chevrons * 0.05);
+      glow(dp.x, dp.y, 50, 0.3);
+      for (const g of RF.gatesOf(sys)) {
+        const open = g.state === 'open' || g.state === 'kawoosh' || g.state === 'closing';
+        const gr = g.R / RF.GATE_R;
+        if (open) glow(g.x, g.y, 90 * gr, 0.6, '150,200,255');
+        else glow(g.x, g.y, 40 * gr, 0.1 + g.chevrons * 0.04, '255,180,110');
+      }
       let n = 0;
       for (const p of game.particles.list) {
         if (p.type !== 'glow' && p.type !== 'spark') continue;
         if (++n > 80) break;
-        glow(p.x, p.y, 4 + p.size * 6, 0.5 * (p.life / p.max));
+        glow(p.x, p.y, 4 + p.size * 6, 0.3 * (p.life / p.max), '255,210,150');
       }
-      for (const b of sys.world.bodies) if (b.heat > 0.05 && b.hitX != null) glow(b.hitX, b.hitY, 8 + b.heat * 10, b.heat);
+      for (const b of sys.world.bodies) if (b.heat > 0.05 && b.hitX != null) glow(b.hitX, b.hitY, 8 + b.heat * 10, b.heat * 0.6, '255,160,90');
 
       const { ctx, dpr } = this;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = 'multiply';
       ctx.drawImage(this.light, 0, 0, this.w, this.h);
+      ctx.globalCompositeOperation = 'source-over';
     }
 
     // Målet for autopiloten: en pulserende ring og en stiplet linje fra skipet.
@@ -1005,12 +1110,36 @@
       ctx.restore();
     }
 
+    // Er skipet på vei inn i en åpen port? Da klippes tegningen til siden
+    // foran horisonten (ctx.save() er gjort, kalleren kjører restore()).
+    gateClip(ctx, game, b) {
+      for (const g of RF.gatesOf(game.sys)) {
+        const open = g.state === 'open' || g.state === 'closing';
+        if (!open || g.incoming) continue;
+        const cs = Math.cos(g.a), sn = Math.sin(g.a);
+        const dx = b.x - g.x, dy = b.y - g.y;
+        const lx = dx * cs + dy * sn, ly = -dx * sn + dy * cs;
+        if (Math.abs(lx) > b.radius || Math.abs(ly) > g.R + b.radius) continue;
+        const F = 1e5;
+        const P = (x, y) => ({ x: g.x + x * cs - y * sn, y: g.y + x * sn + y * cs });
+        const pts = [P(0, -F), P(F, -F), P(F, F), P(0, F)];
+        ctx.save();
+        ctx.beginPath();
+        pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.closePath();
+        ctx.clip();
+        return true;
+      }
+      return false;
+    }
+
     drawGateRing(g, time, vis) {
-      if (!vis(g.x, g.y, 60)) return;
+      if (!vis(g.x, g.y, g.R * 3.5)) return;
       const ctx = this.ctx, R = RF.GATE_R, depth = R * 0.34;
       ctx.save();
       ctx.translate(g.x, g.y);
       ctx.rotate(g.a);
+      ctx.scale(g.R / RF.GATE_R, g.R / RF.GATE_R);
       ctx.save();
       ctx.scale(depth / R, 1);
       ctx.lineWidth = 4.6;
@@ -1046,11 +1175,12 @@
     }
 
     drawGateGlow(g, time, vis) {
-      if (!vis(g.x, g.y, 60)) return;
+      if (!vis(g.x, g.y, g.R * 3.5)) return;
       const ctx = this.ctx, R = RF.GATE_R, depth = R * 0.34;
       ctx.save();
       ctx.translate(g.x, g.y);
       ctx.rotate(g.a);
+      ctx.scale(g.R / RF.GATE_R, g.R / RF.GATE_R);
       const open = g.state === 'open' || g.state === 'kawoosh' || g.state === 'closing';
       if (open) {
         let a = 1;

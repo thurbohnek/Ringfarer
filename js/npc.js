@@ -39,9 +39,15 @@
   const d0 = (n, P) => G.len(P.outer.x - n.body.x, P.outer.y - n.body.y);
 
   class NPC {
-    constructor(type, sys) {
+    // fit: mindre målestokk enn vanlig, så dronen passer i luken den bor i.
+    constructor(type, sys, fit) {
       this.type = type;
       this.T = RF.NPC_TYPES[type];
+      if (fit && this.T.scale && fit < this.T.scale) {
+        // Mindre drone: lettere, svakere motorer, men omtrent like kvikk.
+        const f = fit / this.T.scale;
+        this.T = Object.assign({}, this.T, { scale: fit, mass: this.T.mass * f ** 3, thrust: this.T.thrust * f ** 2.8, torque: this.T.torque * f ** 4.5, hull: this.T.hull * f * f });
+      }
       this.sys = sys;
       this.name = `${this.T.name} ${String(nextName++).padStart(2, '0')}`;
       this.layout = RF.layoutFrom(RF.NPC_LAYOUTS[type]);
@@ -58,6 +64,8 @@
       this.laserY = lm ? lm.ly * k : 0;
       this.halfW = (this.layout.reduce((a, m) => Math.max(a, Math.abs(m.ly)), 0) + RF.CELL / 2) * k;
       this._lights = RF.lightSources(this).map((l) => Object.assign(l, { lx: l.lx * k, ly: l.ly * k }));
+      // Alle egne droner har en liten lykt foran.
+      if (this.T.own && !this._lights.length) this._lights.push({ lx: this.noseX, ly: 0, a: 0, range: 30 + 60 * k });
       this.beams = [];
       this.fx = { main: 0, retro: 0, left: 0, right: 0, rotL: 0, rotR: 0 };
       this.laser = { on: false, hit: null, len: 0 };
@@ -121,7 +129,9 @@
       let dx = tx - b.x, dy = ty - b.y;
       const dist = G.len(dx, dy);
       const acc = T.thrust / b.mass;
-      const sp = Math.min(maxSpeed, Math.sqrt(2 * acc * 0.45 * Math.max(0, dist - 1)));
+      // Bremsen er svakere enn hovedmotoren: regn med den, ellers skyter
+      // fartøyet forbi målet og må snu (det var det som fikk dronene til å vimse).
+      const sp = Math.min(maxSpeed, Math.sqrt(2 * acc * 0.3 * Math.max(0, dist - 1)));
       let ux = dist > 0.01 ? dx / dist : 0, uy = dist > 0.01 ? dy / dist : 0;
 
       // Unnamanøver: tre stråler (midt og begge sider av skroget) langs ønsket kurs.
@@ -149,25 +159,37 @@
 
       const dvx = tvx + ux * sp2 - b.vx, dvy = tvy + uy * sp2 - b.vy;
       const dvm = G.len(dvx, dvy);
-      const heading = face != null ? face : dvm > 0.4 ? Math.atan2(dvy, dvx) : b.a;
+      // Nesen følger bare tydelige fartsendringer, ellers holder den kursen
+      // (små korrigeringer tas med sidedysene). Da vimser ikke dronene.
+      // Små justeringer (under 4 m/s) tas med dysene uten å snu fartøyet.
+      if (face == null && dvm > 4) this.hd = Math.atan2(dvy, dvx);
+      const slide = face == null && dvm <= 4;
+      if (slide) this.hd = b.a; // hold nesen der den er
+      const heading = face != null ? face : this.hd != null ? this.hd : b.a;
       const err = G.wrapAngle(heading - b.a);
-      const targetW = G.clamp(err * 2.2, -1.4, 1.4);
-      const torque = G.clamp((targetW - b.w) * b.I * 5, -T.torque, T.torque);
+      const alpha = T.torque / b.I;
+      const wMax = T.own ? 0.9 : 1.4; // egne droner snur rolig
+      const targetW = Math.sign(err) * Math.min(wMax, Math.sqrt(2 * alpha * 0.5 * Math.abs(err)), Math.abs(err) * 1.6);
+      const torque = G.clamp((targetW - b.w) * b.I * 4, -T.torque, T.torque);
       b.w += torque * b.invI * dt;
 
       const fwd = b.dirWorld(1, 0), right = b.dirWorld(0, 1);
-      const want = Math.min(1, (dvm * b.mass) / (T.thrust * 0.6));
+      // Ingen skyv for bittesmå avvik, og myk opptrapping ellers.
+      const want = dvm < 0.12 ? 0 : Math.min(1, (dvm * b.mass) / (T.thrust * 0.9));
       let main = 0, retro = 0, strafe = 0;
       const af = (dvx * fwd.x + dvy * fwd.y) / (dvm || 1), ar = (dvx * right.x + dvy * right.y) / (dvm || 1);
-      if (face == null) {
-        if (Math.cos(err) > 0.9) main = want;
+      if (face == null && !slide) {
+        if (Math.cos(err) > 0.9) main = want * Math.cos(err);
+        else if (af < 0) retro = -af * want;
         strafe = G.clamp(ar * want * 2, -1, 1);
       } else {
         if (af > 0) main = af * want; else retro = -af * want;
         strafe = G.clamp(ar * want * 2, -1, 1);
       }
-      const F = main * T.thrust - retro * T.thrust * 0.4;
-      const Fs = strafe * T.thrust * 0.3;
+      // Droner har kraftige styredyser til sidene og bakover.
+      const kr = T.own ? 0.6 : 0.4, ks = T.own ? 0.6 : 0.3;
+      const F = main * T.thrust - retro * T.thrust * kr;
+      const Fs = strafe * T.thrust * ks;
       b.vx += ((fwd.x * F + right.x * Fs) / b.mass) * dt;
       b.vy += ((fwd.y * F + right.y * Fs) / b.mass) * dt;
       const fx = this.fx;
@@ -235,7 +257,9 @@
       t.hitX = hit.x; t.hitY = hit.y;
       if (game.sys === this.sys && Math.random() < 0.4) game.laserDust(hit);
       const L = this.T.laser || { power: 0.6, tier: 1 };
-      if (t.vox) RF.Vox.laser(t, hit, dir, L.power * (this.owner ? this.owner.stats.droneMul || 1 : 1), L.tier, dt, game);
+      const pw = L.power * (this.owner ? this.owner.stats.droneMul || 1 : 1);
+      if (t.vox) RF.Vox.laser(t, hit, dir, pw, L.tier, dt, game);
+      else if (t.rubble) RF.Vox.hitRubble(t, dt * pw * 0.8, L.tier, dir, game, true);
       return true;
     }
 
@@ -523,9 +547,14 @@
     // Venter på sin plass ved siden av skipet.
     idleNear(dt) {
       const ob = this.owner.body;
-      const p = ob.toWorld(-this.owner.noseX * 0.3, (ob.radius + 8 + this.index * 4) * (this.index % 2 ? 1 : -1));
+      const p = ob.toWorld(-this.owner.noseX * 0.3, ((ob.radius + 8 + this.index * 5) / ob.s) * (this.index % 2 ? 1 : -1));
       const v = ob.pointVel(p.x, p.y);
-      return this.steer(dt, p.x, p.y, v.x, v.y, null, 30);
+      // Rolig på plass ved siden av skipet, med nesen samme vei som skipet.
+      const d = G.len(p.x - this.body.x, p.y - this.body.y);
+      const rv = G.len(this.body.vx - v.x, this.body.vy - v.y);
+      // Litt slingringsmonn, så den ikke skrur retningen av og på.
+      this.parked = this.parked ? d < 18 : d < 10 && rv < 3;
+      return this.steer(dt, p.x, p.y, v.x, v.y, this.parked ? ob.a : null, 12);
     }
 
     // Gruvedrone (bor og samler) eller innsamler (bare samler løs malm).

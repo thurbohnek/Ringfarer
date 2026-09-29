@@ -303,6 +303,73 @@
     return o;
   }
 
+  // Små løse steiner (under RUBBLE_AREA) blir avrundede klumper i stedet for
+  // grove biter av rutenettet (som ble firkantede). Laser, kanon og raketter
+  // knuser dem (se Vox.hitRubble).
+  function makeBlob(area, mat, o) {
+    const n = G.randInt(10, 15);
+    const asp = G.rand(0.7, 1.4);
+    let blob = G.rockShape(1, n).map((p) => ({ x: p.x * asp, y: p.y / asp }));
+    const k = Math.sqrt(area / G.polyArea(blob));
+    blob = blob.map((p) => ({ x: p.x * k, y: p.y * k }));
+    const b = RF.makeRock(blob, mat, o);
+    b.rubble = b.kind === 'rock';
+    return b;
+  }
+  Vox.makeBlob = makeBlob;
+
+  function toRubble(vb) {
+    const o = makeBlob(vb.area, vb.mat, { x: vb.x, y: vb.y, a: vb.a, vx: vb.vx, vy: vb.vy, w: vb.w });
+    o.world = vb.world;
+    return o;
+  }
+
+  // Knus en klump i mindre biter. Mineraler blir malm, gråstein fra laseren
+  // fordamper (som bitene laseren slår løs fra store steiner).
+  Vox.breakRubble = (t, d, game, byLaser) => {
+    if (t.dead) return [];
+    t.dead = true;
+    const stone = !!RF.MATERIALS[t.mat].stone;
+    // Gråstein i laseren: små klumper fordamper, store deler seg i to eller tre.
+    // Ellers: biter på malmstørrelse (inntil 18), resten blir mindre klumper.
+    let n;
+    if (byLaser && stone) n = t.area > 45 ? G.randInt(2, 3) : 0;
+    else n = G.clamp(Math.ceil(t.area / (RF.ORE_MAX_AREA * 0.9)), 2, 18);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const area = Math.min((t.area / n) * G.rand(0.8, 1.2), t.area / n > RF.ORE_MAX_AREA ? Infinity : RF.ORE_MAX_AREA * 0.97);
+      if (area < RF.DUST_AREA) continue;
+      const a = (i / n) * Math.PI * 2 + G.rand(-0.4, 0.4), r = Math.sqrt(t.area) * 0.3;
+      const sp = G.rand(0.6, 2.2);
+      const o = makeBlob(area, t.mat, {
+        x: t.x + Math.cos(a) * r, y: t.y + Math.sin(a) * r, a: Math.random() * 6.28,
+        vx: t.vx + Math.cos(a) * sp - (d ? d.x : 0) * 0.5, vy: t.vy + Math.sin(a) * sp - (d ? d.y : 0) * 0.5, w: G.rand(-0.8, 0.8),
+      });
+      o.world = t.world;
+      if (byLaser && RF.isStone(o)) continue;
+      t.world.add(o);
+      out.push(o);
+    }
+    if (game && t.world === game.sys.world) {
+      const M = RF.MATERIALS[t.mat];
+      game.particles.burst(t.x, t.y, 18, { type: 'smoke', sMin: 1, sMax: 6, color: M.light, zMin: 0.6, zMax: 1.6, grow: 2, lMin: 0.8, lMax: 2, vx: t.vx, vy: t.vy });
+      game.particles.burst(t.x, t.y, 12, { type: 'debris', sMin: 2, sMax: 8, color: M.base, zMin: 0.2, zMax: 0.5, lMin: 0.8, lMax: 2, vx: t.vx, vy: t.vy });
+      RF.Audio.thud(0.3, true);
+    }
+    return out;
+  };
+
+  // Laser, bor, kanon eller rakett mot en klump. stress = hvor mye den tåler.
+  // Gir mineralet hvis det er for hardt for laseren.
+  Vox.hitRubble = (t, amount, tier, d, game, byLaser) => {
+    const hard = RF.MATERIALS[t.mat].hard;
+    if (byLaser && tier < hard) return t.mat;
+    t.stress = (t.stress || 0) + amount / Math.sqrt(hard);
+    t.heat = Math.min(1, (t.heat || 0) + amount * 0.5);
+    if (t.stress >= t.integrity) Vox.breakRubble(t, d, game, byLaser);
+    return null;
+  };
+
   function dust(b, game, n = 5) {
     if (!game || b.world !== game.sys.world) return;
     game.particles.burst(b.x, b.y, n, { type: 'debris', sMin: 1, sMax: 4, color: RF.MATERIALS[b.mat].light, zMin: 0.2, zMax: 0.5, lMin: 0.6, lMax: 1.4, vx: b.vx, vy: b.vy });
@@ -313,6 +380,11 @@
     if (nb.area <= RF.ORE_MAX_AREA) {
       const o = toOre(nb);
       if (!o) return null;
+      nb.world.add(o);
+      return o;
+    }
+    if (nb.area < RF.RUBBLE_AREA) {
+      const o = toRubble(nb);
       nb.world.add(o);
       return o;
     }
@@ -358,6 +430,12 @@
         const o = toOre(b);
         if (o) { b.world.add(o); made.push(o); }
       } else dust(b, game);
+    } else if (b.area < RF.RUBBLE_AREA) {
+      // Det som er igjen av steinen er så lite at det blir en rund klump.
+      b.dead = true;
+      const o = toRubble(b);
+      b.world.add(o);
+      made.push(o);
     }
     return made;
   };

@@ -1154,7 +1154,8 @@
       if (x.kind !== 'clamp' || x.d.out) continue;
       let n = clampNpc.get(x.d);
       if (!n || n.dockM !== x.m || n.owner !== ship) {
-        n = new RF.NPC(RF.DRONE_TYPES[x.d.type].npc, game.sys);
+        const tp = RF.DRONE_TYPES[x.d.type].npc;
+        n = new RF.NPC(tp, game.sys, RF.droneFit(ship.body.s, 'clamp', tp));
         n.owner = ship; n.dockM = x.m; n.dockKind = 'clamp';
         clampNpc.set(x.d, n);
       }
@@ -1348,11 +1349,14 @@
     for (const Ls of obj._lights || []) {
       const n = b.toWorld(Ls.lx, Ls.ly);
       const dir = b.a + Ls.a;
-      const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, Ls.range);
-      g.addColorStop(0, 'rgba(255,236,200,0.05)');
-      g.addColorStop(1, 'rgba(255,236,200,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.arc(n.x, n.y, Ls.range, dir - 0.5, dir + 0.5); ctx.closePath(); ctx.fill();
+      // Svak dis i støvet: flere myke lag, uten skarpe kanter.
+      for (const [half, a] of [[0.8, 0.008], [0.55, 0.01], [0.35, 0.012]]) {
+        const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, Ls.range * 0.8);
+        g.addColorStop(0, `rgba(255,236,200,${a})`);
+        g.addColorStop(1, 'rgba(255,236,200,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.arc(n.x, n.y, Ls.range * 0.8, dir - half, dir + half); ctx.closePath(); ctx.fill();
+      }
     }
     ctx.globalCompositeOperation = 'source-over';
   };

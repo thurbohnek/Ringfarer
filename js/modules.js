@@ -178,6 +178,18 @@
     return { ok, slots };
   };
 
+  // Hvor stor en drone kan være for å passe i luken (eller på klemmen) den
+  // bor i på dette skipet. Gir målestokken dronen skal ha.
+  RF.droneFit = (shipScale, kind, npcType) => {
+    const L = RF.NPC_LAYOUTS[npcType], T = RF.NPC_TYPES[npcType];
+    let x0 = 99, x1 = -99, y0 = 99, y1 = -99;
+    for (const [, x, y] of L) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const span = Math.max(x1 - x0 + 1, y1 - y0 + 1) * CELL;
+    // Åpningen i meter: dronerommet 1,4 m, hangardekket 1,8 m, klemmen to ruter.
+    const open = (kind === 'bay' ? 1.25 : kind === 'hangar' ? 1.7 : 2.2 * CELL) * shipScale;
+    return Math.min(T.scale || 1, open / span);
+  };
+
   // Klemmen trenger en fri side ut mot rommet, helst til siden.
   RF.clampDir = (layout, m) => {
     const occ = new Set(layout.map((o) => o.x + ',' + o.y));

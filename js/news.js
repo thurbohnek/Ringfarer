@@ -10,6 +10,17 @@
 
   RF.NEWS = [
     {
+      v: 'v0.13.0', date: '2026-09-30', title: 'Light, gates and calmer drones',
+      items: [
+        'New lighting: the sun lights everything and rocks cast shadows away from it. Lamps add light, so overlapping beams look natural, and the beams have soft edges.',
+        'Every system has a capital gate far from the station, big enough for battlecruisers. Ships too wide for the small gate are told so.',
+        'Flying through a gate looks right: the part of the ship that has gone through disappears into the event horizon.',
+        'Drones fit their bays, all have a small headlight and fly calmly instead of spinning around.',
+        'Dust drifts in space and streaks past when you fly fast, so you can see that you are moving.',
+        'Small loose rocks are round, lumpy stones instead of squares, and lasers, cannons and rockets can break them. Minerals become ore, plain rock turns to dust in the laser.',
+      ],
+    },
+    {
       v: 'v0.12.0', date: '2026-09-30', title: 'Ships at their real size',
       items: [
         'Ships now have real sizes: fighters 10 to 30 m, frigates about 110 m, destroyers 300 m and the battlecruiser 800 m.',

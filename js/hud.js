@@ -188,10 +188,11 @@
     const st = game.sys.station;
     ctx.fillStyle = C.ok;
     ctx.fillRect(x + (st.x - ship.x) * k - 2.5, y + (st.y - ship.y) * k - 2.5, 5, 5);
-    const g = game.sys.gate;
     ctx.strokeStyle = C.gate;
     ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(x + (g.x - ship.x) * k, y + (g.y - ship.y) * k, 3.5, 0, Math.PI * 2); ctx.stroke();
+    for (const g of RF.gatesOf(game.sys)) {
+      ctx.beginPath(); ctx.arc(x + (g.x - ship.x) * k, y + (g.y - ship.y) * k, g.key === 'gate2' ? 5.5 : 3.5, 0, Math.PI * 2); ctx.stroke();
+    }
     ctx.save();
     ctx.translate(x, y); ctx.rotate(ship.a);
     ctx.fillStyle = '#fff';
@@ -249,7 +250,7 @@
     }
     if (!ship.docked) {
       edgeMarker(ctx, game, R, game.sys.station.x, game.sys.station.y, game.sys.station.name, C.ok);
-      edgeMarker(ctx, game, R, game.sys.gate.x, game.sys.gate.y, 'Gate', C.gate);
+      for (const g of RF.gatesOf(game.sys)) edgeMarker(ctx, game, R, g.x, g.y, g.name || 'Gate', C.gate);
     }
 
     // Øverst til venstre: ett lite panel med alt om skipet.

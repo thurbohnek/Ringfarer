@@ -515,7 +515,7 @@
   function obstacleCircle(o) {
     const st = game.sys.station, gt = game.sys.gate;
     if (o.kind === 'station') return { x: st.x, y: st.y, r: 125 };
-    if (o.kind === 'gate') return { x: gt.x, y: gt.y, r: RF.GATE_R + 6 };
+    if (o.kind === 'gate') { const gg = o.gate || gt; return { x: gg.x, y: gg.y, r: gg.R + 6 }; }
     return { x: o.x, y: o.y, r: o.radius };
   }
 
@@ -739,7 +739,7 @@
     }
     ready.forEach((x, i) => {
       const T = RF.DRONE_TYPES[x.d.type];
-      const n = new RF.NPC(T.npc, game.sys);
+      const n = new RF.NPC(T.npc, game.sys, RF.droneFit(ship.body.s, x.kind, T.npc));
       n.owner = ship;
       n.data = x.d;
       n.role = T.role;
@@ -820,7 +820,7 @@
 
   // --- Porten ---
   game.dial = (destId) => {
-    const g = game.sys.gate;
+    const g = game.activeGate || game.sys.gate;
     if (g.state !== 'idle') return;
     g.state = 'dialing';
     g.t = 0;
@@ -832,8 +832,11 @@
   };
 
   function updateGate(dt) {
-    const g = game.sys.gate;
-    const R = RF.GATE_R;
+    for (const g of RF.gatesOf(game.sys)) updateOneGate(g, dt);
+  }
+
+  function updateOneGate(g, dt) {
+    const R = g.R, gk = R / RF.GATE_R;
     g.t += dt;
     if (g.state === 'dialing') {
       const ch = Math.min(7, Math.floor(g.t / 0.62));
@@ -842,7 +845,7 @@
     } else if (g.state === 'kawoosh') {
       // Alt som er foran porten i virvelen blir fordampet.
       const k = Math.sin(Math.min(1, g.t / RF.KAWOOSH_TIME) * Math.PI);
-      const L = RF.KAWOOSH_LEN * k;
+      const L = RF.KAWOOSH_LEN * k * gk;
       const cs = Math.cos(g.a), sn = Math.sin(g.a);
       for (const b of game.sys.world.bodies) {
         if (b.isStatic || b.dead) continue;
@@ -882,7 +885,7 @@
     } else if (g.state === 'open') {
       if (g.t > (g.incoming ? 5 : 38)) { g.state = 'closing'; g.t = 0; }
     } else if (g.state === 'closing') {
-      if (g.t > 0.6) { g.state = 'idle'; g.chevrons = 0; g.t = 0; g.incoming = false; g.dialedBy = null; }
+      if (g.t > 0.6) { g.state = 'idle'; g.chevrons = 0; g.t = 0; g.incoming = false; g.dialedBy = null; g.warnedWide = false; }
     }
 
     // Reise gjennom horisonten, bare forfra og bare utgående.
@@ -890,12 +893,18 @@
     const cs = Math.cos(g.a), sn = Math.sin(g.a);
     const dx = b.x - g.x, dy = b.y - g.y;
     const lx = dx * cs + dy * sn, ly = -dx * sn + dy * cs;
-    if (g.state === 'open' && !g.incoming && game._gatePrevLx > 0 && lx <= 0 && Math.abs(ly) < R - 2) {
+    // Skipet må få plass mellom sidene i ringen.
+    const half = Math.min(b.radius * 0.55, R * 0.8);
+    if (g.state === 'open' && !g.incoming && g.prevLx > 0 && lx <= 0 && Math.abs(ly) + half < R) {
       transit(g, lx, ly);
-      game._gatePrevLx = undefined;
+      g.prevLx = undefined;
       return;
     }
-    game._gatePrevLx = lx;
+    if (g.state === 'open' && !g.incoming && g.prevLx > 0 && lx <= 0 && Math.abs(ly) < R && !g.warnedWide) {
+      g.warnedWide = true;
+      game.msg(g.key === 'gate' ? 'The ship is too wide for this gate. Use the capital gate' : 'The ship is too wide for this gate', RF.HUD_COLORS.danger);
+    }
+    g.prevLx = lx;
   }
 
   // Et arbeidsskip forsvinner gjennom porten og kommer tilbake senere.
@@ -934,10 +943,11 @@
     g.state = 'closing';
     g.t = 0;
     const dest = game.getSystem(g.dest);
-    const dg = dest.gate;
+    const dg = dest[g.key] || dest.gate;
+    const gk = g.R / RF.GATE_R;
     dg.state = 'open'; dg.t = 0; dg.incoming = true; dg.chevrons = 7;
     // Rotasjon 180° i portens ramme: inn forfra her, ut forfra der.
-    const nlx = 3 - lx, nly = -ly;
+    const nlx = 3 * gk - lx, nly = -ly;
     const dcs = Math.cos(dg.a), dsn = Math.sin(dg.a);
     b.x = dg.x + nlx * dcs - nly * dsn;
     b.y = dg.y + nlx * dsn + nly * dcs;
@@ -1102,10 +1112,15 @@
       game.prompt = 'Fly into the dashed ring at the end of the docking arm';
       return;
     }
-    const g = sys.gate;
-    const gd = G.len(b.x - g.x, b.y - g.y);
-    if (gd < DIAL_RANGE) {
-      if (g.state === 'idle') { game.prompt = '[G] Dial the gate'; game.action = 'dial'; }
+    // Nærmeste port (vanlig eller kapitalport).
+    let g = null, gd = Infinity;
+    for (const x of RF.gatesOf(sys)) {
+      const d = G.len(b.x - x.x, b.y - x.y) - (x.R - RF.GATE_R) * 1.5;
+      if (d < gd) { gd = d; g = x; }
+    }
+    game.activeGate = g;
+    if (g && gd < DIAL_RANGE) {
+      if (g.state === 'idle') { game.prompt = `[G] Dial the ${g.key === 'gate2' ? 'capital gate' : 'gate'}`; game.action = 'dial'; }
       else if (g.state === 'dialing') game.prompt = `Locking chevron ${g.chevrons + 1} of 7 …`;
       else if (g.state === 'kawoosh') game.prompt = 'Keep clear of the gate!';
       else if (g.state === 'open' && !g.incoming) game.prompt = `Gate open to ${RF.systemById(g.dest).name}: fly in from the front`;

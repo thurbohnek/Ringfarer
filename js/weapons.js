@@ -100,6 +100,9 @@
             if (o.stress >= o.integrity) RF.Vox.crack(o, { x: hx, y: hy }, { x: ux, y: uy }, game);
           }
         }
+      } else if (o.rubble) {
+        // Runde klumper: smellet knuser dem (kanon og raketter bryr seg ikke om hardheten).
+        RF.Vox.hitRubble(o, 6 * k * pow, 9, { x: ux, y: uy }, game, false);
       } else if (o.ship) {
         o.ship.takeImpact(0, x, y, game, 90 * k * pow);
       } else if (o.npc) {
@@ -130,6 +133,9 @@
         o.stress += 0.35 * pow;
         if (o.stress >= o.integrity) RF.Vox.crack(o, hit, d, game);
       }
+    } else if (o.rubble) {
+      RF.Vox.hitRubble(o, 0.9 * pow, 9, d, game, false);
+      game.laserDust(hit);
     } else if (o.npc) {
       o.npc.takeImpact(6 * pow, hit.x, hit.y, game);
     } else if (o.ship) {

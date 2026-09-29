@@ -34,10 +34,66 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Planeter:** personelltransport til og fra planeter kommer senere.
 - **Droner på vei når spillet lagres** kommer hjem ved neste innlasting, men
   passasjerer de hadde med seg akkurat da, blir borte.
-- **Skipene følger spillets rutenett (2,4 m per modul).** Slagkrysseren er
-  rundt 34 m lang. Skal kapitalskipene føles større, må de skaleres opp.
-- - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
+- **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-30: v0.13.0 · Nytt lys med sol, kapitalport, rolige droner og støv som viser fart
+
+Ønske fra brukeren: dronene var for store for lukene og vimset mye, og bare
+én av to droner hadde lys. Lyskjeglen var for markant, og to lys oppå
+hverandre så rart ut. Mer realistisk lys, der det som blir belyst lyser opp,
+og gjerne en sol som lyskilde. Større skip trenger en større port, og
+passeringen gjennom porten så rar ut. Noe som viser at man er i bevegelse,
+for eksempel små partikler som ligger mer eller mindre i ro.
+
+Hva som er gjort:
+- `js/render.js` (lys): lyset er bygget om. Et eget lyslag starter med
+  sollyset i systemet (fargen fra stjerna). Steiner, skip og stasjonen kaster
+  skygge bort fra sola, men bare på andre gjenstander, ikke på planeten og
+  stjernene bak. Lamper, motorer, stråler og porten legger lys til, så to lys
+  oppå hverandre blir lysere sammen. Til slutt ganges bildet med lyslaget, så
+  det som blir belyst lyser opp. Lyskjeglene har myke kanter (flere svake
+  lag), og hver lampe regnes bare i området den lyser på.
+- `js/shipdraw.js`: lysdisen i kjeglen er mye svakere og uten skarpe kanter.
+- `js/npc.js`, `js/modules.js`: hver drone får en størrelse som passer i
+  luken, hangaren eller klemmen den bor i på akkurat det skipet
+  (`RF.droneFit`). Alle droner har en liten lykt foran (før hadde bare
+  reparasjonsdronen det, fordi den har en lampe-modul). Styringen regner med
+  at bremsen er svakere enn hovedmotoren, små justeringer tas med dysene uten
+  å snu, og dronene snur rolig. Dronene som venter, ligger stille ved siden av
+  skipet med nesen samme vei.
+- `js/world.js`, `js/game.js`, `js/render.js`, `js/hud.js`: hvert system har
+  fått en kapitalport (840 m i diameter) et godt stykke fra stasjonen, i
+  tillegg til den vanlige. Den vises på radaren og som markør i kanten av
+  skjermen. Skip som er for brede for porten, får beskjed. Man kommer ut av
+  samme type port i neste system.
+- `js/render.js` (port): delen av skipet som har gått gjennom horisonten,
+  synes ikke, og resten tegnes oppå horisonten, så det ser ut som skipet
+  glir inn i den.
+- `js/render.js` (bevegelse): støvkorn som ligger i ro i rommet. Når skipet
+  flyr fort, trekkes de ut til korte striper.
+- Nytt ønske underveis (med skjermbilde): «Disse firkantede steinene er ikke
+  realistisk. Annen utforming må de ha. De må også kunne bli ødelagt av en
+  laser. Kommer selfølgelig ant på hva slags material de er av.»
+  `js/voxel.js`, `js/world.js`: løse steiner under 140 m² var grove biter av
+  asteroidens rutenett, og ble derfor firkantede. Nå blir de ujevne, runde
+  klumper av samme materiale og størrelse (`RF.RUBBLE_AREA`).
+  `js/ship.js`, `js/npc.js`, `js/weapons.js`: laser, bor og droner varmer
+  opp klumpene til de knuses, hvis laseren er sterk nok for materialet.
+  Kanon og raketter knuser alt. Klumpen deler seg i mindre biter: mineraler
+  blir malm, og gråstein fra laseren fordamper.
+- `js/render.js` (ytelse): hver lampe regnes bare i området den lyser på,
+  lyslaget har litt lavere oppløsning, støvet tegnes samlet, og skyggeformene
+  fra sola lagres til steinen har snudd seg.
+- `js/news.js`, `index.html`: nyheter og versjon v0.13.0.
+
+Testet:
+- Dronene: snittlig dreiefart gikk fra 1,1 til 0,2–0,4 rad/s. Tre små droner
+  fra Warren fløy ut og kom hjem igjen på 12 sekunder.
+- Porten: Warren fløy gjennom den vanlige porten til Vanaheim, og
+  Thunderhold gjennom kapitalporten tilbake til Midgard.
+- Skyggene fra sola ligger på steiner og skip, ikke over planeten.
+- Ingen feil i konsollen.
 
 ## 2026-09-30: v0.12.0 · Skipene i virkelig størrelse, store våpen og utstyr
 
