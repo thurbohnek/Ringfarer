@@ -43,8 +43,8 @@
     },
     dro: {
       name: 'Drones', color: '#b58cf0', pal: PAL.dro,
-      bonus: '+50 % drone capacity, drones work 25 % faster',
-      apply(st) { st.bays = Math.ceil(st.bays * 1.5); st.droneMul *= 1.25; },
+      bonus: 'Each drone bay holds two small drones, and drones work 25 % faster',
+      apply(st) { st.bayPer = 2; st.bays = st.bayS * 2 + st.hangars * 2 + st.clamps; st.droneMul *= 1.25; },
     },
     fig: {
       name: 'Fighters', color: '#f07a6a', pal: PAL.mil,
@@ -79,10 +79,10 @@
       sym([[0, 'thruster', 'rcs'], [1, 'fuel', 'airlock'], [2, 'cabin', 'frame'], [3, 'cockpit']])],
     ['ferrier', 'pax', 2, 'Ferrier P-10', 'Ferry', 18000, 'Ten seats, shield bow and airlocks on both sides.',
       sym([[0, 'thruster', 'thruster'], [1, 'fuel', 'fuel'], [2, 'lifesup', 'cabin', 'rcs'], [3, 'cabin', 'frame', 'airlock'], [4, 'shield', 'cabin'], [5, 'cockpit', 'light']])],
-    ['coach', 'pax', 3, 'Coachliner P-80', 'Liner', 55000, 'Habitat block well away from the engines.',
-      sym([[0, 'thruster2', 'thruster2'], [1, 'fuel', 'fuel'], [2, 'reactor', 'fuel'], [3, 'frame', 'rcs'], [4, 'lifesup', 'hab', 'airlock'], [5, 'hab', 'hab'], [6, 'hab', 'frame', 'airlock'], [7, 'shield', 'hab', 'rcs'], [8, 'cockpit', 'light']])],
+    ['coach', 'pax', 3, 'Coachliner P-80', 'Liner', 55000, 'Habitat block well away from the engines, and clamps for two shuttles.',
+      sym([[0, 'thruster2', 'thruster2'], [1, 'fuel', 'fuel'], [2, 'reactor', 'fuel'], [3, 'frame', 'droneclamp'], [4, 'lifesup', 'hab', 'airlock'], [5, 'hab', 'hab'], [6, 'hab', 'frame', 'airlock'], [7, 'shield', 'hab', 'rcs'], [8, 'cockpit', 'light']])],
     ['tide', 'pax', 4, 'Tidewater P-290', 'Passenger liner', 160000, 'Long spine, six airlocks and three life-support cores.',
-      sym([[0, 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'fuel'], [2, 'reactor', 'fuel', 'rcs'], [3, 'frame', 'frame'], [4, 'frame'], [5, 'lifesup', 'hab', 'hab', 'hab'], [6, 'hab', 'hab', 'hab', 'airlock'], [7, 'hab', 'hab', 'frame', 'hab'], [8, 'lifesup', 'hab', 'hab', 'airlock'], [9, 'hab', 'frame', 'hab', 'hab'], [10, 'lifesup', 'hab', 'hab', 'airlock'], [11, 'shield', 'shield', 'armor'], [12, 'cockpit', 'light']])],
+      sym([[0, 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'fuel'], [2, 'reactor', 'fuel', 'rcs'], [3, 'frame', 'droneclamp'], [4, 'frame'], [5, 'lifesup', 'hab', 'hab', 'hab'], [6, 'hab', 'hab', 'hab', 'airlock'], [7, 'hab', 'hab', 'frame', 'hab'], [8, 'lifesup', 'hab', 'hab', 'airlock'], [9, 'hab', 'frame', 'hab', 'hab'], [10, 'lifesup', 'hab', 'hab', 'airlock'], [11, 'shield', 'shield', 'armor'], [12, 'cockpit', 'light']])],
     ['ark', 'pax', 5, 'Arkhaven P-1000', 'Colony ship', 450000, 'Carries a whole settlement: awake crew in the middle, colonists in cryo berths on the flanks.',
       sym([[0, 'thruster2', 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'fuel', 'fuel'], [2, 'reactor', 'fuel', 'fuel', 'rcs'], [3, 'reactor', 'frame'], [4, 'frame'], [5, 'frame'],
         [6, 'lifesup', 'hab', 'hab', 'cryo', 'cryo'], [7, 'hab', 'hab', 'hab', 'cryo', 'airlock'], [8, 'lifesup', 'hab', 'hab', 'cryo', 'cryo'], [9, 'lifesup', 'hangar', 'hab', 'cryo', 'cryo'], [10, 'hab', 'hangar', 'hab', 'cryo', 'airlock'],
@@ -93,10 +93,10 @@
       sym([[0, 'thruster', 'thruster'], [1, 'fuel', 'fuel'], [2, 'cargo2', 'cargo2'], [3, 'cargo2', 'cargo2', 'rcs'], [4, 'cockpit', 'cargo'], [5, 'tractor']])],
     ['caravan', 'frt', 3, 'Caravan F-3', 'Freighter', 30000, 'Large holds, its own processor and a harpoon.',
       sym([[0, 'thruster2', 'thruster2', 'thruster'], [1, 'fuel', 'fuel', 'rcs'], [2, 'refinery', 'cargo2', 'cargo2'], [3, 'cargo2', 'cargo2', 'cargo2'], [4, 'cargo2', 'cargo2', 'cargo'], [5, 'frame', 'shield', 'rcs'], [6, 'cockpit', 'tractor'], [7, 'anchor']])],
-    ['longhaul', 'frt', 4, 'Longhaul F-4', 'Container ship', 80000, 'Open spine with container racks on both sides.',
-      sym([[0, 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'rcs'], [2, 'reactor', 'frame'], ...rep(7, 3, ['frame', 'cargo2', 'cargo2', 'cargo2']), [10, 'frame', 'tractor', 'rcs'], [11, 'cockpit']])],
+    ['longhaul', 'frt', 4, 'Longhaul F-4', 'Container ship', 80000, 'Open spine with container racks on both sides, and clamps for two cargo drones.',
+      sym([[0, 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'rcs'], [2, 'reactor', 'droneclamp'], ...rep(7, 3, ['frame', 'cargo2', 'cargo2', 'cargo2']), [10, 'frame', 'tractor', 'rcs'], [11, 'cockpit']])],
     ['stonewain', 'frt', 5, 'Stonewain F-5', 'Bulk carrier', 220000, "Moves a station's worth of goods. Loader drones.",
-      sym([[0, 'thruster2', 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'fuel', 'rcs'], [2, 'reactor', 'reactor', 'fuel'], [3, 'frame', 'frame'], ...rep(4, 4, ['frame', 'cargo2', 'cargo2', 'cargo2', 'cargo2']),
+      sym([[0, 'thruster2', 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'fuel', 'rcs'], [2, 'reactor', 'reactor', 'fuel'], [3, 'frame', 'frame', 'droneclamp'], ...rep(4, 4, ['frame', 'cargo2', 'cargo2', 'cargo2', 'cargo2']),
         [8, 'lifesup', 'frame', 'frame', 'frame', 'airlock'], ...rep(4, 9, ['frame', 'cargo2', 'cargo2', 'cargo2', 'cargo2']), [13, 'shield', 'dronebay', 'tractor', 'rcs'], [14, 'cockpit', 'shield']])],
     ['pickaxe', 'min', 2, 'Pickaxe M-2', 'Prospector', 9000, 'Laser, drill and a small processor.',
       sym([[0, null, 'thruster'], [1, 'frame', 'fuel'], [2, 'refinery', 'cargo'], [3, 'cockpit', 'frame', 'light'], [4, 'laser', 'drill']])],
@@ -204,8 +204,6 @@
       if (t.id === 'racks') st.tradeMul = 1.1;
     }
     st.maxW = Math.min(st.maxW, 4);
-    // Så mange droner går det an å styre samtidig.
-    st.bays = Math.min(st.bays, 30);
     return st;
   };
 })();

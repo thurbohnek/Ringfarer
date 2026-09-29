@@ -80,6 +80,7 @@
       if (game.touchUI) UI.setTouch(true);
       window.addEventListener('touchstart', () => { if (!game.touchUI) UI.setTouch(true); }, { passive: true });
       UI.openTitle();
+      startUpdateWatch();
     },
 
     setTouch(on) {
@@ -109,6 +110,10 @@
 
     openTitle() {
       const cont = game.hasSave();
+      const news = RF.unseenNews(seenNews());
+      const newsHtml = news.length ? `<section class="news" aria-label="What's new">
+            ${news.map((n) => `<h3>What's new in ${esc(n.v)} · ${esc(n.title)}</h3><ul>${n.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
+          </section>` : '';
       show('title', `
         <div class="title-card">
           <p class="eyebrow">Mining · hauling · the ring gate</p>
@@ -121,7 +126,17 @@
             <button class="menu-item" data-act="new"><b>New career</b><span>Start small with a Skiff MK-I</span></button>
             <button class="menu-item" data-act="help"><b>Controls</b><span>Keys, touch and tips</span></button>
           </nav>
-          <p class="version num">Version ${esc(RF.VERSION)}</p>
+          ${newsHtml}
+          <p class="version num">Version ${esc(RF.VERSION)} · <button class="linkbtn" data-act="news">All updates</button></p>
+        </div>`);
+    },
+
+    openNews() {
+      markNewsSeen();
+      show('help', `
+        <div class="card plate help-card"><div class="hazard"></div>
+          <div class="card-head"><h2>Updates</h2><button class="btn ghost" data-act="title">✕ Close</button></div>
+          <section class="news">${RF.NEWS.map((n) => `<h3>${esc(n.v)} · ${esc(n.title)} <span class="muted small">${esc(n.date)}</span></h3><ul>${n.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}</section>
         </div>`);
     },
 
@@ -148,7 +163,8 @@
             <li><b>Harpoon:</b> fires a hook on a cable that sticks to whatever it hits. Winch in to land, or thrust and tow the comet wherever you like.</li>
             <li><b>Damage:</b> modules that get hit take damage and can break off. Lose the cockpit and the ship is lost. Salvage can be pulled in with the tractor and sold as scrap.</li>
             <li><b>Equipment:</b> at a station you buy lasers, drill heads, cannons, rockets, harpoons, lights, cargo space and more. It is fitted automatically where there is room on the hull and shows on the ship. Need more room? Buy a bigger ship at the shipyard.</li>
-            <li><b>Drones:</b> buy a drone bay and a drone. The mining drone drills and brings ore to you, the repair drone fixes the ship. They can also be sent on expeditions from the station.</li>
+            <li><b>Drones:</b> drones come in three sizes. Small ones live in drone bays, medium ones in hangar decks and large ones on docking clamps outside the hull. Press K to launch them: the doors open and they fly out. Press K again to call them home, and they fly back and dock. Mining and collector drones bring ore, repair drones fix the ship, guard drones burn rocks heading for you, cargo drones sell goods at the station and shuttles fly passengers and crew to the station or to other ships.</li>
+            <li><b>Passengers:</b> fit passenger cabins or habitat modules (and life support for more than a handful) and take passenger contracts. Passengers leave when you dock at their station, or a shuttle drone can fly them over. Crew changes out to freighters need a shuttle drone.</li>
           </ul>
           <div class="row"><button class="btn primary" data-act="${back}" data-autofocus>Back</button></div>
         </div>`);
@@ -572,6 +588,46 @@
     renderStation();
   }
 
+  // ---------- Oppdateringer ----------
+  // Hvilke nyheter spilleren har sett (versjonen lagres i nettleseren).
+  const NEWS_KEY = 'ringfarer-news-seen';
+  function seenNews() { try { return localStorage.getItem(NEWS_KEY); } catch (_) { return null; } }
+  function markNewsSeen() { try { localStorage.setItem(NEWS_KEY, RF.NEWS[0].v); } catch (_) { /* ikke så farlig */ } }
+
+  // Se etter en nyere versjon hvert tredje minutt, og når fanen blir synlig
+  // igjen. Varselet er lite og ligger under radaren, så det ikke er i veien.
+  function startUpdateWatch() {
+    const cur = RF.VERSION.split(' ')[0];
+    let shown = null;
+    const check = async () => {
+      const v = await RF.checkForUpdate();
+      if (!v) return;
+      const nv = v.split(' ')[0];
+      if (nv === cur || nv === shown) return;
+      shown = nv;
+      let el = $('#update-note');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'update-note';
+        el.setAttribute('role', 'status');
+        document.body.appendChild(el);
+        el.addEventListener('click', (e) => {
+          const b = e.target.closest('button');
+          if (!b) return;
+          if (b.dataset.u === 'close') { el.hidden = true; return; }
+          if (game.state === 'play') game.save();
+          location.reload();
+        });
+      }
+      el.innerHTML = `<span><b>Update ${esc(nv)} is ready</b><small>Reload to play it. Your game is saved.</small></span>
+        <button class="btn sm primary" data-u="reload">Reload</button><button class="x" data-u="close" aria-label="Hide">✕</button>`;
+      el.hidden = false;
+    };
+    setTimeout(check, 20000);
+    setInterval(check, 180000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+  }
+
   // ---------- Verft ----------
 
   // Egenskapene til et skip slik det leveres fra verftet (med klassebonus).
@@ -648,30 +704,40 @@
   const TRIP = 180000; // 3 minutter
 
   function droneTab() {
-    const ship = game.ship, s = ship.s, bays = ship.stats.bays;
+    const ship = game.ship, s = ship.s, st = ship.stats;
     const now = Date.now();
-    const list = s.drones.map((d, i) => {
+    const slots = RF.fitDrones(s.layout, st, s.drones).slots;
+    const where = { bay: 'drone bay', hangar: 'hangar deck', clamp: 'docking clamp' };
+    const list = slots.map(({ d, kind }) => {
+      const i = s.drones.indexOf(d);
       const T = RF.DRONE_TYPES[d.type];
-      let status = 'Aboard', btn = `<button class="btn sm" data-act="trip" data-id="${i}">Send on expedition (3 min)</button>`;
+      let status = 'Aboard in the ' + where[kind];
+      let btn = T.trip ? `<button class="btn sm" data-act="trip" data-id="${i}">Send on expedition (3 min)</button>` : '';
       if (d.trip) {
         const left = d.trip.end - now;
         if (left > 0) { status = `On expedition, back in ${Math.ceil(left / 60000)} min`; btn = ''; }
         else { status = 'Back from expedition'; btn = `<button class="btn sm primary" data-act="tripdone" data-id="${i}">Collect</button>`; }
       }
-      return `<li class="mission"><div><b>${esc(T.name)}</b><span class="muted">${esc(status)}</span></div>
+      return `<li class="mission"><div><span class="tag">${RF.DRONE_SIZES[T.size]} · ${RF.DRONE_ROLES[T.role]}</span><b>${esc(T.name)}</b><span class="muted">${esc(status)}</span></div>
         <div class="m-side">${btn}<button class="btn sm ghost" data-act="selldrone" data-id="${i}" ${d.trip ? 'disabled' : ''}>Sell</button></div></li>`;
     }).join('');
-    const free = bays - s.drones.length;
-    return `<p class="small">Drone bays on the ship: <b>${bays}</b>. Drones aboard: <b>${s.drones.length}</b>.
-      ${bays ? 'Launch them with K (or ⋯ → Drones on touch).' : 'Buy a drone bay under Equipment to make room for drones.'}</p>
-      <ul class="missions">${list || '<li class="muted">No drones yet.</li>'}</ul>
-      <h3>Buy a drone</h3>
-      <ul class="missions">${Object.keys(RF.DRONE_TYPES).map((k) => {
+    const room = `Drone bays: <b>${st.bayS}</b>${st.bayPer > 1 ? ' (two small drones each)' : ''} · hangar decks: <b>${st.hangars}</b> · docking clamps: <b>${st.clamps}</b>`;
+    const buy = ['S', 'M', 'L'].map((z) => {
+      const items = Object.keys(RF.DRONE_TYPES).filter((k) => RF.DRONE_TYPES[k].size === z).map((k) => {
         const T = RF.DRONE_TYPES[k];
-        return `<li class="mission"><div><b>${esc(T.name)}</b><span class="muted">${esc(T.desc)}</span></div>
-          <div class="m-side"><button class="btn sm" data-act="buydrone" data-id="${k}" ${free <= 0 || game.credits < T.cost ? 'disabled' : ''}>${free <= 0 ? 'No free bay' : 'Buy · ' + kr(T.cost)}</button></div></li>`;
-      }).join('')}</ul>
-      <p class="muted small">On an expedition the drone heads to distant fields and comes back with ore or payment. About one in ten never returns.</p>`;
+        const fits = RF.fitDrones(s.layout, st, s.drones.concat([{ type: k }])).ok;
+        const need = z === 'S' ? 'a free drone bay or hangar deck' : z === 'M' ? 'a free hangar deck or docking clamp' : 'a free docking clamp';
+        return `<li class="mission"><div><span class="tag">${RF.DRONE_SIZES[T.size]} · ${RF.DRONE_ROLES[T.role]}</span><b>${esc(T.name)}</b><span class="muted">${esc(T.desc)}</span>
+          ${fits ? '' : `<span class="muted small">Needs ${need}.</span>`}</div>
+          <div class="m-side"><button class="btn sm" data-act="buydrone" data-id="${k}" ${!fits || game.credits < T.cost ? 'disabled' : ''}>${!fits ? 'No room' : 'Buy · ' + kr(T.cost)}</button></div></li>`;
+      }).join('');
+      return `<h3>${RF.DRONE_SIZES[z]} drones</h3><ul class="missions">${items}</ul>`;
+    }).join('');
+    return `<p class="small">${room}. Drones aboard: <b>${s.drones.length}</b>.
+      ${st.bays ? 'Launch them with K (or ⋯ → Drones on touch). Press again to call them home: they fly back and dock.' : 'Buy a drone bay, hangar deck or docking clamp under Equipment to make room for drones.'}</p>
+      <ul class="missions">${list || '<li class="muted">No drones yet.</li>'}</ul>
+      ${buy}
+      <p class="muted small">Small drones live inside drone bays or hangar decks, medium ones in a hangar deck or on a clamp, large ones on a docking clamp outside the hull. On an expedition a small drone heads to distant fields and comes back with ore or payment. About one in ten never returns.</p>`;
   }
 
   function tripResult(d) {
@@ -682,7 +748,7 @@
       return;
     }
     d.trip = null;
-    if (d.type === 'gruve') {
+    if (d.type === 'gruve' || d.type === 'gleaner') {
       const prod = G.pick(['jern', 'silisium', 'nikkel', 'kobber', 'vann', 'titan']);
       const t = G.rand(3, 9);
       const room = Math.max(0, game.ship.holdFree());
@@ -715,15 +781,20 @@
         <button class="btn sm ghost" data-act="abandon" data-id="${m.id}">Abandon</button></div></li>`;
     }).join('') : '<li class="muted">No active contracts.</li>';
     const free = game.ship.holdFree();
+    const seats = game.paxFree(), cap = game.ship.stats.paxCap || 0;
     const offerHtml = offers.map((m) => {
       const needs = m.type === 'frakt' ? m.mass : 0;
-      const block = active.length >= 3 ? 'Max 3 active' : needs > free + 1e-6 ? 'Not enough room' : '';
-      const tag = m.type === 'frakt' ? (m.fragile ? `<span class="tag warn">Fragile · max ${m.maxDv} m/s</span>` : '<span class="tag">Haul</span>') : '<span class="tag ok">Delivery</span>';
+      const people = m.type === 'crew' || (m.type === 'pax' && m.from === st.id) ? m.n : 0;
+      const block = active.length >= 3 ? 'Max 3 active' : needs > free + 1e-6 ? 'Not enough room'
+        : m.type === 'pax' && m.n > cap ? `Needs ${m.n} seats` : people > seats ? `Needs ${people} free seats` : '';
+      const tag = m.type === 'frakt' ? (m.fragile ? `<span class="tag warn">Fragile · max ${m.maxDv} m/s</span>` : '<span class="tag">Haul</span>')
+        : m.type === 'pax' ? `<span class="tag">${m.pickup ? 'Pickup' : 'Passengers'} · ${m.n}</span>` : m.type === 'crew' ? `<span class="tag warn">Crew change · needs a shuttle drone</span>` : '<span class="tag ok">Delivery</span>';
       return `<li class="mission"><div>${tag}<b>${esc(RF.missionShort(m))}</b><span class="muted">${esc(RF.missionDetail(m))}</span></div>
         <div class="m-side"><span class="num reward">${kr(m.reward)}</span>
         <button class="btn sm" data-act="accept" data-id="${m.id}" ${block ? 'disabled' : ''}>${block || 'Accept'}</button></div></li>`;
     }).join('');
-    return `<h3>Active</h3><ul class="missions">${activeHtml}</ul><h3>Contract board</h3><ul class="missions">${offerHtml}</ul>`;
+    const seatInfo = cap ? `<p class="small">Passenger seats: <b>${cap - seats}</b> taken of <b>${cap}</b>.</p>` : '<p class="small muted">This ship has no passenger seats. Passenger cabins and habitat modules are under Equipment → Passengers.</p>';
+    return `<h3>Active</h3><ul class="missions">${activeHtml}</ul><h3>Contract board</h3>${seatInfo}<ul class="missions">${offerHtml}</ul>`;
   }
 
   // ---------- Klikk ----------
@@ -737,9 +808,10 @@
     const s = ship && ship.s;
     const st = ship && ship.docked;
     switch (act) {
-      case 'new': game.start(false); UI.openStation(); break;
-      case 'test': game.start(false, true); UI.openStation(); break;
-      case 'continue': game.start(true); UI.openStation(); break;
+      case 'new': markNewsSeen(); game.start(false); UI.openStation(); break;
+      case 'test': markNewsSeen(); game.start(false, true); UI.openStation(); break;
+      case 'continue': markNewsSeen(); game.start(true); UI.openStation(); break;
+      case 'news': UI.openNews(); break;
       case 'help': UI.openHelp(); break;
       case 'title': UI.openTitle(); break;
       case 'close':
@@ -793,7 +865,7 @@
         break;
       case 'buydrone': {
         const T = RF.DRONE_TYPES[id];
-        if (game.credits >= T.cost && s.drones.length < ship.stats.bays) { game.credits -= T.cost; s.drones.push({ type: id }); }
+        if (game.credits >= T.cost && RF.fitDrones(s.layout, ship.stats, s.drones.concat([{ type: id }])).ok) { game.credits -= T.cost; s.drones.push({ type: id }); }
         after();
         break;
       }
@@ -813,6 +885,8 @@
         game.boards[st.id] = board.filter((x) => x !== m);
         game.missions.push(m);
         if (m.type === 'frakt') s.missionCargo.push({ missionId: m.id, name: m.goods, mass: m.mass });
+        // Passasjerer og mannskap går om bord med en gang hvis de er her.
+        if ((m.type === 'pax' || m.type === 'crew') && m.from === st.id) { const k = Math.min(m.wait, game.paxFree()); m.wait -= k; m.aboard += k; }
         game.msg('Contract accepted: ' + RF.missionTitle(m), RF.HUD_COLORS.gate);
         after();
         break;

@@ -52,3 +52,11 @@
 - Interne id-er i koden (for eksempel `fjell` eller `jern`) kan være norske,
   men de skal aldri vises for spilleren.
 - Kommentarer i koden, `ENDRINGER.md` og svarene til brukeren er på norsk.
+
+## Nyheter for spillerne
+
+- Hver oppdatering får en kort oppføring øverst i `RF.NEWS` i `js/news.js`,
+  på engelsk og skrevet for den som spiller (3–5 korte punkter). `v` skal
+  være lik første del av `RF_VERSION` i `index.html`.
+- Spillet viser nyhetene på tittelskjermen første gang det startes etter en
+  oppdatering, og et lite varsel i hjørnet når en ny versjon er lagt ut.

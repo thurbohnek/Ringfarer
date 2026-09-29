@@ -26,13 +26,72 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   Jern, silisium og grafitt kommer nå bare fra biter som løsner når steinen
   sprekker, eller fra kanon og raketter. Si fra om det gjør det for vanskelig
   å tjene penger i starten.
-- **Passasjerer har ingen oppdrag ennå.** Skipene har plass til
-  passasjerer, men det finnes ikke passasjeroppdrag. Det er neste naturlige
-  steg for personell-linjen.
+- **Planeter:** personelltransport til og fra planeter kommer senere.
+- **Droner på vei når spillet lagres** kommer hjem ved neste innlasting, men
+  passasjerer de hadde med seg akkurat da, blir borte.
 - **Skipene følger spillets rutenett (2,4 m per modul).** Slagkrysseren er
   rundt 34 m lang. Skal kapitalskipene føles større, må de skaleres opp.
 - - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-29: v0.11.0 · Oppdateringsnyheter, droner i tre størrelser, passasjerer og mannskapsbytte
+
+Ønsker fra brukeren: et kort sammendrag for spillerne av hva som er endret
+når spillet starter etter en oppdatering, og et varsel i spillet (et sted
+det ikke er i veien) når en ny versjon er lagt ut. Droner i ulike størrelser
+som passer til skipet, kobler seg fra og dokker til skipet igjen. Noen skip
+har en luke som åpnes og lukkes der dronene flyr ut og inn. Droner som
+beskytter skipet, henter ressurser, hjelper til med gruvedrift, frakter
+varer, frakter personell fra skip til skip og til og fra stasjoner.
+Planeter kommer senere.
+
+Hva som er gjort:
+- `js/news.js` (ny): korte nyheter på engelsk for hver versjon. Tittelskjermen
+  viser det som er nytt siden sist spilleren startet spillet, og «All
+  updates» viser hele listen. Spillet sjekker hvert tredje minutt (og når
+  fanen blir synlig igjen) om `index.html` på nettet har et nyere
+  versjonsnummer. Da kommer et lite varsel under radaren med knappen
+  «Reload» (spillet lagres først) og et kryss for å skjule det.
+- `js/modules.js`: dronene har størrelse og rolle. Små (Mite gruvedrone,
+  Mender reparasjonsdrone, Gleaner innsamler) bor i dronerom. Mellomstore
+  (Burrower tung gruvedrone, Picket vaktdrone, Tern mannskapsskyttel) bor i
+  hangardekk eller på en klemme. Store (Porter lastedrone, Ferryman
+  passasjerlander) sitter på en ny modul, dokkingklemme, utenpå skroget.
+  `RF.fitDrones` fordeler dronene og sjekker at de får plass.
+- `js/npc.js`: dronene er mindre utgaver av skip (størrelse, treghet og
+  tegning skaleres). De venter til luken er åpen, flyr ut gjennom åpningen
+  og tilbake til den, og legger seg inntil klemmen når de dokker. Nye jobber:
+  vakt (brenner småstein og vrakbiter på kollisjonskurs), innsamling,
+  lastetur til stasjonen (selger varene og flyr tilbake), passasjertur til og
+  fra stasjonen, og mannskapsbytte ut til et frakteskip. Droner deler ikke
+  på samme oppgave. Rutingen rundt stasjonen er rettet, så droner og skip
+  ikke flyr inn i den når de starter nær stasjonen.
+- `js/shipdraw.js`, `js/render.js`: luker som glir til sidene over dronerom
+  og hangardekk, med varsellys mens de går. Tegning av dokkingklemmen, og av
+  dronene som sitter på den.
+- `js/game.js`: K sender ut alle droner, og kaller dem hjem hvis noen er ute.
+  Egne droner kolliderer ikke med sitt eget skip eller andre droner.
+  Passasjerer går av og på når man dokker. Ved skipsbytte beholdes dronene
+  som får plass, resten selges.
+- `js/missions.js`, `js/ui.js`: nye oppdrag: passasjerer til en annen
+  stasjon, passasjerer som hentes på en annen stasjon, og mannskapsbytte til
+  et frakteskip i systemet (krever skyttel-drone). Dronemenyen viser
+  størrelse, rolle og hvor dronen bor, og om det er plass til en ny.
+  Oppdragsmenyen viser ledige passasjerplasser.
+- `js/classes.js`: klemmer på Coachliner, Tidewater, Longhaul og Stonewain.
+  Drone-linjens bonus er nå at hvert dronerom rommer to små droner.
+- `CLAUDE.md`: regel om at hver oppdatering får en kort nyhet i `js/news.js`.
+- `index.html`: versjon v0.11.0, stil for nyheter og varsel.
+
+Testet:
+- Testskipet sender ut fem droner. Lukene åpnes, dronene flyr ut, og alle
+  kommer tilbake og dokker når de kalles hjem.
+- Lastedronen fløy rundt stasjonen, inn i lasteporten, solgte 25 t og kom
+  tilbake.
+- Passasjerlanderen leverte 6 passasjerer og hentet 4. Skyttelen fløy 3
+  mannskap ut til et frakteskip. Oppdragene ble betalt.
+- Nyheter på tittelskjermen og varselet om ny versjon ser riktige ut på PC
+  og mobil. Ingen feil i konsollen.
 
 ## 2026-09-29: v0.10.0 · Skipsklasser: 28 skip i seks linjer, klassebonuser og fordeler fra formen
 

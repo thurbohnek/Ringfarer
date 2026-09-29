@@ -1,4 +1,6 @@
-// Oppdrag: frakt (last fra A til B, noen ganger skjør) og levering av råvarer.
+// Oppdrag: frakt (last fra A til B, noen ganger skjør), levering av råvarer,
+// passasjerer (fra stasjon til stasjon, eller hentes på en annen stasjon) og
+// mannskapsbytte ut til et frakteskip (bare med en skyttel-drone).
 (function () {
   'use strict';
   const RF = (window.RF = window.RF || {});
@@ -18,10 +20,31 @@
 
   RF.stationName = (id) => RF.stationById(id).station.name;
 
-  RF.genMission = (fromId) => {
+  // haulers: navnene på frakteskipene i systemet (til mannskapsbytte).
+  RF.genMission = (fromId, haulers = []) => {
     const others = RF.SYSTEMS.filter((s) => s.station.id !== fromId).map((s) => s.station.id);
     const risky = (id) => (id === 'muspel' ? 1.45 : 1);
-    if (Math.random() < 0.55) {
+    const r = Math.random();
+    if (r < 0.2) {
+      // Passasjerer herfra til en annen stasjon.
+      const to = G.pick(others);
+      const n = G.pick([2, 3, 4, 6, 8, 12, 20, 30, 40]);
+      const reward = Math.round(((150 + n * 70) * risky(to)) / 10) * 10;
+      return { id: nextId++, type: 'pax', from: fromId, to, n, wait: n, aboard: 0, moved: 0, reward, status: 'tilbud' };
+    }
+    if (r < 0.28) {
+      // Passasjerer som venter på en annen stasjon og skal hit.
+      const from = G.pick(others);
+      const n = G.pick([2, 4, 6, 10, 16]);
+      const reward = Math.round(((260 + n * 95) * risky(from)) / 10) * 10;
+      return { id: nextId++, type: 'pax', from, to: fromId, n, wait: n, aboard: 0, moved: 0, reward, status: 'tilbud', pickup: true };
+    }
+    if (r < 0.36 && haulers.length) {
+      const n = G.randInt(2, 6);
+      const reward = Math.round((350 + n * 110) / 10) * 10;
+      return { id: nextId++, type: 'crew', from: fromId, to: fromId, ship: G.pick(haulers), n, wait: n, aboard: 0, moved: 0, reward, status: 'tilbud' };
+    }
+    if (r < 0.7) {
       const g = G.pick(GOODS);
       const to = G.pick(others);
       const mass = G.randInt(2, 8);
@@ -42,14 +65,26 @@
 
   RF.missionTitle = (m) => {
     if (m.type === 'frakt') return `Haul ${m.mass} t of ${m.goods.toLowerCase()}`;
+    if (m.type === 'pax') return m.pickup ? `Pick up ${m.n} passengers at ${RF.stationName(m.from)}` : `Fly ${m.n} passengers`;
+    if (m.type === 'crew') return `Crew change: ${m.n} crew to the ${m.ship}`;
     return `Deliver ${m.amount} t of ${RF.PRODUCTS[m.product].name.toLowerCase()}`;
   };
 
-  RF.missionShort = (m) => `${RF.missionTitle(m)} → ${RF.stationName(m.to)}`;
+  RF.missionShort = (m) => (m.type === 'crew' ? RF.missionTitle(m) : `${RF.missionTitle(m)} → ${RF.stationName(m.to)}`);
 
   RF.missionDetail = (m) => {
     const to = RF.stationById(m.to);
     const where = `${to.station.name} (${to.name})`;
+    if (m.type === 'pax') {
+      const from = RF.stationById(m.from);
+      const state = m.status === 'aktiv' ? ` Waiting: ${m.wait} · aboard: ${m.aboard} · delivered: ${m.moved}.` : '';
+      if (m.wait > 0 && m.from !== m.to && (m.pickup || m.status !== 'aktiv'))
+        return `They wait at ${from.station.name} (${from.name}). They board when you dock there, or a shuttle drone can fetch them. Then bring them to ${where}.${state}`;
+      return `They leave the ship when you dock at ${where}, or when a shuttle drone flies them over.${state}`;
+    }
+    if (m.type === 'crew') {
+      return `The crew board now. The ${m.ship} flies around ${RF.stationById(m.from).name}. Only a crew shuttle drone can take them over: fly close and launch it.${m.status === 'aktiv' ? ` Aboard: ${m.aboard} · delivered: ${m.moved}.` : ''}`;
+    }
     if (m.type === 'frakt') {
       let s = `Loaded now, delivered automatically when you dock at ${where}.`;
       if (m.fragile) s += ` Fragile cargo: a single impact above ${m.maxDv} m/s destroys it.`;

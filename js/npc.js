@@ -15,6 +15,16 @@
     // Spillerens egne droner.
     helper: { name: 'Mining drone', mass: 5000, thrust: 110e3, torque: 0.35e6, hull: 40, maxSpeed: 20, own: true },
     repair: { name: 'Repair drone', mass: 4500, thrust: 110e3, torque: 0.35e6, hull: 40, maxSpeed: 22, own: true },
+    // Spillerens droner i tre størrelser. scale = hvor mye mindre de tegnes
+    // og er enn et vanlig skip bygget av de samme modulene.
+    mite: { name: 'Mite', mass: 1500, thrust: 60e3, torque: 0.05e6, hull: 30, maxSpeed: 22, own: true, scale: 0.34, laser: { power: 0.6, tier: 1 }, cargo: 2500 },
+    mender: { name: 'Mender', mass: 1500, thrust: 60e3, torque: 0.05e6, hull: 30, maxSpeed: 24, own: true, scale: 0.34 },
+    gleaner: { name: 'Gleaner', mass: 1800, thrust: 70e3, torque: 0.06e6, hull: 35, maxSpeed: 24, own: true, scale: 0.34, cargo: 3000 },
+    burrower: { name: 'Burrower', mass: 5000, thrust: 170e3, torque: 0.3e6, hull: 80, maxSpeed: 20, own: true, scale: 0.48, laser: { power: 1.4, tier: 2 }, cargo: 6000 },
+    picket: { name: 'Picket', mass: 4000, thrust: 190e3, torque: 0.3e6, hull: 100, maxSpeed: 34, own: true, scale: 0.48 },
+    tern: { name: 'Tern', mass: 4500, thrust: 170e3, torque: 0.3e6, hull: 70, maxSpeed: 30, own: true, scale: 0.48 },
+    porter: { name: 'Porter', mass: 12000, thrust: 360e3, torque: 1.1e6, hull: 150, maxSpeed: 28, own: true, scale: 0.62 },
+    ferryman: { name: 'Ferryman', mass: 13000, thrust: 380e3, torque: 1.2e6, hull: 150, maxSpeed: 28, own: true, scale: 0.62 },
   };
 
   // Lasteporten ligger bak antennemasten, på motsatt side av dokkingsarmen.
@@ -26,6 +36,7 @@
   const STATION_CLEAR = 135; // radius rundt stasjonen som skipene ruter utenom
 
   let nextName = 1;
+  const d0 = (n, P) => G.len(P.outer.x - n.body.x, P.outer.y - n.body.y);
 
   class NPC {
     constructor(type, sys) {
@@ -35,14 +46,18 @@
       this.name = `${this.T.name} ${String(nextName++).padStart(2, '0')}`;
       this.layout = RF.layoutFrom(RF.NPC_LAYOUTS[type]);
       const g = RF.layoutGeometry(this.layout);
+      // Droner er mindre utgaver: form, treghet og tegning skaleres.
+      const sc = (this.scale = this.T.scale || 0);
+      const k = sc || 1;
       this.body = new RF.Body(G.box(-1, -1, 1, 1), 1, { kind: 'npc', restitution: 0.18, friction: 0.45 });
-      this.body.setRaw(g.verts, this.T.mass, g.I * (this.T.mass / g.mass));
+      this.body.setRaw(g.verts.map((p) => ({ x: p.x * k, y: p.y * k })), this.T.mass, g.I * (this.T.mass / g.mass) * k * k);
       this.body.npc = this;
       this.k = this.body.radius / 8; // størrelse i forhold til spillerens første skip
-      this.noseX = this.layout.reduce((a, m) => Math.max(a, m.lx), 0) + RF.CELL / 2;
-      const lm = this.layout.find((m) => m.t === 'laser');
-      this.laserY = lm ? lm.ly : 0;
-      this._lights = RF.lightSources(this);
+      this.noseX = (this.layout.reduce((a, m) => Math.max(a, m.lx), 0) + RF.CELL / 2) * k;
+      const lm = this.layout.find((m) => m.t === 'laser' || m.t === 'laser2');
+      this.laserY = lm ? lm.ly * k : 0;
+      this.halfW = (this.layout.reduce((a, m) => Math.max(a, Math.abs(m.ly)), 0) + RF.CELL / 2) * k;
+      this._lights = RF.lightSources(this).map((l) => Object.assign(l, { lx: l.lx * k, ly: l.ly * k }));
       this.beams = [];
       this.fx = { main: 0, retro: 0, left: 0, right: 0, rotL: 0, rotR: 0 };
       this.laser = { on: false, hit: null, len: 0 };
@@ -81,13 +96,19 @@
     routeAround(tx, ty) {
       const b = this.body, st = this.sys.station, R = STATION_CLEAR + 10 * this.k;
       const dsx = b.x - st.x, dsy = b.y - st.y;
-      if (G.len(dsx, dsy) < R - 5 || G.len(tx - st.x, ty - st.y) < R - 5) return { x: tx, y: ty };
       const ex = tx - b.x, ey = ty - b.y, el = ex * ex + ey * ey || 1;
       const t = G.clamp(-(dsx * ex + dsy * ey) / el, 0, 1);
       const cx = dsx + ex * t, cy = dsy + ey * t;
-      const cd = G.len(cx, cy);
-      if (cd >= R) return { x: tx, y: ty };
-      let nx = cd > 1 ? cx / cd : -ey / Math.sqrt(el), ny = cd > 1 ? cy / cd : ex / Math.sqrt(el);
+      const cd = G.len(cx, cy), dr = G.len(dsx, dsy), tr = G.len(tx - st.x, ty - st.y);
+      // Ruten går utenom sonen, eller bare streifer den der den starter eller slutter.
+      if (cd >= R || (cd >= R * 0.75 && (dr < R || tr < R))) return { x: tx, y: ty };
+      if (dr < R - 5) {
+        // Innenfor sonen og linjen går inn i stasjonen: rett ut igjen, litt mot målets side.
+        const ux = dsx / (dr || 1), uy = dsy / (dr || 1);
+        const side = ux * ey - uy * ex > 0 ? 1 : -1;
+        return { x: st.x + (ux - uy * side * 0.6) * (R + 40), y: st.y + (uy + ux * side * 0.6) * (R + 40) };
+      }
+      const nx = cd > 1 ? cx / cd : -ey / Math.sqrt(el), ny = cd > 1 ? cy / cd : ex / Math.sqrt(el);
       return { x: st.x + nx * (R + 45), y: st.y + ny * (R + 45) };
     }
 
@@ -112,7 +133,7 @@
         for (const off of [0, -half, half]) {
           const ox = b.x + ux * 10 * this.k - uy * off, oy = b.y + uy * 10 * this.k + ux * off;
           const h = this.sys.world.raycast(ox, oy, ux, uy, look,
-            (o) => o !== b && o.kind !== 'ore' && o !== this.target && o.radius > 2);
+            (o) => o !== b && o.kind !== 'ore' && o !== this.target && o.radius > 2 && !(this.owner && o === this.owner.body) && !(o.npc && o.npc.owner));
           if (h && (!hit || h.t < hit.t)) hit = h;
         }
         if (hit) {
@@ -161,6 +182,7 @@
 
     update(dt, game) {
       this.shieldFlash = Math.max(0, this.shieldFlash - dt * 2);
+      if (this.T.own && !this.active) { this.updateOwnHidden(dt, game); return; }
       if (!this.active) {
         this.timer -= dt;
         if (this.timer <= 0 && this.state === 'hangar') this.leaveHangar();
@@ -212,90 +234,403 @@
       t.heat = Math.min(1, (t.heat || 0) + dt * 2);
       t.hitX = hit.x; t.hitY = hit.y;
       if (game.sys === this.sys && Math.random() < 0.4) game.laserDust(hit);
-      if (t.vox) RF.Vox.laser(t, hit, dir, 0.6 * (this.own && game.ship ? game.ship.stats.droneMul || 1 : 1), 1, dt, game);
+      const L = this.T.laser || { power: 0.6, tier: 1 };
+      if (t.vox) RF.Vox.laser(t, hit, dir, L.power * (this.owner ? this.owner.stats.droneMul || 1 : 1), L.tier, dt, game);
       return true;
     }
 
-    // Spillerens droner: gruvedrone som leverer til skipet, eller reparasjonsdrone.
+    // ---------------- Spillerens droner ----------------
+    // Luken eller klemmen dronen bor i: punkt inne i skipet, åpningen utenfor,
+    // og retningen ut. Alt i verdenskoordinater.
+    dockPose() {
+      const ob = this.owner.body, m = this.dockM, L = this.owner.s.layout;
+      let dir = this.dockKind === 'clamp' ? (m.cdir >= 0 ? m.cdir : 3) : RF.clampDir(L, m);
+      if (dir < 0) dir = m.ly >= 0 ? 1 : 3; // luke i dekket: løft ut mot nærmeste side
+      const a = RF.DIR_ANGLE[dir], cx = Math.cos(a), cy = Math.sin(a);
+      const C = RF.CELL;
+      let inner, outer;
+      if (this.dockKind === 'clamp') {
+        const off = C / 2 + this.halfW + 0.2;
+        inner = { x: m.lx + cx * off, y: m.ly + cy * off };
+        outer = { x: inner.x + cx * 7, y: inner.y + cy * 7 };
+      } else {
+        inner = { x: m.lx, y: m.ly };
+        const clear = Math.max(C * 1.2, this.distToEdge(m, cx, cy)) + this.body.radius + 3;
+        outer = { x: m.lx + cx * clear, y: m.ly + cy * clear };
+      }
+      const wi = ob.toWorld(inner.x, inner.y), wo = ob.toWorld(outer.x, outer.y);
+      return { inner: wi, outer: wo, out: ob.dirWorld(cx, cy), outA: ob.a + a, dockA: this.dockKind === 'clamp' ? ob.a : ob.a + a + Math.PI };
+    }
+
+    // Hvor langt det er fra modulen til kanten av skroget i retningen ut.
+    distToEdge(m, cx, cy) {
+      const occ = new Set(this.owner.s.layout.map((o) => o.x + ',' + o.y));
+      let n = 0;
+      while (n < 20 && occ.has(m.x + Math.round(cx) * (n + 1) + ',' + (m.y + Math.round(cy) * (n + 1)))) n++;
+      return (n + 0.5) * RF.CELL;
+    }
+
+    recall() {
+      if (this.state === 'prelaunch') { this.game && this.game.droneHome(this); this.state = 'home'; return; }
+      if (this.state === 'inStation') return; // kommer når den er ferdig på stasjonen
+      if (this.state !== 'enter') this.state = 'recall';
+    }
+
+    // Last som dronen har med seg når den kommer hjem (eller blir borte).
+    returnLoad(game, lost) {
+      const owner = this.owner;
+      if (!owner) return;
+      if (!lost) for (const c of this.load || []) owner.processing.push(c);
+      this.load = [];
+      this.cargo = 0;
+      if (this.goods) {
+        // Varer som ikke ble solgt, går tilbake i lasterommet.
+        if (!lost) for (const k in this.goods) owner.s.cargo[k] = (owner.s.cargo[k] || 0) + this.goods[k];
+        this.goods = null;
+      }
+      for (const x of this.carry || []) {
+        if (x.dir === 'drop') { if (!lost) x.m.aboard += x.k; }
+        else if (!lost) x.m.aboard += x.k; // hentet folk går om bord
+        else x.m.wait += x.k;
+      }
+      this.carry = [];
+      owner.updateMass();
+    }
+
+    // Dronen er inne i skipet (venter på luken) eller inne på stasjonen.
+    updateOwnHidden(dt, game) {
+      this.game = game;
+      this.timer -= dt;
+      if (this.state === 'prelaunch') {
+        game.holdDoor(this.dockM);
+        const m = this.dockM;
+        if (this.timer > 0 || (this.dockKind !== 'clamp' && (m.door || 0) < 0.9)) return;
+        const P = this.dockPose(), ob = this.owner.body;
+        const a = this.dockKind === 'clamp' ? ob.a : P.outA;
+        const v = ob.pointVel(P.inner.x, P.inner.y);
+        this.spawnAt(P.inner.x, P.inner.y, a, v.x, v.y);
+        this.body.w = ob.w;
+        this.state = 'launch';
+        this.timer = 0;
+        if (this.dockKind === 'clamp') RF.Audio.blip(240, 0.08, 'square', 0.06);
+        return;
+      }
+      if (this.state === 'inStation') {
+        if (this.timer > 0) return;
+        this.atStation(game);
+        const st = this.sys.station, h = RF.hangarPoint(st), out = st.a + Math.PI;
+        this.spawnAt(h.x, h.y, out, Math.cos(out) * 1.5, Math.sin(out) * 1.5);
+        this.state = 'leaveStation';
+      }
+    }
+
+    // Spillerens droner: ut av luken, jobben sin, og inn igjen.
     updateOwn(dt, game) {
-      const b = this.body, owner = this.owner, ob = owner.body, ws = this.sys.world;
+      this.game = game;
+      const b = this.body, owner = this.owner, ob = owner.body;
       this.timer += dt;
-      const toOwner = () => {
-        const p = ob.toWorld(-owner.noseX - 8, 0);
-        return this.steer(dt, p.x, p.y, ob.vx, ob.vy, null, 30);
-      };
+      this.docking = false;
+      if (this.state === 'launch') {
+        const P = this.dockPose();
+        game.holdDoor(this.dockM);
+        this.docking = true;
+        const v = ob.pointVel(P.outer.x, P.outer.y);
+        const d = this.steer(dt, P.outer.x, P.outer.y, v.x, v.y, this.dockKind === 'clamp' ? ob.a : P.outA, 6);
+        if (d < 1.5 || this.timer > 8) { this.state = 'work'; this.timer = 0; this.startWork(game); }
+        return;
+      }
       if (this.state === 'recall') {
-        const p = ob.toWorld(0, 0);
-        const d = this.steer(dt, p.x, p.y, ob.vx, ob.vy, null, 30);
-        if (d < ob.radius + 6) game.droneHome(this);
+        const P = this.dockPose();
+        const v = ob.pointVel(P.outer.x, P.outer.y);
+        const d = this.steer(dt, P.outer.x, P.outer.y, v.x, v.y, d0(this, P) < 25 ? P.dockA : null, 30);
+        if (d < 2.5 && G.len(b.vx - v.x, b.vy - v.y) < 2) { this.state = 'enter'; this.timer = 0; }
         return;
       }
-      if (this.type === 'repair') {
-        const m = owner.mostDamaged();
-        if (!m) { toOwner(); return; }
-        const mp = ob.toWorld(m.lx, m.ly);
-        const side = ob.toWorld(m.lx, m.ly + (m.ly >= 0 ? 7 : -7));
-        const face = Math.atan2(mp.y - b.y, mp.x - b.x);
-        const d = this.steer(dt, side.x, side.y, ob.vx, ob.vy, face, 15);
-        if (d < 6) {
-          const D = RF.MODULES[m.t];
-          m.hp = Math.min(D.hp, m.hp + 6 * dt);
-          this.laser.on = true;
-          this.laser.len = G.len(mp.x - b.x, mp.y - b.y) - this.noseX;
-          this.laser.hit = null;
-          this.beamColor = '120,255,160';
-          if (Math.random() < 0.3) game.particles.burst(mp.x, mp.y, 2, { type: 'glow', sMin: 1, sMax: 4, color: '#9dffb0', zMin: 0.1, zMax: 0.25, lMin: 0.2, lMax: 0.5, vx: ob.vx, vy: ob.vy });
-          if (Math.random() < 0.05) owner.refreshStats();
+      if (this.state === 'enter') {
+        const P = this.dockPose();
+        game.holdDoor(this.dockM);
+        this.docking = true;
+        const v = ob.pointVel(P.inner.x, P.inner.y);
+        // Inn gjennom åpningen: først rett mot luken, så sakte inn.
+        const doorOpen = this.dockKind === 'clamp' || (this.dockM.door || 0) > 0.9;
+        const tgt = doorOpen ? P.inner : P.outer;
+        const dd = G.len(tgt.x - this.body.x, tgt.y - this.body.y);
+        const d = this.steer(dt, tgt.x, tgt.y, v.x, v.y, P.dockA, doorOpen ? (dd > 5 ? 7 : 2.5) : 4);
+        if (doorOpen && d < 1.4 && G.len(b.vx - v.x, b.vy - v.y) < 1.2) {
+          if (this.dockKind === 'clamp') RF.Audio.blip(200, 0.1, 'square', 0.07);
+          game.droneHome(this);
         }
+        if (this.timer > 25) game.droneHome(this);
         return;
       }
-      // Gruvedrone.
-      if (this.state === 'deliver' || this.cargo >= 5000) {
-        this.state = 'deliver';
-        const d = toOwner();
-        if (d < ob.radius + 12) {
+      if (this.state === 'toStation' || this.state === 'intoStation' || this.state === 'leaveStation') { this.stationRun(dt, game); return; }
+      if (this.state === 'toShip') { this.shipRun(dt, game); return; }
+      const R = this.role;
+      if (R === 'repair') this.doRepair(dt, game);
+      else if (R === 'mine') this.doMine(dt, game, true);
+      else if (R === 'collect') this.doMine(dt, game, false);
+      else if (R === 'guard') this.doGuard(dt, game);
+      else this.recall();
+    }
+
+    // Oppgaver som bestemmes idet dronen er ute av luken.
+    startWork(game) {
+      const owner = this.owner, s = owner.s;
+      if (this.role === 'cargo') {
+        // Tar med de mest verdifulle varene, opp til det dronen rommer.
+        let room = this.spec.hold;
+        this.goods = {};
+        const prods = Object.keys(s.cargo).filter((k) => s.cargo[k] > 0.01).sort((a, b) => RF.PRODUCTS[b].price - RF.PRODUCTS[a].price);
+        let tot = 0;
+        for (const k of prods) {
+          const t = Math.min(s.cargo[k], room);
+          if (t <= 0.01) continue;
+          this.goods[k] = t; s.cargo[k] -= t; room -= t; tot += t;
+        }
+        owner.updateMass();
+        if (tot <= 0.01) { this.goods = null; game.msg(`${this.name}: nothing in the hold to sell`, RF.HUD_COLORS.amber); this.recall(); return; }
+        game.msg(`${this.name} is taking ${tot.toFixed(1)} t to ${this.sys.station.name}`, RF.HUD_COLORS.gate);
+        this.state = 'toStation';
+        return;
+      }
+      if (this.role === 'pax') {
+        const st = this.sys.station, cap = this.spec.pax;
+        const act = game.missions.filter((m) => m.status === 'aktiv');
+        // Til stasjonen: folk som skal av her, og folk som venter her.
+        this.carry = [];
+        let left = cap;
+        for (const m of act) {
+          if (m.type !== 'pax' || m.to !== st.id || m.aboard <= 0 || left <= 0) continue;
+          const k = Math.min(m.aboard, left);
+          m.aboard -= k; left -= k;
+          this.carry.push({ m, k, dir: 'drop' });
+        }
+        const busy = (m) => this.sys.npcs.some((n) => n !== this && n.owner && n.claim === m);
+        const pick = act.find((m) => m.type === 'pax' && m.from === st.id && m.wait > 0 && !busy(m));
+        const waiting = !!pick && game.paxFree() > 0;
+        if (waiting) this.claim = pick;
+        if (this.carry.length || waiting) {
+          const n = this.carry.reduce((a, x) => a + x.k, 0);
+          game.msg(`${this.name} is flying ${n ? n + ' passengers' : 'out'} to ${st.name}${waiting ? ' to pick up passengers' : ''}`, RF.HUD_COLORS.gate);
+          this.state = 'toStation';
+          return;
+        }
+        // Ut til et frakteskip med nytt mannskap.
+        for (const m of act) {
+          if (m.type !== 'crew' || m.aboard <= 0 || busy(m)) continue;
+          const tgt = this.sys.npcs.find((n) => n.type === 'hauler' && n.name === m.ship && n.active);
+          if (!tgt) continue;
+          const k = Math.min(m.aboard, cap);
+          m.aboard -= k;
+          this.carry = [{ m, k, dir: 'drop' }];
+          this.claim = m;
+          this.targetShip = tgt;
+          this.state = 'toShip';
+          this.timer = 0;
+          game.msg(`${this.name} is taking ${k} crew to the ${m.ship}`, RF.HUD_COLORS.gate);
+          return;
+        }
+        const crewWait = act.find((m) => m.type === 'crew' && m.aboard > 0);
+        game.msg(crewWait ? `The ${crewWait.ship} is not in this system right now` : `${this.name}: nobody to fly anywhere right now`, RF.HUD_COLORS.amber);
+        this.recall();
+      }
+    }
+
+    // Tur til stasjonen i systemet: inn gjennom lasteporten og ut igjen.
+    stationRun(dt, game) {
+      const st = this.sys.station;
+      if (this.state === 'toStation') {
+        const o = RF.hangarPoint(st, 160);
+        const d = this.steer(dt, o.x, o.y, 0, 0, null, this.T.maxSpeed);
+        if (d < 14 && G.len(this.body.vx, this.body.vy) < 3) this.state = 'intoStation';
+        return;
+      }
+      if (this.state === 'intoStation') {
+        this.docking = true;
+        const h = RF.hangarPoint(st);
+        const d = this.steer(dt, h.x, h.y, 0, 0, st.a, 4);
+        if (d < 5) { this.despawn(); this.state = 'inStation'; this.timer = 3; }
+        return;
+      }
+      // Ut av lasteporten, så hjem.
+      this.docking = true;
+      const o = RF.hangarPoint(st, 160);
+      const d = this.steer(dt, o.x, o.y, 0, 0, st.a + Math.PI, 6);
+      if (d < 12) this.state = 'recall';
+    }
+
+    // Det som skjer inne på stasjonen: selge varer, slippe av og ta med folk.
+    atStation(game) {
+      const st = this.sys.station;
+      if (this.goods) {
+        let sum = 0, t = 0;
+        for (const k in this.goods) { sum += game.sellPrice(st.id, k) * this.goods[k]; t += this.goods[k]; }
+        sum = Math.round(sum);
+        game.credits += sum;
+        game.msg(`${this.name} sold ${t.toFixed(1)} t at ${st.name} for ${sum.toLocaleString('en-US')} cr`, RF.HUD_COLORS.ok);
+        this.goods = null;
+      }
+      if (this.role === 'pax') {
+        const drops = (this.carry || []).filter((x) => x.dir === 'drop');
+        if (drops.length) game.dropPax(st.id, drops, 'Shuttle delivered');
+        const picks = game.pickPax(st.id, this.spec.pax, false);
+        this.carry = picks.map((x) => ({ m: x.m, k: x.k, dir: 'pick' }));
+        const n = picks.reduce((a, x) => a + x.k, 0);
+        if (n) game.msg(`${this.name} picked up ${n} passenger${n > 1 ? 's' : ''}`, RF.HUD_COLORS.gate);
+      }
+    }
+
+    // Skyttel ut til et annet skip: legg seg inntil, vent litt, og fly hjem.
+    shipRun(dt, game) {
+      const t = this.targetShip, b = this.body;
+      if (!t || !t.active) { game.msg(`The ${this.carry[0] ? this.carry[0].m.ship : 'ship'} left before the shuttle got there`, RF.HUD_COLORS.amber); this.recall(); return; }
+      const tb = t.body;
+      const side = tb.toWorld(0, (tb.radius + this.body.radius + 4) * (this.index % 2 ? 1 : -1));
+      const d = this.steer(dt, side.x, side.y, tb.vx, tb.vy, null, this.T.maxSpeed);
+      const close = d < 4 && G.len(b.vx - tb.vx, b.vy - tb.vy) < 2;
+      this.hold = close ? (this.hold || 0) + dt : 0;
+      if (this.hold > 2) {
+        game.dropPax(null, this.carry, 'Crew transferred');
+        this.carry = [];
+        this.hold = 0;
+        this.recall();
+      }
+      if (this.timer > 120) this.recall();
+    }
+
+    doRepair(dt, game) {
+      const b = this.body, owner = this.owner, ob = owner.body;
+      const m = owner.mostDamaged();
+      if (!m) { this.idleNear(dt); return; }
+      const mp = ob.toWorld(m.lx, m.ly);
+      const side = ob.toWorld(m.lx, m.ly + (m.ly >= 0 ? 5 : -5));
+      const face = Math.atan2(mp.y - b.y, mp.x - b.x);
+      const v = ob.pointVel(side.x, side.y);
+      const d = this.steer(dt, side.x, side.y, v.x, v.y, face, 15);
+      if (d < 4) {
+        const D = RF.MODULES[m.t];
+        m.hp = Math.min(D.hp, m.hp + 6 * dt * (owner.stats.droneMul || 1));
+        this.laser.on = true;
+        this.laser.len = G.len(mp.x - b.x, mp.y - b.y) - this.noseX;
+        this.laser.hit = null;
+        this.beamColor = '120,255,160';
+        if (Math.random() < 0.3) game.particles.burst(mp.x, mp.y, 2, { type: 'glow', sMin: 1, sMax: 4, color: '#9dffb0', zMin: 0.1, zMax: 0.25, lMin: 0.2, lMax: 0.5, vx: ob.vx, vy: ob.vy });
+        if (Math.random() < 0.05) owner.refreshStats();
+      }
+    }
+
+    // Venter på sin plass ved siden av skipet.
+    idleNear(dt) {
+      const ob = this.owner.body;
+      const p = ob.toWorld(-this.owner.noseX * 0.3, (ob.radius + 8 + this.index * 4) * (this.index % 2 ? 1 : -1));
+      const v = ob.pointVel(p.x, p.y);
+      return this.steer(dt, p.x, p.y, v.x, v.y, null, 30);
+    }
+
+    // Gruvedrone (bor og samler) eller innsamler (bare samler løs malm).
+    doMine(dt, game, drills) {
+      const b = this.body, owner = this.owner, ob = owner.body, ws = this.sys.world;
+      const cap = this.T.cargo || 3000;
+      if (this.sub === 'deliver' || this.cargo >= cap) {
+        this.sub = 'deliver';
+        const p = ob.toWorld(-owner.noseX - 6, 0);
+        const v = ob.pointVel(p.x, p.y);
+        const d = this.steer(dt, p.x, p.y, v.x, v.y, null, 30);
+        if (d < ob.radius * 0.5 + 10) {
           for (const c of this.load || []) owner.processing.push(c);
           if (this.cargo > 0) game.msg(`${this.name} delivered ${(this.cargo / 1000).toFixed(1)} t of ore`, RF.HUD_COLORS.ok);
           owner.updateMass();
-          this.load = [];
-          this.cargo = 0;
-          this.state = 'seek';
+          this.load = []; this.cargo = 0; this.sub = 'seek';
         }
         return;
       }
-      if (this.state === 'seek' || !this.target || this.target.dead) {
-        const near = ws.bodies.filter((o) => o.kind === 'rock' && RF.MATERIALS[o.mat].hard <= 1 && o.area < 2500 && G.len(o.x - ob.x, o.y - ob.y) < 300);
-        near.sort((p, q) => G.len(p.x - b.x, p.y - b.y) - G.len(q.x - b.x, q.y - b.y));
-        this.target = near[0] || null;
-        this.state = this.target ? 'mine' : 'idle';
-        this.timer = 0;
-      }
       // Samle løse malmbiter i nærheten først.
-      let ore = null, bd = 90;
+      let ore = null, bd = drills ? 90 : 260;
       for (const o of ws.bodies) {
-        if (o.kind !== 'ore' || o.dead) continue;
+        if (o.kind !== 'ore' || o.dead || G.len(o.x - ob.x, o.y - ob.y) > 320) continue;
         const d = G.len(o.x - b.x, o.y - b.y);
         if (d < bd) { bd = d; ore = o; }
       }
-      if (ore && (this.state !== 'mine' || this.timer > 6)) {
+      if (ore && (!drills || this.sub !== 'mine' || this.timer > 6)) {
         const face = Math.atan2(ore.y - b.y, ore.x - b.x);
-        this.steer(dt, ore.x - Math.cos(face) * 5, ore.y - Math.sin(face) * 5, ore.vx, ore.vy, bd < 30 ? face : null, 12);
-        const nose = b.toWorld(this.noseX + 1, 0);
-        if (G.len(ore.x - nose.x, ore.y - nose.y) < 3.5 + Math.sqrt(ore.area)) {
+        this.steer(dt, ore.x - Math.cos(face) * 3, ore.y - Math.sin(face) * 3, ore.vx, ore.vy, bd < 25 ? face : null, 14);
+        const nose = b.toWorld(this.noseX + 0.5, 0);
+        if (G.len(ore.x - nose.x, ore.y - nose.y) < 2.5 + Math.sqrt(ore.area)) {
           ore.dead = true;
           this.cargo += ore.mass;
           (this.load = this.load || []).push({ mat: ore.mat, mass: ore.mass });
         }
         return;
       }
-      if (this.state === 'idle') { toOwner(); if (this.timer > 3) this.state = 'seek'; return; }
+      if (!drills) {
+        if (this.cargo > 0 && this.timer > 5) this.sub = 'deliver';
+        this.idleNear(dt);
+        return;
+      }
+      const tier = this.T.laser ? this.T.laser.tier : 1;
+      if (this.sub !== 'mine' || !this.target || this.target.dead) {
+        const near = ws.bodies.filter((o) => o.kind === 'rock' && RF.MATERIALS[o.mat].hard <= tier && o.area < 2500 && G.len(o.x - ob.x, o.y - ob.y) < 300);
+        near.sort((p, q) => G.len(p.x - b.x, p.y - b.y) - G.len(q.x - b.x, q.y - b.y));
+        this.target = near[0] || null;
+        this.sub = this.target ? 'mine' : 'idle';
+        this.timer = 0;
+      }
+      if (this.sub === 'idle') { this.idleNear(dt); if (this.timer > 3) this.sub = 'seek'; return; }
       const t = this.target;
       const dx = b.x - t.x, dy = b.y - t.y, d = G.len(dx, dy) || 1;
-      const stand = t.radius + 14;
+      const stand = t.radius + 8;
       const face = Math.atan2(t.y - b.y, t.x - b.x);
       this.steer(dt, t.x + (dx / d) * stand, t.y + (dy / d) * stand, t.vx, t.vy, d < stand + 30 ? face : null, 16);
       if (d < stand + 10 && Math.abs(G.wrapAngle(face - b.a)) < 0.25) this.drill(t, dt, game);
-      if (this.timer > 12) { this.timer = 0; this.state = 'seek'; }
+      if (this.timer > 12) { this.timer = 0; this.sub = 'seek'; }
+    }
+
+    // Vaktdrone: ligger foran skipet og brenner småstein og vrakbiter som er
+    // på vei mot det.
+    doGuard(dt, game) {
+      const b = this.body, owner = this.owner, ob = owner.body, ws = this.sys.world;
+      this.gT = (this.gT || 0) - dt;
+      if (this.gT <= 0) {
+        this.gT = 0.25;
+        let best = null, bt = 8;
+        for (const o of ws.bodies) {
+          if (o.dead || o.ghost || !(o.kind === 'rock' && o.radius < 6) && !(o.kind === 'wreck')) continue;
+          const rx = o.x - ob.x, ry = o.y - ob.y;
+          if (rx * rx + ry * ry > 170 * 170) continue;
+          const ux = o.vx - ob.vx, uy = o.vy - ob.vy, uu = ux * ux + uy * uy;
+          const rv = rx * ux + ry * uy;
+          if (rv >= 0 || uu < 0.25) continue;
+          const t = -rv / uu;
+          if (t > bt) continue;
+          const miss = G.len(rx + ux * t, ry + uy * t);
+          if (miss < ob.radius + o.radius + 4) { bt = t; best = o; }
+        }
+        this.threat = best;
+      }
+      const v = G.len(ob.vx, ob.vy);
+      const dir = v > 2 ? Math.atan2(ob.vy, ob.vx) : ob.a;
+      const R = ob.radius + 14;
+      const sd = (this.index % 2 ? 1 : -1) * 0.55;
+      const post = { x: ob.x + Math.cos(dir + sd) * R, y: ob.y + Math.sin(dir + sd) * R };
+      const t = this.threat;
+      if (!t || t.dead) { this.steer(dt, post.x, post.y, ob.vx, ob.vy, dir, 36); return; }
+      const face = Math.atan2(t.y - b.y, t.x - b.x);
+      this.steer(dt, post.x, post.y, ob.vx, ob.vy, face, 36);
+      const dist = G.len(t.x - b.x, t.y - b.y);
+      if (dist < 130 && Math.abs(G.wrapAngle(face - b.a)) < 0.3) {
+        this.laser.on = true;
+        this.laser.len = dist - this.noseX;
+        this.laser.hit = { x: t.x, y: t.y };
+        this.beamColor = '255,90,80';
+        t.heat = Math.min(1, (t.heat || 0) + dt * 2.5);
+        if (t.heat >= 0.8) {
+          // Knus biten til støv.
+          t.dead = true;
+          game.particles.burst(t.x, t.y, 14, { type: 'smoke', sMin: 1, sMax: 5, color: RF.MATERIALS[t.mat] ? RF.MATERIALS[t.mat].light : '#999', zMin: 0.6, zMax: 1.4, grow: 2, lMin: 0.8, lMax: 1.8, vx: t.vx, vy: t.vy });
+          game.particles.burst(t.x, t.y, 10, { sMin: 3, sMax: 10, color: '#ffb080', zMin: 0.15, zMax: 0.35, lMin: 0.2, lMax: 0.5 });
+          this.threat = null;
+        }
+      }
     }
 
     leaveHangar() {

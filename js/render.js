@@ -349,6 +349,7 @@
       if (shipLive) {
         ship._lights = ship.lightOn && !ship.docked ? RF.lightSources(ship) : [];
         this.drawModular(ship, game.time);
+        this.drawClamped(ship, game);
       }
       this.drawMotes(game, dt);
 

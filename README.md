@@ -128,6 +128,7 @@ med malm eller betaling, men omtrent én av ti går tapt.
 | `js/sky.js` | Himmelen: stjerner, melkeveibånd, sol og planet med lys og skygge |
 | `js/voxel.js` | Asteroider og kometer av småbiter: boring, huler, sprekker, kratre og nye steiner |
 | `js/modules.js` | Moduler, skip å kjøpe, geometri og egenskaper fra et oppsett |
+| `js/news.js` | Nyheter for spillerne og sjekk av om en ny versjon er lagt ut |
 | `js/classes.js` | Skipsklassene: seks linjer i fem nivåer, bonus per linje og fordeler fra formen på skipet |
 | `js/ship.js` | Spillerens skip: flyging, laser, traktor, prosessering, skade per modul |
 | `js/weapons.js` | Kanonkuler, raketter med sprengning, ankerkrok |

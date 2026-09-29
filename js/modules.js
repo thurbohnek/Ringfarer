@@ -87,14 +87,77 @@
     reactor: { name: 'Reactor', cat: 'Engines', mass: 4200, hp: 120, cost: 5000, power: 1, unlock: 2,
       desc: 'Extra power: +40 shield, faster shield recharge and 8 % stronger lasers.' },
     hangar: { name: 'Hangar deck', cat: 'Tools', mass: 3600, hp: 140, cost: 6000, bay: 2, unlock: 2,
-      desc: 'Flight deck with room for 2 drones.' },
+      desc: 'Flight deck for one medium drone or two small ones. The deck doors open when drones launch or land.' },
     dronebay: { name: 'Drone bay', cat: 'Tools', mass: 2500, hp: 80, cost: 2500, bay: 1, unlock: 1,
-      desc: 'Room for one drone: mining drone or repair drone.' },
+      desc: 'Room for one small drone. The doors open when it launches and when it comes home.' },
+    droneclamp: { name: 'Docking clamp', cat: 'Tools', mass: 1800, hp: 90, cost: 3000, unlock: 1,
+      desc: 'Holds one medium or large drone on the outside of the hull. Needs a free side facing out.' },
   };
 
+  // Droner i tre størrelser. Små bor i dronerom, mellomstore i hangardekk
+  // (eller på en klemme), store sitter på en dokkingklemme utenpå skroget.
+  // npc = hvilken fartøytype i npc.js som flyr ut.
+  RF.DRONE_SIZES = { S: 'Small', M: 'Medium', L: 'Large' };
+  RF.DRONE_ROLES = { mine: 'Mining', repair: 'Repair', collect: 'Collecting', guard: 'Guard', cargo: 'Cargo', pax: 'Personnel' };
   RF.DRONE_TYPES = {
-    gruve: { name: 'Mining drone', cost: 1500, desc: 'Drills soft rock near the ship and delivers the ore to you.' },
-    rep: { name: 'Repair drone', cost: 2000, desc: 'Flies around the ship and repairs damaged modules.' },
+    gruve: { name: 'Mite mining drone', size: 'S', role: 'mine', npc: 'mite', cost: 1500, trip: true,
+      desc: 'Drills soft rock near the ship and brings the ore home.' },
+    rep: { name: 'Mender repair drone', size: 'S', role: 'repair', npc: 'mender', cost: 2000, trip: true,
+      desc: 'Flies around the ship and welds damaged modules.' },
+    gleaner: { name: 'Gleaner collector drone', size: 'S', role: 'collect', npc: 'gleaner', cost: 1800, trip: true,
+      desc: 'Picks up loose ore around the ship and brings it in. Does not drill.' },
+    burrow: { name: 'Burrower heavy mining drone', size: 'M', role: 'mine', npc: 'burrower', cost: 7000,
+      desc: 'Heavy laser that also cuts metal and copper ore (hardness 2). Carries 6 t.' },
+    picket: { name: 'Picket guard drone', size: 'M', role: 'guard', npc: 'picket', cost: 6500,
+      desc: 'Stays close to the ship and burns small rocks and debris on a collision course with it.' },
+    tern: { name: 'Tern crew shuttle', size: 'M', role: 'pax', npc: 'tern', cost: 9000, pax: 8,
+      desc: 'Carries up to 8 people to and from the station in this system, or out to another ship. You do not have to dock.' },
+    porter: { name: 'Porter cargo drone', size: 'L', role: 'cargo', npc: 'porter', cost: 15000, hold: 25,
+      desc: 'Takes up to 25 t of goods from your hold to the station in this system, sells it there and flies back.' },
+    ferryman: { name: 'Ferryman passenger lander', size: 'L', role: 'pax', npc: 'ferryman', cost: 18000, pax: 30,
+      desc: 'Carries up to 30 people to and from the station in this system, or out to another ship.' },
+  };
+
+  // Hvor dronene bor om bord. Store droner på klemmer, mellomstore i hangarer
+  // (ellers på en klemme), små i dronerom (ellers to i en hangar).
+  // Gir { ok, slots: [{ d, m, kind }] } der m er modulen dronen hører til.
+  RF.fitDrones = (layout, st, drones) => {
+    const per = st.bayPer || 1;
+    const bays = layout.filter((m) => m.t === 'dronebay').map((m) => ({ m, left: per }));
+    const hangars = layout.filter((m) => m.t === 'hangar').map((m) => ({ m, left: 2 }));
+    const clamps = layout.filter((m) => m.t === 'droneclamp' && RF.clampDir(layout, m) >= 0).map((m) => ({ m, left: 1 }));
+    const order = { L: 0, M: 1, S: 2 };
+    const list = drones.slice().sort((a, b) => order[RF.DRONE_TYPES[a.type].size] - order[RF.DRONE_TYPES[b.type].size]);
+    const slots = [];
+    let ok = true;
+    const used = [];
+    const take = (arr, need, kind, d) => {
+      // Droner på klemmer trenger plass: ingen annen klemme i bruk rett ved siden av.
+      const s = arr.find((x) => x.left >= need && (kind !== 'clamp' || !used.some((u) => u.cdir === x.m.cdir && Math.max(Math.abs(u.x - x.m.x), Math.abs(u.y - x.m.y)) <= 2)));
+      if (!s) return false;
+      if (kind === 'clamp') used.push(s.m);
+      s.left -= need;
+      slots.push({ d, m: s.m, kind });
+      return true;
+    };
+    for (const d of list) {
+      const z = RF.DRONE_TYPES[d.type].size;
+      const done = z === 'L' ? take(clamps, 1, 'clamp', d)
+        : z === 'M' ? take(hangars, 2, 'hangar', d) || take(clamps, 1, 'clamp', d)
+          : take(bays, 1, 'bay', d) || take(hangars, 1, 'hangar', d);
+      if (!done) ok = false;
+    }
+    return { ok, slots };
+  };
+
+  // Klemmen trenger en fri side ut mot rommet, helst til siden.
+  RF.clampDir = (layout, m) => {
+    const occ = new Set(layout.map((o) => o.x + ',' + o.y));
+    for (const d of [3, 1, 2, 0]) {
+      const [dx, dy] = [[1, 0], [0, 1], [-1, 0], [0, -1]][d];
+      if (!occ.has(m.x + dx + ',' + (m.y + dy))) return d;
+    }
+    return -1;
   };
 
   // Skipsskrog: hvor stort rutenettet er, og hva som følger med.
@@ -167,6 +230,15 @@
     ],
     helper: [['thruster', 0, 0], ['cockpit', 1, 0], ['laser', 2, 0], ['rcs', 1, 1]],
     repair: [['thruster', 0, 0], ['cockpit', 1, 0], ['light', 2, 0], ['rcs', 1, -1]],
+    // Spillerens droner (tegnes forminsket, se scale i npc.js).
+    mite: [['thruster', 0, 0], ['cockpit', 1, 0], ['laser', 2, 0], ['rcs', 1, 1], ['rcs', 1, -1]],
+    mender: [['thruster', 0, 0], ['cockpit', 1, 0], ['light', 2, 0], ['rcs', 1, -1], ['rcs', 1, 1]],
+    gleaner: [['thruster', 0, 0], ['cargo', 1, 0], ['cockpit', 2, 0], ['tractor', 3, 0], ['rcs', 1, -1], ['rcs', 1, 1]],
+    burrower: [['thruster', 0, 0], ['cargo', 1, -1], ['cockpit', 1, 0], ['cargo', 1, 1], ['laser2', 2, 0], ['rcs', 2, -1], ['rcs', 2, 1]],
+    picket: [['thruster', 0, 0], ['shield', 1, 0], ['cockpit', 2, 0], ['cannon', 3, 0], ['rcs', 2, -1], ['rcs', 2, 1], ['armor', 1, -1], ['armor', 1, 1]],
+    tern: [['thruster', 0, 0], ['cabin', 1, 0], ['cockpit', 2, 0], ['airlock', 1, -1], ['airlock', 1, 1], ['light', 3, 0]],
+    porter: [['thruster', 0, -1], ['thruster', 0, 1], ['frame', 0, 0], ['cargo2', 1, -1], ['cargo2', 1, 0], ['cargo2', 1, 1], ['cargo2', 2, -1], ['cockpit', 2, 0], ['cargo2', 2, 1], ['tractor', 3, 0]],
+    ferryman: [['thruster', 0, -1], ['thruster', 0, 1], ['lifesup', 0, 0], ['hab', 1, -1], ['hab', 1, 0], ['hab', 1, 1], ['airlock', 2, -1], ['cockpit', 2, 0], ['airlock', 2, 1], ['light', 3, 0]],
   };
   RF.layoutFrom = (list) => list.map(([t, x, y]) => ({ t, x, y, hp: RF.MODULES[t].hp }));
 
@@ -273,7 +345,7 @@
     const st = {
       thrust: 0, thrusters: [], rcs: 0, rcsList: [], fuelCap: 0, hold: 0, shieldMax: 0, proc: 800, yield: 1,
       lasers: [], drills: [], guns: [], rockets: [], anchors: [], tractors: [], lights: [], bays: 0, hpMax: 0, hp: 0, blocked: [],
-      pax: 0, cryo: 0, life: 6, locks: 0, power: 0,
+      pax: 0, cryo: 0, life: 6, locks: 0, power: 0, bayS: 0, hangars: 0, clamps: 0, bayPer: 1,
     };
     for (const m of layout) {
       const D = RF.MODULES[m.t];
@@ -296,7 +368,9 @@
       if (D.anchor && !blocked) st.anchors.push({ m, ...D.anchor });
       if (D.tractor && !blocked) st.tractors.push({ m, F: D.tractor * eff });
       if (D.light && !blocked) st.lights.push({ m, range: D.light });
-      if (D.bay) st.bays += D.bay;
+      if (m.t === 'dronebay') st.bayS++;
+      if (m.t === 'hangar') st.hangars++;
+      if (m.t === 'droneclamp') { m.cdir = RF.clampDir(layout, m); if (m.cdir >= 0) st.clamps++; }
       if (D.nav) st.navcomp = true;
       if (D.pax) st.pax += D.pax;
       if (D.cryo) st.cryo += D.cryo;
@@ -308,6 +382,7 @@
     st.paxCap = Math.min(st.pax, st.life) + st.cryo;
     st.shieldMax += st.power * 40;
     st.rocketCap = st.rockets.length * 6;
+    st.bays = st.bayS * st.bayPer + st.hangars * 2 + st.clamps;
     return st;
   };
 
@@ -366,7 +441,7 @@
   // Testskipet: Fjellbryter med alt som er, pluss to borehoder og navigasjonsdatamaskin.
   RF.testLayout = () => {
     const L = RF.layoutFrom(RF.TEST_LAYOUT);
-    for (const t of ['drill', 'drill', 'navcomp']) {
+    for (const t of ['drill', 'drill', 'navcomp', 'hangar', 'droneclamp', 'droneclamp']) {
       const m = RF.autoPlace(L, 'fjell', t);
       if (m) L.push(m);
     }

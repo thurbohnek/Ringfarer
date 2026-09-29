@@ -60,7 +60,11 @@
     if (!game.systems[id]) {
       const st = RF.createSystemState(RF.systemById(id));
       st.world.onImpact = onImpact;
-      st.world.shouldCollide = (A, B) => !(A.kind === 'gate' && B.kind === 'gate');
+      // Egne droner flyr fritt inn og ut av skipet sitt.
+      st.world.shouldCollide = (A, B) => !(A.kind === 'gate' && B.kind === 'gate') &&
+        !(A.npc && A.npc.owner && A.npc.owner.body === B) && !(B.npc && B.npc.owner && B.npc.owner.body === A) &&
+        // og ut og inn av stasjonens trafikk uten å kræsje i de andre dronene.
+        !(A.npc && B.npc && (A.npc.owner || B.npc.owner));
       // Malmbiter kan treffe skip, men dytter dem ikke.
       const heavy = (o) => o.kind === 'ship' || !!o.npc;
       st.world.oneWay = (A, B) => (B.kind === 'ore' && heavy(A) ? 1 : A.kind === 'ore' && heavy(B) ? 2 : 0);
@@ -100,7 +104,9 @@
 
   function refreshBoard(stationId) {
     const b = (game.boards[stationId] = (game.boards[stationId] || []).filter((m) => m.status === 'tilbud'));
-    while (b.length < 4) b.push(RF.genMission(stationId));
+    const sys = game.systems[stationId];
+    const haulers = sys ? sys.npcs.filter((n) => n.type === 'hauler').map((n) => n.name) : [];
+    while (b.length < 5) b.push(RF.genMission(stationId, haulers));
   }
 
   // --- Ny karriere / lagring ---
@@ -116,7 +122,11 @@
     RF.Weapons.reset();
     // I testmodus starter man med et skip som har alt utstyret om bord.
     const st = test ? RF.newShipState('fjell', RF.testLayout()) : RF.newShipState('hopper');
-    if (test) st.drones = [{ type: 'gruve' }, { type: 'rep' }];
+    if (test) {
+      // Én av hver drone som får plass om bord.
+      const all = ['porter', 'tern', 'picket', 'gruve', 'rep', 'gleaner', 'burrow', 'ferryman'].map((type) => ({ type }));
+      st.drones = RF.fitDrones(st.layout, RF.applyClass(RF.layoutStats(st.layout), st.hull, st.layout), all).slots.map((x) => x.d);
+    }
     game.ship = new RF.Ship(st);
     spawnDocked('midgard');
     game.msg(test ? 'Test mode: fully equipped ship, everything unlocked and the money never runs out' : 'Welcome aboard the Skiff MK-I', RF.HUD_COLORS.gate);
@@ -158,7 +168,7 @@
     const s = RF.newShipState(data.ship.hull);
     Object.assign(s, data.ship);
     s.cargo = Object.assign(RF.emptyCargo(), data.ship.cargo);
-    s.drones = data.ship.drones || [];
+    s.drones = (data.ship.drones || []).filter((d) => RF.DRONE_TYPES[d.type]).map((d) => Object.assign(d, { out: false }));
     game.credits = data.credits;
     game.testMode = !!data.test;
     game.missions = data.missions || [];
@@ -197,8 +207,10 @@
     const hold = RF.layoutStats(ns.layout).hold;
     let room = hold - ns.missionCargo.reduce((a, m) => a + m.mass, 0);
     for (const k in old.cargo) { const take = Math.max(0, Math.min(old.cargo[k], room)); ns.cargo[k] = take; room -= take; }
-    const bays = RF.layoutStats(ns.layout).bays;
-    ns.drones = old.drones.slice(0, bays);
+    const fit = RF.fitDrones(ns.layout, RF.applyClass(RF.layoutStats(ns.layout), hullId, ns.layout), old.drones);
+    ns.drones = fit.slots.map((x) => x.d);
+    const left = old.drones.length - ns.drones.length;
+    if (left > 0) { game.credits += left * 800; game.msg(`${left} drone${left > 1 ? 's' : ''} did not fit and were sold`, RF.HUD_COLORS.amber); }
     const st = game.ship.docked;
     const fa = game.ship.fa;
     game.ship = new RF.Ship(ns);
@@ -252,6 +264,10 @@
     game.lastStation = st.id;
     refreshPrices(st.id);
     refreshBoard(st.id);
+    // Passasjerer går av og på.
+    game.dropPax(st.id, null, 'Passengers delivered');
+    const picked = game.pickPax(st.id, Infinity, true).reduce((a, x) => a + x.k, 0);
+    if (picked) game.msg(`${picked} passenger${picked > 1 ? 's' : ''} boarded`, RF.HUD_COLORS.gate);
     // Fraktoppdrag leveres automatisk.
     for (const m of game.missions) {
       if (m.status === 'aktiv' && m.type === 'frakt' && m.to === st.id) {
@@ -691,38 +707,63 @@
   };
 
   // --- Egne droner ---
+  // Hvor hver drone bor om bord (dronerom, hangardekk eller klemme).
+  game.droneSlots = () => {
+    const ship = game.ship;
+    return RF.fitDrones(ship.s.layout, ship.stats, ship.s.drones).slots;
+  };
+
+  // Luker åpnes når en drone skal ut eller inn, og lukker seg etterpå.
+  game.holdDoor = (m) => { if (m) m.doorUntil = game.time + 0.5; };
+  function updateDoors(dt) {
+    for (const m of game.ship.s.layout) {
+      if (m.t !== 'dronebay' && m.t !== 'hangar') continue;
+      const want = (m.doorUntil || 0) > game.time ? 1 : 0;
+      m.door = G.clamp((m.door || 0) + Math.sign(want - (m.door || 0)) * dt * 1.8, 0, 1);
+    }
+  }
+
   game.launchDrones = () => {
     const ship = game.ship;
-    const ready = ship.s.drones.filter((d) => !d.trip && !d.out);
+    const slots = game.droneSlots();
+    const ready = slots.filter((x) => !x.d.trip && !x.d.out);
+    // Er noen ute, kalles de hjem. Ellers sendes alle ut.
+    const out = game.sys.npcs.filter((n) => n.owner === ship);
+    if (out.length) { for (const n of out) n.recall(); game.msg('Recalling drones', RF.HUD_COLORS.gate); return; }
     if (!ready.length) {
-      const out = game.sys.npcs.filter((n) => n.owner === ship);
-      if (out.length) { for (const n of out) n.state = 'recall'; game.msg('Recalling drones', RF.HUD_COLORS.gate); }
-      else game.msg(ship.stats.bays ? 'No drones aboard. Buy one at a station' : 'The ship has no drone bay', RF.HUD_COLORS.amber);
+      game.msg(ship.stats.bays ? 'No drones aboard. Buy one at a station' : 'The ship has no drone bay, hangar or docking clamp', RF.HUD_COLORS.amber);
       return;
     }
-    const bays = ship.s.layout.filter((m) => m.t === 'dronebay');
-    ready.forEach((d, i) => {
-      const n = new RF.NPC(d.type === 'rep' ? 'repair' : 'helper', game.sys);
+    ready.forEach((x, i) => {
+      const T = RF.DRONE_TYPES[x.d.type];
+      const n = new RF.NPC(T.npc, game.sys);
       n.owner = ship;
-      n.data = d;
-      d.out = true;
-      const m = bays[i % bays.length];
-      const p = ship.body.toWorld(m.lx, m.ly + (m.ly >= 0 ? 4 : -4));
-      n.spawnAt(p.x, p.y, ship.body.a, ship.body.vx, ship.body.vy);
-      n.state = 'seek';
+      n.data = x.d;
+      n.role = T.role;
+      n.spec = T;
+      n.dockM = x.m;
+      n.dockKind = x.kind;
+      n.index = i;
+      x.d.out = true;
+      // Små og mellomstore venter til luken er åpen. Etter hverandre fra samme luke.
+      n.state = 'prelaunch';
+      n.timer = x.kind === 'clamp' ? 0.2 + i * 0.15 : 0.7 + i * 0.45;
+      game.holdDoor(x.m);
       game.sys.npcs.push(n);
     });
-    game.msg(`${ready.length} drone${ready.length > 1 ? 's' : ''} launched`, RF.HUD_COLORS.gate);
+    game.msg(`${ready.length} drone${ready.length > 1 ? 's' : ''} launching`, RF.HUD_COLORS.gate);
   };
 
   game.droneHome = (n) => {
     n.despawn();
+    n.returnLoad(game);
     n.data.out = false;
     game.sys.npcs = game.sys.npcs.filter((x) => x !== n);
   };
 
   game.droneLost = (n) => {
     const s = game.ship.s;
+    n.returnLoad(game, true);
     s.drones = s.drones.filter((d) => d !== n.data);
     game.sys.npcs = game.sys.npcs.filter((x) => x !== n);
     game.msg(`${n.name} was lost`, RF.HUD_COLORS.danger);
@@ -730,14 +771,48 @@
 
   // Alle droner inn i hangaren med en gang (ved dokking og portreiser).
   game.recallDronesNow = () => {
-    for (const n of game.sys.npcs.filter((x) => x.owner)) {
-      if (n.data) {
-        // Leverer malmen den har med seg.
-        for (const c of n.load || []) game.ship.processing.push(c);
-        n.load = [];
-      }
-      game.droneHome(n);
+    for (const n of game.sys.npcs.filter((x) => x.owner)) game.droneHome(n);
+  };
+
+  // --- Passasjerer ---
+  const paxMissions = () => game.missions.filter((m) => m.status === 'aktiv' && (m.type === 'pax' || m.type === 'crew'));
+  game.paxAboard = () => paxMissions().reduce((a, m) => a + m.aboard, 0);
+  game.paxFree = () => Math.max(0, (game.ship.stats.paxCap || 0) - game.paxAboard());
+
+  game.completeMission = (m, how) => {
+    m.status = 'fullført';
+    game.credits += m.reward;
+    game.msg(`${how}: ${RF.missionTitle(m)} (+${m.reward} cr)`, RF.HUD_COLORS.ok);
+    Audio.blip(660, 0.15, 'triangle', 0.12);
+    Audio.blip(880, 0.2, 'triangle', 0.1);
+  };
+
+  // Folk går av på stasjonen. list = [{ m, k }] fra en drone, ellers alle om bord.
+  game.dropPax = (stationId, list, how) => {
+    let n = 0;
+    const items = list || paxMissions().filter((m) => m.type === 'pax' && m.to === stationId && m.aboard > 0).map((m) => ({ m, k: m.aboard }));
+    for (const { m, k } of items) {
+      if (!list) m.aboard -= k;
+      m.moved += k;
+      n += k;
+      if (m.moved >= m.n) game.completeMission(m, how);
     }
+    return n;
+  };
+
+  // Folk som venter på stasjonen går om bord (så langt det er plass).
+  game.pickPax = (stationId, max, commit) => {
+    const out = [];
+    let free = Math.min(max, game.paxFree());
+    for (const m of paxMissions()) {
+      if (m.type !== 'pax' || m.from !== stationId || m.wait <= 0 || free <= 0) continue;
+      const k = Math.min(m.wait, free);
+      m.wait -= k;
+      free -= k;
+      if (commit) m.aboard += k;
+      out.push({ m, k });
+    }
+    return out;
   };
 
   // --- Porten ---
@@ -991,6 +1066,7 @@
     ship.updateTractor(dt, game);
     ship.updateProcessing(dt, game);
     ship.updateDeflector(dt, game);
+    updateDoors(dt);
     ship.updateShield(dt);
     ship.updateAnchor(inp.winch, inp.winchOut, dt, game);
     ship.updateMass();

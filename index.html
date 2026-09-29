@@ -185,6 +185,18 @@
   }
 
   /* Utstyr: kategorier og kort */
+  .news { text-align: left; margin: 14px 0 4px; padding: 10px 14px; background: rgba(10, 10, 9, 0.7); border: 1px solid #000; border-left: 3px solid var(--paint); max-height: 34vh; overflow-y: auto; }
+  .news h3 { margin: 8px 0 4px; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #f3d9a4; }
+  .news h3:first-child { margin-top: 0; }
+  .news ul { margin: 0 0 6px; padding-left: 18px; }
+  .news li { font-size: 13.5px; line-height: 1.4; color: var(--text); margin: 2px 0; }
+  .linkbtn { background: none; border: 0; padding: 0; font: inherit; color: #f3d9a4; text-decoration: underline; cursor: pointer; }
+  #update-note { position: fixed; right: 10px; top: 104px; z-index: 40; display: flex; align-items: center; gap: 8px; max-width: 290px; padding: 7px 8px 7px 12px;
+    background: rgba(12, 14, 12, 0.92); border: 1px solid #000; border-left: 3px solid #7affc8; color: var(--text); font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+  #update-note span { display: flex; flex-direction: column; gap: 2px; }
+  #update-note small { color: var(--muted); font-size: 11px; }
+  #update-note .x { background: none; border: 0; color: var(--muted); font-size: 14px; cursor: pointer; padding: 2px 4px; }
+  #update-note[hidden] { display: none; }
   .yard-grid { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
   .mission.yard-card { flex-direction: column; align-items: stretch; gap: 0; padding: 0; overflow: hidden; border-top: 3px solid var(--lc); }
   .mission.yard-card.mine { box-shadow: 0 0 0 2px var(--lc) inset; }
@@ -407,10 +419,10 @@
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.10.0 · 2026-09-29';
+  window.RF_VERSION = 'v0.11.0 · 2026-09-29';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
-    var files = ['geom', 'physics', 'world', 'voxel', 'modules', 'classes', 'ship', 'npc', 'missions', 'input', 'audio',
+    var files = ['news', 'geom', 'physics', 'world', 'voxel', 'modules', 'classes', 'ship', 'npc', 'missions', 'input', 'audio',
       'render', 'sky', 'shipdraw', 'weapons', 'hud', 'ui', 'game'];
     var i = 0;
     (function next() {

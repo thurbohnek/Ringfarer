@@ -766,6 +766,21 @@
         }
         break;
       }
+      case 'droneclamp': {
+        // Dokkingklemme: en vugge med to armer som peker ut fra skroget.
+        const a = RF.DIR_ANGLE[m.cdir >= 0 ? m.cdir : 3];
+        ctx.save(); ctx.rotate(a);
+        rr(ctx, -0.8, -0.8, 1.6, 1.6, 0.25); ctx.fillStyle = '#3a3630'; ctx.fill();
+        hazard(ctx, 0.55, -0.8, 0.3, 1.6);
+        for (const y of [-0.7, 0.7]) {
+          rr(ctx, 0.2, y - 0.16, 1.15, 0.32, 0.12);
+          ctx.fillStyle = '#b9b3a4'; ctx.fill(); ctx.strokeStyle = '#1d1b17'; ctx.lineWidth = 0.05; ctx.stroke();
+          circle(ctx, 1.2, y, 0.12, '#ffcf5a');
+        }
+        circle(ctx, 0, 0, 0.35, '#8e887b', '#1d1b17');
+        ctx.restore();
+        break;
+      }
       case 'cryo': {
         // Kryokøyer: rader med blålysende kapsler.
         rr(ctx, -0.95, -0.85, 1.9, 1.7, 0.25);
@@ -1002,7 +1017,7 @@
   }
 
   // Tegn én modul sentrert i (0,0), til butikken. m kan være null.
-  const ICON_DETAIL = new Set(['cabin', 'hab', 'cryo', 'airlock', 'lifesup', 'reactor', 'hangar']);
+  const ICON_DETAIL = new Set(['cabin', 'hab', 'cryo', 'airlock', 'lifesup', 'reactor', 'hangar', 'droneclamp']);
   RF.drawModule = (ctx, t, m) => {
     const mm = { t, x: 0, y: 0, lx: 0, ly: 0, dir: 0, aimA: 0, hp: m ? m.hp : RF.MODULES[t].hp };
     moduleArt(ctx, mm, { n: true, s: true, e: true, w: true });
@@ -1059,6 +1074,7 @@
     ctx.drawImage(art.sh, art.x0 + 0.8, art.y0 + 0.8, art.w, art.h);
     ctx.globalAlpha = 1;
     ctx.drawImage(art.cv, art.x0, art.y0, art.w, art.h);
+    drawDoors(ctx, obj.layout);
     for (const m of obj.layout) {
       if (!RF.MODULES[m.t].mount) continue;
       const keep = m.aimA;
@@ -1106,15 +1122,68 @@
     ctx.save();
     ctx.translate(Math.cos(sd) * 1.1, Math.sin(sd) * 1.1);
     ctx.rotate(b.a);
+    if (obj.scale) ctx.scale(obj.scale, obj.scale);
     ctx.globalAlpha = 0.55;
     ctx.drawImage(art.sh, art.x0, art.y0, art.w, art.h);
     ctx.restore();
     ctx.rotate(b.a);
+    if (obj.scale) ctx.scale(obj.scale, obj.scale);
     ctx.drawImage(art.cv, art.x0, art.y0, art.w, art.h);
+    drawDoors(ctx, L);
     for (const m of L) if (RF.MODULES[m.t].anchor) m.fired = !!((obj.anchor && obj.anchor.module === m) || (obj.harpoon && obj.harpoon.mod === m));
     for (const m of L) if (RF.MODULES[m.t].mount) tool(ctx, m, time);
     ctx.restore();
   };
+
+  // Droner som sitter på dokkingklemmene utenpå skroget.
+  const clampNpc = new WeakMap();
+  P.drawClamped = function (ship, game) {
+    if (!ship.s.drones.length || !game.droneSlots) return;
+    for (const x of game.droneSlots()) {
+      if (x.kind !== 'clamp' || x.d.out) continue;
+      let n = clampNpc.get(x.d);
+      if (!n || n.dockM !== x.m || n.owner !== ship) {
+        n = new RF.NPC(RF.DRONE_TYPES[x.d.type].npc, game.sys);
+        n.owner = ship; n.dockM = x.m; n.dockKind = 'clamp';
+        clampNpc.set(x.d, n);
+      }
+      const Pz = n.dockPose();
+      n.body.x = Pz.inner.x; n.body.y = Pz.inner.y; n.body.a = Pz.dockA;
+      this.drawModular(n, game.time);
+    }
+  };
+
+  // Luker over dronerom og hangardekk. m.door går fra 0 (lukket) til 1 (åpen):
+  // to paneler glir ut til hver sin side.
+  function drawDoors(ctx, L) {
+    for (const m of L) {
+      if (m.t !== 'dronebay' && m.t !== 'hangar') continue;
+      const o = m.door || 0;
+      if (o > 0.98) continue;
+      const big = m.t === 'hangar';
+      const w = big ? 2.2 : 1.8, hh = big ? 2.0 : 1.4, half = (w / 2) * (1 - o);
+      ctx.save();
+      ctx.translate(m.lx, m.ly);
+      for (const s of [-1, 1]) {
+        const x0 = s < 0 ? -w / 2 : w / 2 - half;
+        rr(ctx, x0, -hh / 2, half, hh, 0.06);
+        const g = ctx.createLinearGradient(0, -hh / 2, 0, hh / 2);
+        g.addColorStop(0, '#b7b1a2'); g.addColorStop(1, '#6f6a5f');
+        ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = '#1d1b17'; ctx.lineWidth = 0.05; ctx.stroke();
+        if (half > 0.2) {
+          ctx.fillStyle = 'rgba(30,27,22,0.5)';
+          for (let y = -hh / 2 + 0.25; y < hh / 2 - 0.1; y += 0.35) ctx.fillRect(x0 + 0.08, y, half - 0.16, 0.05);
+        }
+      }
+      // Varsellys mens luken går.
+      if (o > 0.02) {
+        circle(ctx, -w / 2 + 0.15, -hh / 2 + 0.15, 0.1, '#ffb347');
+        circle(ctx, w / 2 - 0.15, hh / 2 - 0.15, 0.1, '#ffb347');
+      }
+      ctx.restore();
+    }
+  }
 
   // Flammer, dyser, navigasjonslys og skjold.
   P.drawModularFx = function (obj, time) {
@@ -1122,6 +1191,7 @@
     ctx.save();
     ctx.translate(b.x, b.y);
     ctx.rotate(b.a);
+    if (obj.scale) ctx.scale(obj.scale, obj.scale);
     ctx.globalCompositeOperation = 'lighter';
     const flame = (x, y, dx, dy, len, wid) => {
       if (len < 0.15) return;
