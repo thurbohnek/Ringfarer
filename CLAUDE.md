@@ -66,3 +66,13 @@
 - Rett over lenkene til spillet (som står helt sist) skal hvert svar ha en
   markert kopi av brukerens siste melding (sitatblokk med overskriften
   «Siste melding fra deg»), så brukeren ser hva forrige forespørsel var.
+- Nederst i hvert svar (rett over sitatet og lenkene) skal det stå en tydelig
+  statuslinje for versjonene: 🟢 for versjonen som er pushet og publisert,
+  og 🔴 for en versjon som ligger i koden, men ikke er pushet ennå (med
+  grunnen). Er alt pushet, står bare den grønne linjen.
+
+## Arbeidsflyt
+
+- Når en endring er ferdig og testet, skal den pushes (arbeidsgrenen og
+  `main`) og publiseres uten at brukeren må be om det eller skrive
+  «fortsett». Blir arbeidet avbrutt, fortsett og push så snart det går.

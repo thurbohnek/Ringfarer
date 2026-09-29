@@ -1133,110 +1133,230 @@
       return false;
     }
 
+    // Porten sett skrått ovenfra: ringen står på høykant, så den blir en
+    // ellipse (x presses sammen med EX). Alt tegnes i en ring på R = 16 og
+    // skaleres til portens størrelse. Front (der man flyr inn) er +x.
     drawGateRing(g, time, vis) {
       if (!vis(g.x, g.y, g.R * 3.5)) return;
-      const ctx = this.ctx, R = RF.GATE_R, depth = R * 0.34;
+      const ctx = this.ctx, R = RF.GATE_R, EX = 0.34;
+      const P = (a, r) => ({ x: Math.cos(a) * r * EX, y: Math.sin(a) * r });
       ctx.save();
       ctx.translate(g.x, g.y);
       ctx.rotate(g.a);
-      ctx.scale(g.R / RF.GATE_R, g.R / RF.GATE_R);
-      ctx.save();
-      ctx.scale(depth / R, 1);
-      ctx.lineWidth = 4.6;
-      ctx.strokeStyle = '#3b3a37';
-      ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = '#6f6c64';
-      ctx.beginPath(); ctx.arc(0, 0, R - 1.6, 0, Math.PI * 2); ctx.stroke();
-      ctx.strokeStyle = '#1e1d1a';
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i < 39; i++) {
-        const a = (i / 39) * Math.PI * 2;
+      ctx.scale(g.R / R, g.R / R);
+      const quad = (a0, a1, r0, r1) => {
+        const p = [P(a0, r0), P(a1, r0), P(a1, r1), P(a0, r1)];
+        ctx.beginPath(); p.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.closePath();
+      };
+      const annulus = (r0, r1, dx) => {
         ctx.beginPath();
-        ctx.moveTo(Math.cos(a) * (R - 1.8), Math.sin(a) * (R - 1.8));
-        ctx.lineTo(Math.cos(a) * (R + 1.8), Math.sin(a) * (R + 1.8));
-        ctx.stroke();
+        for (let i = 0; i <= 64; i++) { const q = P((i / 64) * Math.PI * 2, r1); i ? ctx.lineTo(q.x + dx, q.y) : ctx.moveTo(q.x + dx, q.y); }
+        for (let i = 64; i >= 0; i--) { const q = P((i / 64) * Math.PI * 2, r0); ctx.lineTo(q.x + dx, q.y); }
+        ctx.closePath();
+      };
+      const RO = R + 2.4, RI = R - 1.3;
+
+      // Kontrollplattform bak porten, med fagverk og strømkabler til ringen.
+      const cp = { x: -11, y: R + 10 };
+      ctx.strokeStyle = '#2c2b28'; ctx.lineWidth = 1.1;
+      for (const a of [Math.PI * 0.5, Math.PI * 0.62]) { const q = P(a, RO); ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(cp.x, cp.y); ctx.stroke(); }
+      ctx.strokeStyle = '#6a5a3e'; ctx.lineWidth = 0.35;
+      for (const k of [-0.4, 0.4]) { const q = P(Math.PI * 0.56, RO); ctx.beginPath(); ctx.moveTo(q.x + k, q.y); ctx.quadraticCurveTo(cp.x + 4, (q.y + cp.y) / 2, cp.x + k, cp.y - 1); ctx.stroke(); }
+      ctx.fillStyle = '#3a3935';
+      ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; i ? ctx.lineTo(cp.x + Math.cos(a) * 4.2, cp.y + Math.sin(a) * 3.2) : ctx.moveTo(cp.x + Math.cos(a) * 4.2, cp.y + Math.sin(a) * 3.2); } ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#5e5b53';
+      ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; i ? ctx.lineTo(cp.x + Math.cos(a) * 3.2, cp.y - 0.4 + Math.sin(a) * 2.3) : ctx.moveTo(cp.x + Math.cos(a) * 3.2, cp.y - 0.4 + Math.sin(a) * 2.3); } ctx.closePath(); ctx.fill();
+      ctx.fillStyle = g.state === 'idle' ? '#8a3a20' : '#ff9a3a';
+      ctx.beginPath(); ctx.arc(cp.x, cp.y - 0.4, 1.1, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; ctx.fillStyle = i < g.chevrons ? '#ffb04a' : '#4a4640'; ctx.beginPath(); ctx.arc(cp.x + Math.cos(a) * 2.2, cp.y - 0.4 + Math.sin(a) * 1.6, 0.35, 0, Math.PI * 2); ctx.fill(); }
+
+      // Stabiliseringsdyser: fire kapsler utenpå ringen.
+      for (const a of [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75]) {
+        quad(a - 0.07, a + 0.07, RO - 0.2, RO + 2.2);
+        ctx.fillStyle = '#4a4843'; ctx.fill();
+        const q = P(a, RO + 2.2);
+        ctx.fillStyle = '#1c1b19'; ctx.beginPath(); ctx.arc(q.x, q.y, 0.55, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.restore();
+
+      // Tykkelsen på ringen: bakkanten litt forskjøvet og mørk.
+      annulus(RI - 0.2, RO + 0.2, -1.1);
+      ctx.fillStyle = '#1f1e1b'; ctx.fill();
+      // Panelplater med sømmer. Siden som vender mot oss (x > 0) er lysest.
+      const N = 36;
+      for (let i = 0; i < N; i++) {
+        const a0 = (i / N) * Math.PI * 2 + 0.004, a1 = ((i + 1) / N) * Math.PI * 2 - 0.004, am = (a0 + a1) / 2;
+        const lit = 0.45 + 0.4 * Math.max(0, Math.cos(am)) + 0.15 * Math.max(0, -Math.sin(am));
+        const c = (v) => Math.round(v * lit);
+        quad(a0, a1, R + 0.3, RO);
+        ctx.fillStyle = `rgb(${c(150)},${c(146)},${c(136)})`; ctx.fill();
+        quad(a0, a1, RI, R + 0.3);
+        ctx.fillStyle = `rgb(${c(96)},${c(93)},${c(86)})`; ctx.fill();
+        if (i % 4 === 0) { quad(a0 + 0.02, a1 - 0.02, RO - 0.9, RO - 0.3); ctx.fillStyle = `rgb(${c(90)},${c(86)},${c(78)})`; ctx.fill(); }
+      }
+      // Symbolsporet: roterer mens porten ringer opp.
+      const spin = g.spin || 0;
+      ctx.strokeStyle = 'rgba(30,29,26,0.9)'; ctx.lineWidth = 0.18;
+      for (let i = 0; i < 39; i++) {
+        const a = (i / 39) * Math.PI * 2 + spin;
+        const q0 = P(a, R - 1.0), q1 = P(a + 0.05, R - 0.1);
+        ctx.beginPath(); ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(15,14,12,0.9)'; ctx.lineWidth = 0.25;
+      annulus(RI, RO, 0); ctx.stroke();
+
+      // Ni chevroner: hus på ytterkanten, en V-klemme og en lampe.
       for (let i = 0; i < 9; i++) {
         const a = -Math.PI / 2 + (i / 9) * Math.PI * 2;
-        ctx.save();
-        ctx.translate(Math.cos(a) * depth, Math.sin(a) * R);
-        ctx.fillStyle = '#5a4128';
-        ctx.beginPath(); ctx.moveTo(-1.6, -1.2); ctx.lineTo(1.6, -1.2); ctx.lineTo(0, 1.4); ctx.closePath(); ctx.fill();
-        ctx.restore();
+        const big = i === 0;
+        const w = big ? 0.13 : 0.1;
+        quad(a - w, a + w, RO - 0.6, RO + 1.8);
+        const lit = 0.55 + 0.35 * Math.max(0, Math.cos(a));
+        ctx.fillStyle = `rgb(${Math.round(120 * lit)},${Math.round(104 * lit)},${Math.round(84 * lit)})`; ctx.fill();
+        ctx.strokeStyle = '#1c1a17'; ctx.lineWidth = 0.15; ctx.stroke();
+        const locked = i < 7 && g.chevrons > i;
+        const dip = locked ? 0.9 : 0;
+        const t0 = P(a - w * 0.8, RO + 1.4 - dip), t1 = P(a + w * 0.8, RO + 1.4 - dip), tip = P(a, R + 0.6 - dip);
+        ctx.fillStyle = locked ? '#b86a2a' : '#6b4a2c';
+        ctx.beginPath(); ctx.moveTo(t0.x, t0.y); ctx.lineTo(t1.x, t1.y); ctx.lineTo(tip.x, tip.y); ctx.closePath(); ctx.fill();
       }
-      ctx.strokeStyle = 'rgba(120,200,255,0.3)';
-      ctx.lineWidth = Math.max(0.3, this.px);
-      ctx.setLineDash([2, 3]);
-      ctx.beginPath(); ctx.moveTo(depth + 4, 0); ctx.lineTo(depth + 40, 0); ctx.stroke();
-      ctx.setLineDash([]);
       ctx.restore();
     }
 
     drawGateGlow(g, time, vis) {
-      if (!vis(g.x, g.y, g.R * 3.5)) return;
-      const ctx = this.ctx, R = RF.GATE_R, depth = R * 0.34;
+      if (!vis(g.x, g.y, g.R * 5)) return;
+      const ctx = this.ctx, R = RF.GATE_R, EX = 0.34, RI = R - 1.3;
+      const P = (a, r) => ({ x: Math.cos(a) * r * EX, y: Math.sin(a) * r });
       ctx.save();
       ctx.translate(g.x, g.y);
       ctx.rotate(g.a);
-      ctx.scale(g.R / RF.GATE_R, g.R / RF.GATE_R);
+      const K = g.R / R;
+      ctx.scale(K, K);
       const open = g.state === 'open' || g.state === 'kawoosh' || g.state === 'closing';
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Ringen lades opp: elektriske buer langs sporet under oppringingen.
+      if (g.state === 'dialing' && g.chevrons >= 4) {
+        const n = (g.chevrons - 3) * 2;
+        ctx.strokeStyle = 'rgba(150,210,255,0.55)'; ctx.lineWidth = 0.25;
+        for (let k = 0; k < n; k++) {
+          let a = Math.random() * Math.PI * 2;
+          ctx.beginPath();
+          let q = P(a, R - 0.6); ctx.moveTo(q.x, q.y);
+          for (let j = 0; j < 5; j++) { a += G.rand(0.03, 0.09); q = P(a, R - 0.6 + G.rand(-0.8, 0.8)); ctx.lineTo(q.x, q.y); }
+          ctx.stroke();
+        }
+      }
+
       if (open) {
-        let a = 1;
-        if (g.state === 'closing') a = Math.max(0, 1 - g.t / 0.6);
-        const hg = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
-        hg.addColorStop(0, `rgba(210,245,255,${0.95 * a})`);
-        hg.addColorStop(0.5, `rgba(80,170,255,${0.85 * a})`);
-        hg.addColorStop(1, `rgba(20,70,200,${0.8 * a})`);
+        let a = 1, shrink = 1;
+        if (g.state === 'closing') { a = Math.max(0, 1 - g.t / 0.6); shrink = a; }
+        const rr = (RI - 0.1) * shrink;
+        // Hendelseshorisonten: dyp blå med lysere midte.
         ctx.save();
-        ctx.scale(depth / R, 1);
+        ctx.scale(EX, 1);
+        const hg = ctx.createRadialGradient(0, 0, 0, 0, 0, rr);
+        hg.addColorStop(0, `rgba(215,245,255,${0.9 * a})`);
+        hg.addColorStop(0.35, `rgba(110,190,255,${0.85 * a})`);
+        hg.addColorStop(0.8, `rgba(35,110,235,${0.85 * a})`);
+        hg.addColorStop(1, `rgba(20,60,190,${0.9 * a})`);
         ctx.fillStyle = hg;
-        ctx.beginPath(); ctx.arc(0, 0, R - 1.2, 0, Math.PI * 2); ctx.fill();
-        ctx.globalCompositeOperation = 'lighter';
-        for (let i = 0; i < 5; i++) {
-          const rr = ((time * 4 + i * 3.2) % 16) / 16;
-          ctx.strokeStyle = `rgba(200,240,255,${0.35 * (1 - rr) * a})`;
-          ctx.lineWidth = 0.8;
-          ctx.beginPath(); ctx.arc(Math.sin(time * 1.3 + i) * 0.8, 0, rr * (R - 1.5), 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.fill();
+        ctx.save();
+        ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.clip();
+        // Krusninger fra tre sentre som vandrer litt, så overflaten lever.
+        for (let c = 0; c < 3; c++) {
+          const cx = Math.sin(time * 0.7 + c * 2.1) * rr * 0.35, cy = Math.cos(time * 0.5 + c * 1.7) * rr * 0.35;
+          for (let i = 0; i < 6; i++) {
+            const f = ((time * 0.45 + i / 6 + c * 0.33) % 1);
+            ctx.strokeStyle = `rgba(200,240,255,${0.28 * (1 - f) * a})`;
+            ctx.lineWidth = 0.5 + (1 - f) * 0.8;
+            ctx.beginPath(); ctx.arc(cx, cy, f * rr * 1.3, 0, Math.PI * 2); ctx.stroke();
+          }
+        }
+        // Lysflekker (kaustikk) som glir over flaten.
+        for (let i = 0; i < 10; i++) {
+          const px = Math.sin(time * (0.6 + i * 0.13) + i) * rr * 0.75, py = Math.cos(time * (0.5 + i * 0.11) + i * 2) * rr * 0.75;
+          const s = 1.2 + (i % 3) * 0.6;
+          const cg = ctx.createRadialGradient(px, py, 0, px, py, s);
+          cg.addColorStop(0, `rgba(235,250,255,${0.35 * a})`);
+          cg.addColorStop(1, 'rgba(235,250,255,0)');
+          ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(px, py, s, 0, Math.PI * 2); ctx.fill();
         }
         ctx.restore();
-        ctx.globalCompositeOperation = 'lighter';
-        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 1.8);
-        glow.addColorStop(0, `rgba(90,180,255,${0.35 * a})`);
+        // Lys kant der horisonten møter ringen.
+        ctx.strokeStyle = `rgba(190,235,255,${0.6 * a})`; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.arc(0, 0, rr - 0.3, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+        // Blått lys ut i rommet.
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 2.4);
+        glow.addColorStop(0, `rgba(90,180,255,${0.4 * a})`);
         glow.addColorStop(1, 'rgba(90,180,255,0)');
         ctx.fillStyle = glow;
-        ctx.beginPath(); ctx.arc(0, 0, R * 1.8, 0, Math.PI * 2); ctx.fill();
-        ctx.globalCompositeOperation = 'source-over';
+        ctx.beginPath(); ctx.arc(0, 0, R * 2.4, 0, Math.PI * 2); ctx.fill();
       }
+
       if (g.state === 'kawoosh') {
-        const k = Math.sin(Math.min(1, g.t / RF.KAWOOSH_TIME) * Math.PI);
-        const L = RF.KAWOOSH_LEN * k;
-        ctx.globalCompositeOperation = 'lighter';
-        const kg = ctx.createRadialGradient(L * 0.35, 0, 0, L * 0.35, 0, L * 0.7 + 4);
-        kg.addColorStop(0, 'rgba(255,255,255,0.95)');
-        kg.addColorStop(0.4, 'rgba(120,200,255,0.8)');
-        kg.addColorStop(1, 'rgba(40,110,255,0)');
-        ctx.fillStyle = kg;
-        ctx.beginPath(); ctx.ellipse(L * 0.45, 0, L * 0.55 + 2, R * 0.85, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.globalCompositeOperation = 'source-over';
+        // Den ustabile virvelen: skytes ut forover, turbulent i kanten.
+        const u = Math.min(1, g.t / RF.KAWOOSH_TIME);
+        const k = Math.sin(u * Math.PI);
+        const L = RF.KAWOOSH_LEN * (0.2 + 0.8 * Math.pow(k, 0.7));
+        const W = RI * (0.9 + 0.1 * k);
+        for (const [sc, col, al] of [[1.08, '40,110,255', 0.55], [0.85, '120,200,255', 0.75], [0.55, '230,248,255', 0.95]]) {
+          ctx.beginPath();
+          for (let i = 0; i <= 48; i++) {
+            const t = (i / 48) * Math.PI * 2;
+            const wob = 1 + 0.12 * Math.sin(t * 7 + time * 25) + 0.06 * Math.sin(t * 13 - time * 31);
+            const x = Math.max(0, Math.cos(t)) * L * sc * wob + Math.min(0, Math.cos(t)) * 1.5;
+            const y = Math.sin(t) * W * sc * (0.95 + 0.05 * Math.sin(t * 5 + time * 20));
+            i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+          }
+          ctx.closePath();
+          const vg = ctx.createRadialGradient(L * 0.3 * sc, 0, 0, L * 0.3 * sc, 0, L * sc + W);
+          vg.addColorStop(0, `rgba(${col},${al})`);
+          vg.addColorStop(1, `rgba(${col},0.05)`);
+          ctx.fillStyle = vg; ctx.fill();
+        }
+        // Stråler som skytes ut fra midten.
+        ctx.strokeStyle = 'rgba(210,240,255,0.5)'; ctx.lineWidth = 0.4;
+        for (let i = 0; i < 16; i++) {
+          const y = (Math.random() * 2 - 1) * W * 0.8;
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(L * G.rand(0.6, 1.25), y * G.rand(0.6, 1.3)); ctx.stroke();
+        }
+        // Blendende lys i starten.
+        const fl = Math.max(0, 1 - u * 2.5);
+        if (fl > 0) {
+          const fg = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 4);
+          fg.addColorStop(0, `rgba(230,248,255,${0.8 * fl})`);
+          fg.addColorStop(1, 'rgba(120,200,255,0)');
+          ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(0, 0, R * 4, 0, Math.PI * 2); ctx.fill();
+        }
       }
+
+      // Sjokkbølger fra åpningen: sirkler som vokser utover i rommet.
+      for (const w of g.waves || []) {
+        const age = time - w.t0;
+        if (age < 0 || age > 1.6) continue;
+        const r = (age * 90) / K + R;
+        ctx.strokeStyle = `rgba(160,215,255,${0.3 * (1 - age / 1.6)})`;
+        ctx.lineWidth = (0.8 + age * 1.2) / K;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      // Lampene i chevronene lyser når de er låst.
       for (let i = 0; i < 9; i++) {
         const lit = i < 7 && (g.chevrons > i || open);
         if (!lit) continue;
         const a = -Math.PI / 2 + (i / 9) * Math.PI * 2;
-        ctx.save();
-        ctx.translate(Math.cos(a) * depth, Math.sin(a) * R);
-        ctx.fillStyle = '#ffb04a';
-        ctx.beginPath(); ctx.moveTo(-1.6, -1.2); ctx.lineTo(1.6, -1.2); ctx.lineTo(0, 1.4); ctx.closePath(); ctx.fill();
-        ctx.globalCompositeOperation = 'lighter';
-        const lg = ctx.createRadialGradient(0, 0, 0, 0, 0, 4);
-        lg.addColorStop(0, 'rgba(255,170,60,0.8)');
-        lg.addColorStop(1, 'rgba(255,120,20,0)');
+        const q = P(a, R + 2.9);
+        const fresh = g.state === 'dialing' && g.chevrons === i + 1 ? 1.6 : 1;
+        const lg = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, 3.2 * fresh);
+        lg.addColorStop(0, 'rgba(255,190,90,0.95)');
+        lg.addColorStop(0.35, 'rgba(255,140,40,0.55)');
+        lg.addColorStop(1, 'rgba(255,110,20,0)');
         ctx.fillStyle = lg;
-        ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
+        ctx.beginPath(); ctx.arc(q.x, q.y, 3.2 * fresh, 0, Math.PI * 2); ctx.fill();
       }
+      ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
     }
 

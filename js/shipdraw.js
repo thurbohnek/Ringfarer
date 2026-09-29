@@ -883,7 +883,8 @@
       x0 = Math.min(x0, m.lx); x1 = Math.max(x1, m.lx); y0 = Math.min(y0, m.ly); y1 = Math.max(y1, m.ly);
     }
     x0 -= h + 2.2; y0 -= h + 1.4; x1 += h + CELL * 2.4; y1 += h + 1.4;
-    const ppm = Math.min(PPM, 2048 / Math.max(x1 - x0, y1 - y0));
+    // Ditt eget skip tegnes skarpere, så det tåler at man zoomer helt inn.
+    const ppm = obj.hiRes ? Math.min(64, 1800 / Math.max(x1 - x0, y1 - y0)) : Math.min(PPM, 2048 / Math.max(x1 - x0, y1 - y0));
     const cw = Math.ceil((x1 - x0) * ppm), ch = Math.ceil((y1 - y0) * ppm);
     const cv = document.createElement('canvas');
     cv.width = cw; cv.height = ch;

@@ -47,6 +47,7 @@
       this.s = state;
       this.body = new RF.Body(G.box(-1, -1, 1, 1), 1, { kind: 'ship', restitution: 0.18, friction: 0.45 });
       this.body.ship = this;
+      this.hiRes = true; // skarp tegning av spillerens skip (se artOf)
       this.fa = 1; // 0 = av, 1 = rotasjon, 2 = full
       this.fx = { main: 0, retro: 0, left: 0, right: 0, rotL: 0, rotR: 0 };
       this.tool = 'laser';

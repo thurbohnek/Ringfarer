@@ -223,6 +223,12 @@
     return true;
   };
 
+  // Hvor langt man kan zoome inn: minst så skipet fyller hele skjermen.
+  game.maxZoom = () => {
+    const R = RF.renderer, r = game.ship ? game.ship.body.radius : 8;
+    return Math.max(10, Math.min(R.w, R.h) / (r * 1.1));
+  };
+
   // Zoom slik at skipet fyller en fornuftig del av skjermen.
   game.fitZoom = () => {
     const r = game.ship.body.radius;
@@ -840,8 +846,33 @@
     g.t += dt;
     if (g.state === 'dialing') {
       const ch = Math.min(7, Math.floor(g.t / 0.62));
-      if (ch > g.chevrons) { g.chevrons = ch; Audio.chevron(ch); }
-      if (g.chevrons >= 7 && g.t > 7 * 0.62 + 0.4) { g.state = 'kawoosh'; g.t = 0; Audio.kawoosh(); }
+      // Symbolsporet snurrer fram og tilbake mellom hver chevron.
+      g.spin = (g.spin || 0) + dt * (g.chevrons % 2 ? -1.4 : 1.4);
+      const cs0 = Math.cos(g.a), sn0 = Math.sin(g.a), gk0 = R / RF.GATE_R;
+      const near = G.len(game.ship.body.x - g.x, game.ship.body.y - g.y) < 900 * gk0;
+      if (ch > g.chevrons) {
+        g.chevrons = ch; Audio.chevron(ch);
+        // Gnister der chevronen låser.
+        const a = -Math.PI / 2 + ((ch - 1) / 9) * Math.PI * 2;
+        const lx = Math.cos(a) * (RF.GATE_R + 2.4) * 0.34 * gk0, ly = Math.sin(a) * (RF.GATE_R + 2.4) * gk0;
+        if (near) game.particles.burst(g.x + lx * cs0 - ly * sn0, g.y + lx * sn0 + ly * cs0, 14, { type: 'glow', sMin: 3 * gk0, sMax: 14 * gk0, color: '#ffb04a', zMin: 0.1, zMax: 0.3, lMin: 0.2, lMax: 0.6 });
+      }
+      if (g.chevrons >= 7 && g.t > 7 * 0.62 + 0.4) {
+        g.state = 'kawoosh'; g.t = 0; Audio.kawoosh();
+        // Åpningen: sjokkbølger, en sky av blå gnister forover, lysglimt og risting.
+        g.waves = [{ t0: game.time }, { t0: game.time + 0.25 }, { t0: game.time + 0.55 }];
+        if (near) {
+          for (let i = 0; i < 90; i++) {
+            const sp = G.rand(20, 110) * Math.sqrt(gk0), da = G.rand(-0.7, 0.7);
+            const vx = Math.cos(g.a + da) * sp, vy = Math.sin(g.a + da) * sp;
+            const off = G.rand(-1, 1) * g.R * 0.8;
+            game.particles.burst(g.x - sn0 * off, g.y + cs0 * off, 1, { type: 'glow', sMin: 4, sMax: 12, color: i % 3 ? '#8fd0ff' : '#e8f8ff', zMin: 0.2, zMax: 0.6, lMin: 0.5, lMax: 1.4, vx, vy });
+          }
+          const dd = G.len(game.ship.body.x - g.x, game.ship.body.y - g.y) / gk0;
+          game.flash = Math.max(game.flash || 0, G.clamp(1 - dd / 700, 0.15, 0.7));
+          game.shake = Math.min(1, game.shake + G.clamp(1 - dd / 500, 0.2, 1));
+        }
+      }
     } else if (g.state === 'kawoosh') {
       // Alt som er foran porten i virvelen blir fordampet.
       const k = Math.sin(Math.min(1, g.t / RF.KAWOOSH_TIME) * Math.PI);
@@ -1017,9 +1048,9 @@
   // --- Oppdatering ---
   function updateCamera(dt) {
     const b = game.ship.body, cam = game.cam, R = RF.renderer;
-    // Hvor langt kameraet kan flyttes bort fra skipet: skipet skal alltid synes.
-    // Holder avstand til kanten så skipet ikke havner bak panelene.
-    const mx = Math.max(0, (R.w / 2 - Math.min(130, R.w * 0.22)) / cam.zoom), my = Math.max(0, (R.h / 2 - Math.min(150, R.h * 0.22)) / cam.zoom);
+    // Hvor langt kameraet kan flyttes bort fra skipet: halvannen skjerm i hver
+    // retning. Er skipet utenfor bildet, viser en pil i kanten hvor det er.
+    const mx = (R.w * 1.5) / cam.zoom, my = (R.h * 1.5) / cam.zoom;
     const off = game.camOff;
     off.x = G.clamp(off.x, -mx, mx);
     off.y = G.clamp(off.y, -my, my);
@@ -1298,11 +1329,11 @@
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const f = Math.exp(-e.deltaY * 0.0015);
-      game.cam.zoom = G.clamp(game.cam.zoom * f, 0.02, 10);
+      game.cam.zoom = G.clamp(game.cam.zoom * f, 0.02, game.maxZoom());
     }, { passive: false });
     game.touchUI = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     // Knip med to fingre for å zoome.
-    RF.Input.onPinch = (f) => { game.cam.zoom = G.clamp(game.cam.zoom * f, 0.02, 10); };
+    RF.Input.onPinch = (f) => { game.cam.zoom = G.clamp(game.cam.zoom * f, 0.02, game.maxZoom()); };
     // Sikt med musen eller fingeren. Trykk på radaren gjør den stor eller liten.
     RF.Input.bindAim(canvas, (e) => {
       const rb = game._radarHit;

@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.14.0', date: '2026-09-30', title: 'A real gate, and a closer look',
+      items: [
+        'The gate is a built machine: heavy hull plates, a symbol track that spins while dialing, nine chevron clamps that lock with a spark, stabilizer thrusters and a control platform.',
+        'Opening a gate is violent: the ring charges up with arcs, the vortex blasts out with a flash, shock waves and a spray of sparks, and the event horizon ripples and shimmers.',
+        'Zoom in until your ship fills the whole screen. Your own ship is drawn sharper so it holds up close.',
+        'Pan much further away from your ship. An arrow at the edge shows where it is.',
+      ],
+    },
+    {
       v: 'v0.13.0', date: '2026-09-30', title: 'Light, gates and calmer drones',
       items: [
         'New lighting: the sun lights everything and rocks cast shadows away from it. Lamps add light, so overlapping beams look natural, and the beams have soft edges.',

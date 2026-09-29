@@ -250,6 +250,8 @@
     }
     if (!ship.docked) {
       edgeMarker(ctx, game, R, game.sys.station.x, game.sys.station.y, game.sys.station.name, C.ok);
+      // Har man panorert bort fra skipet, viser en pil hvor det er.
+      if (game.camOff.x || game.camOff.y) edgeMarker(ctx, game, R, b.x, b.y, 'Your ship', '#ffffff');
       for (const g of RF.gatesOf(game.sys)) edgeMarker(ctx, game, R, g.x, g.y, g.name || 'Gate', C.gate);
     }
 

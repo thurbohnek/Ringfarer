@@ -37,6 +37,39 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.14.0 · Porten bygget av ekte deler, kraftig åpning, tettere zoom og friere panorering
+
+Ønske fra brukeren: «Må kunne zoome helt inn på små skip. Så skipet dekker
+hele skjermen. Må også kunne panorer mer. Usikker på hvor langt skipet kan
+være utenfor bildet. Gaten må se mer realistisk ut. Ser bare ut som en
+regning no. Må se ut som noe som er bygget med de forskjellige komponenten
+som må til. Når gaten åpnes må det virkelig vises me rå effect.»
+
+Hva som er gjort:
+- `js/render.js` (porten): tegnet på nytt som en maskin, sett skrått
+  ovenfra. Ringen har tykkelse bakover og 36 panelplater med sømmer, lysest
+  på siden som vender mot oss. Et symbolspor inni roterer mens porten ringer
+  opp. Ni chevron-enheter har hus, en V-klemme som går inn når chevronen
+  låser, og en lampe som lyser. Fire stabiliseringsdyser sitter utenpå, og
+  en kontrollplattform bak porten er koblet til ringen med fagverk og
+  strømkabler. Lampene på plattformen viser hvor mange chevroner som er låst.
+- `js/render.js`, `js/game.js` (åpningen): elektriske buer langs ringen de
+  siste chevronene, gnister når en chevron låser, og en kraftig vortex med
+  turbulente kanter, stråler og et blendende lys. Tre sjokkbølger går
+  utover, en sky av blå gnister skytes ut forover, skjermen blinker og
+  rister etter hvor nær man er. Horisonten har bevegelige krusninger fra tre
+  sentre, lysflekker som glir over flaten og en lys kant, og den trekker seg
+  sammen når porten lukkes.
+- `js/game.js`: man kan zoome inn til skipet fyller hele skjermen (også på
+  de minste skipene), og panorere opptil halvannen skjerm bort fra skipet.
+- `js/hud.js`: når man har panorert bort, viser en pil i kanten hvor skipet
+  er («Your ship»).
+- `js/shipdraw.js`, `js/ship.js`: ditt eget skip tegnes med høyere
+  oppløsning, så det er skarpt også helt inne.
+- `js/news.js`, `index.html`: nyheter og versjon v0.14.0.
+
+Testet: porten i ro, under oppringing, åpning og åpen (skjermbilder), zoom helt inn på Skiff (84 ganger, skipet fyller skjermen) og panorering bort fra skipet med pil i kanten. Ingen feil i konsollen.
+
 ## 2026-09-30: v0.13.0 · Nytt lys med sol, kapitalport, rolige droner og støv som viser fart
 
 Ønske fra brukeren: dronene var for store for lukene og vimset mye, og bare
