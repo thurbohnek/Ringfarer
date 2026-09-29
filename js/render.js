@@ -692,9 +692,12 @@
         if (M.vein && !rgb.vein) rgb.vein = hexRgb(M.vein);
         const tn = 0.2 + 0.6 * (t[k] / 255);
         let c = tn < 0.5 ? mix(rgb.dark, rgb.base, tn * 2) : mix(rgb.base, rgb.light, (tn - 0.5) * 2);
-        // Glitrende korn i malm med edle mineraler.
-        if (rgb.vein && ((k * 2654435761) >>> 0) % 7 === 0) c = mix(c, rgb.vein, 0.65);
-        if (!own) c = mix(c, tn < 0.5 ? mix(mainRgb.dark, mainRgb.base, tn * 2) : mix(mainRgb.base, mainRgb.light, (tn - 0.5) * 2), 0.35);
+        // Mineraler (ikke gråstein) skal synes tydelig, så man ser hvor man
+        // bør skjære: glitrende korn og en farge som ikke blandes bort.
+        const ore = !M.stone;
+        if (rgb.vein && ((k * 2654435761) >>> 0) % (ore && !own ? 3 : 7) === 0) c = mix(c, rgb.vein, 0.7);
+        if (!own && ore) c = mix(c, rgb.vein || rgb.light, 0.22);
+        else if (!own) c = mix(c, tn < 0.5 ? mix(mainRgb.dark, mainRgb.base, tn * 2) : mix(mainRgb.base, mainRgb.light, (tn - 0.5) * 2), 0.35);
         return c;
       };
       for (let k = 0; k < NX * NY; k++) {
@@ -764,6 +767,31 @@
       x.fillStyle = pat;
       x.fillRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
       x.globalAlpha = 1;
+      // Mineraler i steinen (ikke gråstein): tydelige flekker med glitter, så
+      // man ser hvor det lønner seg å skjære.
+      {
+        const MATS = RF.Vox.MATS, s = V.s, spots = {}, glint = {};
+        for (let k = 0; k < V.f.length; k++) {
+          if (V.f[k] < 0.35) continue;
+          const mk = MATS[V.m[k]];
+          const M = RF.MATERIALS[mk];
+          if (M.stone || mk === b.mat) continue;
+          const col = M.mark || M.vein || M.light;
+          const px = V.ox + (k % V.NX) * s, py = V.oy + ((k / V.NX) | 0) * s;
+          const sp = spots[col] || (spots[col] = new Path2D());
+          sp.moveTo(px + s * 0.68, py); sp.arc(px, py, s * 0.68, 0, Math.PI * 2);
+          if (((k * 2654435761) >>> 0) % 3 === 0) {
+            const gp = glint[col] || (glint[col] = new Path2D());
+            const gx = px + (((k * 97) % 7) / 7 - 0.5) * s * 0.6, gy = py + (((k * 53) % 5) / 5 - 0.5) * s * 0.6;
+            gp.moveTo(gx + s * 0.16, gy); gp.arc(gx, gy, s * 0.16, 0, Math.PI * 2);
+          }
+        }
+        x.globalAlpha = 0.4;
+        for (const col in spots) { x.fillStyle = col; x.fill(spots[col]); }
+        x.globalAlpha = 0.9;
+        for (const col in glint) { x.fillStyle = col; x.fill(glint[col]); }
+        x.globalAlpha = 1;
+      }
       // Mørkere mot kantene, så steinen ser rund og tung ut.
       x.lineJoin = 'round';
       const s = V.s;

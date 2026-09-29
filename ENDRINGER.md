@@ -24,6 +24,10 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   som er lengst unna. Grensen kan justeres.
 - **Kjempeasteroider tar tid å bore i.** En tunnel stor nok til skipet krever
   mange biter. Raketter går mye raskere. Farten kan justeres etter testing.
+- **Borehodene maler fortsatt løs biter** (som før). Bare laseren er en
+  skjærestråle. Si fra om borene også skal endres.
+- **Skjærefarten** kan justeres etter testing. Startlaseren bruker omtrent
+  25 sekunder gjennom en gråstein på 50 m.
 - **Laseren gir ikke lenger malm av gråstein** (kondritt, silikat, karbon).
   Jern, silisium og grafitt kommer nå bare fra biter som løsner når steinen
   sprekker, eller fra kanon og raketter. Si fra om det gjør det for vanskelig
@@ -38,6 +42,52 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   passasjerer de hadde med seg akkurat da, blir borte.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-30: v0.15.0 · Laseren er en skjærestråle, og mineralene synes
+
+**Ønske:** «Ønsker egentlig at laseren fungerer mere som en slags kutte stråle.
+At d ikke løsner så mange biter. Heller det at noen biter kan knekke av men at
+det er realistisk at hvor biten rammer løs synes på astroiden at biten passet
+inn der. Om mineralene vises litt bedre på astroiden så kan man på en måte
+kutte fra flere sider for å få løs bitene med mineraler så bruke laser for å
+få ut mineralet.»
+
+**Hva som er gjort:**
+
+- `js/voxel.js`, ny `Vox.cut` (skjærestrålen):
+  - Laseren fordamper en smal renne der den treffer, omtrent én node bred.
+    Holdes den på samme linje, går rennen dypere til den er gjennom steinen.
+  - Ingen biter slås løs. En bit løsner først når kuttene går helt rundt den.
+    Den beholder formen sin og passer i hullet den kom fra.
+  - Mens det skjæres, beholder løse biter formen sin ned til 10 m². Mindre
+    biter av gråstein blir støv, mindre biter av mineral blir malm.
+  - Gråstein som skjæres bort, blir røyk. Mineral som skjæres bort, samles
+    opp og kommer ut som malmbiter (omtrent 3 m² om gangen).
+  - Mineraler som er for harde for laseren, stopper strålen som før, med
+    melding.
+  - Laseren gir ikke lenger sprekker. Kanon og raketter gjør det fortsatt.
+  - Melding når en bit er skåret løs: «A piece has been cut loose».
+  - Løse biter med rutenett knuses bare hvis de er helt gråstein (98,5 %),
+    så biter med mineral kan skjæres videre.
+- `js/ship.js`: laserne skjærer. Borehodene maler fortsatt løs biter som
+  før (`Vox.beam` med `drill`).
+- `js/npc.js`: gruvedronene skjærer også, via `Vox.beam`.
+- `js/render.js`, `js/world.js`: mineralene synes tydelig i steinen.
+  - Hvert mineral har en egen markørfarge (`mark` for nikkel-jern, is og
+    titan, ellers årefargen).
+  - Mineralene tegnes som myke, fargede flekker med glitter oppå steinen.
+  - Mineraler blandes ikke lenger bort mot fargen på resten av steinen.
+- `js/news.js`, `index.html`: nyhet og versjon v0.15.0.
+
+**Testet** (Playwright, testnettleser):
+
+- Startskipet (laser T1) på en gråstein: steinen ble skåret i to på omtrent
+  22–25 sekunder. Ingen småbiter, og kantene passer sammen.
+- Testskipet: steinen skåret i to på 12 sekunder, uten overflødige biter.
+- En stein av kondritt med årer av nikkel-jern: årene synes som blålig-sølv
+  glitter.
+- Stein av nikkel-jern med startlaseren: for hard, som før.
+- Dronene går fortsatt inn og ut av luken. Ingen feil i konsollen.
 
 ## 2026-09-30: v0.14.2 · Mindre løs stein, raskere gruvedrift og riktig skygge
 

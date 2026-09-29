@@ -367,9 +367,10 @@
 
   // Løse biter av nesten bare gråstein knuses av laseren i stedet for å
   // skjæres bit for bit. Ellers vanlig skjæring (Vox.laser).
-  Vox.isJunk = (t) => t.debris && !t.dead && (t.rubble ? !!RF.MATERIALS[t.mat].stone : t.vox && t.area < 600 && t.stoneFrac > 0.85);
-  Vox.beam = (t, hit, d, power, tier, dt, game) => {
-    if (t.vox && !Vox.isJunk(t)) return Vox.laser(t, hit, d, power, tier, dt, game);
+  Vox.isJunk = (t) => t.debris && !t.dead && (t.rubble ? !!RF.MATERIALS[t.mat].stone : t.vox && t.area < 600 && t.stoneFrac > 0.985);
+  // drill = borehoder, som maler løs biter (Vox.laser). Laserstrålen skjærer.
+  Vox.beam = (t, hit, d, power, tier, dt, game, drill) => {
+    if (t.vox && !Vox.isJunk(t)) return drill ? Vox.laser(t, hit, d, power, tier, dt, game) : Vox.cut(t, hit, d, power, tier, dt, game);
     return Vox.hitRubble(t, dt * power * 0.8 * (Vox.isJunk(t) ? 3 : 1), tier, d, game, true);
   };
 
@@ -389,8 +390,22 @@
     game.particles.burst(b.x, b.y, n, { type: 'debris', sMin: 1, sMax: 4, color: RF.MATERIALS[b.mat].light, zMin: 0.2, zMax: 0.5, lMin: 0.6, lMax: 1.4, vx: b.vx, vy: b.vy });
   }
 
+  // Mens skjærestrålen jobber, beholder løse biter formen sin (så de passer
+  // i hullet de kom fra) ned til CUT_MIN m². Mindre biter av gråstein blir
+  // støv, mindre biter av mineral blir malm.
+  const CUT_MIN = 10;
+  let keepShape = false;
+  const isStoneMat = (mat) => !!RF.MATERIALS[mat].stone;
+
   function finalize(nb, game) {
     if (nb.area < RF.DUST_AREA) { dust(nb, game); return null; }
+    if (keepShape) {
+      if (nb.area >= CUT_MIN) { nb.world.add(nb); return nb; }
+      if (isStoneMat(nb.mat)) { dust(nb, game, 8); return null; }
+      const o = toOre(nb);
+      if (o) nb.world.add(o);
+      return o;
+    }
     if (nb.area <= RF.ORE_MAX_AREA) {
       const o = toOre(nb);
       if (!o) return null;
@@ -438,6 +453,14 @@
       }
     }
     if (!rebuild(b)) { b.dead = true; return made; }
+    if (keepShape) {
+      if (b.area < CUT_MIN) {
+        b.dead = true;
+        if (isStoneMat(b.mat)) dust(b, game, 8);
+        else { const o = toOre(b); if (o) { b.world.add(o); made.push(o); } }
+      }
+      return made;
+    }
     if (b.area <= RF.ORE_MAX_AREA) {
       b.dead = true;
       if (b.area >= RF.DUST_AREA) {
@@ -675,6 +698,89 @@
       Vox.chip(t, hit, d, game, 0.8 + 0.12 * tier, tier);
     }
     if (!t.dead && t.stress >= t.integrity) Vox.crack(t, hit, d, game);
+    return null;
+  };
+
+  // Skjærestråle: strålen fordamper en smal renne der den treffer, og går
+  // dypere jo lenger den holdes der. Ingen biter slås løs. En bit løsner først
+  // når kuttene går helt rundt den, og den har da nøyaktig formen på hullet.
+  // Gråstein blir til røyk. Mineral som skjæres bort, samles opp og kommer ut
+  // som små malmbiter. Mineraler som er for harde for laseren stopper strålen.
+  Vox.cut = (t, hit, d, power, tier, dt, game) => {
+    const V = t.vox, s = V.s, f = V.f, m = V.m;
+    const mat = Vox.matAt(t, hit.x, hit.y, d.x, d.y);
+    const hard = RF.MATERIALS[mat].hard;
+    if (tier < hard) return mat;
+    const hl = t.toLocal(hit.x, hit.y), dl = dirLocal(t, d);
+    // Rennen: fra litt foran treffpunktet og ett steg inn i steinen.
+    const ax = hl.x - dl.x * s * 0.3, ay = hl.y - dl.y * s * 0.3;
+    const bx = hl.x + dl.x * s * 1.1, by = hl.y + dl.y * s * 1.1;
+    const w = s * 0.5, ex = bx - ax, ey = by - ay, el = ex * ex + ey * ey;
+    // Fyll per sekund. Store noder (store steiner) tar lengre tid.
+    const rate = (power * 3) / Math.sqrt(hard) / Math.max(0.8, s);
+    let crossed = false, removed = false;
+    const acc = t._cutOre || (t._cutOre = {});
+    for (const k of collect(V, (ax + bx) / 2, (ay + by) / 2, s * 0.8 + w, () => true)) {
+      const hk = HARD[m[k]];
+      if (hk > tier) continue;
+      const px = V.ox + (k % V.NX) * s - ax, py = V.oy + ((k / V.NX) | 0) * s - ay;
+      const u = G.clamp((px * ex + py * ey) / el, 0, 1);
+      const dist = G.len(px - ex * u, py - ey * u);
+      if (dist > w) continue;
+      const take = Math.min(f[k], (rate * dt * (1 - (0.5 * dist) / w)) / Math.sqrt(hk));
+      if (take <= 0) continue;
+      const was = f[k];
+      f[k] -= take;
+      removed = true;
+      if (was >= TH && f[k] < TH) crossed = true;
+      const mk = MATS[m[k]];
+      if (!RF.MATERIALS[mk].stone) acc[mk] = (acc[mk] || 0) + take * s * s;
+    }
+    if (!removed) {
+      // Ingenting igjen i rennen her: grip nærmeste faste node litt lenger inn.
+      const k = nearestSolid(V, bx, by, s * 2, (q) => HARD[m[q]] <= tier);
+      if (k >= 0) { f[k] = Math.max(0, f[k] - rate * dt); if (f[k] < TH) crossed = true; }
+    }
+    t.heat = Math.min(1, (t.heat || 0) + dt * 3);
+    t._cutT = (t._cutT || 0) + dt;
+    t._cutDirty = t._cutDirty || crossed || removed;
+    // Bygg omriss og kollisjon på nytt av og til mens det skjæres.
+    if (t._cutDirty && (crossed || t._cutT > 0.12)) {
+      t._cutT = 0; t._cutDirty = false;
+      keepShape = true;
+      let made;
+      try { made = Vox.settle(t, game); } finally { keepShape = false; }
+      // Løse biter glir bare litt fra hverandre, de passer fortsatt sammen.
+      kickPieces(t, made.filter((o) => o.vox), (o) => {
+        const dx = o.x - t.x, dy = o.y - t.y, l = G.len(dx, dy) || 1;
+        o.vx += (dx / l) * 0.15; o.vy += (dy / l) * 0.15;
+      });
+      if (made.some((o) => o.vox) && game && t.world === game.sys.world) {
+        RF.Audio.thud(0.25, true);
+        game.msg('A piece has been cut loose', RF.HUD_COLORS.ok);
+      }
+    }
+    // Mineral som er skåret bort, kommer ut som små malmbiter.
+    for (const mk in acc) {
+      if (acc[mk] < 3 || t.dead) continue;
+      const area = Math.min(acc[mk], RF.ORE_MAX_AREA * 0.9);
+      acc[mk] -= area;
+      const shape = G.rockShape(Math.sqrt(area / Math.PI), G.randInt(7, 10));
+      const k = Math.sqrt(area / Math.max(0.01, Math.abs(G.polyArea(shape))));
+      const o = RF.makeRock(shape.map((p) => ({ x: p.x * k, y: p.y * k })), mk, {
+        x: hit.x - d.x * 1.2, y: hit.y - d.y * 1.2, a: Math.random() * 6.28,
+        vx: t.vx - d.x * G.rand(0.8, 1.8) + G.rand(-0.5, 0.5), vy: t.vy - d.y * G.rand(0.8, 1.8) + G.rand(-0.5, 0.5), w: G.rand(-1, 1),
+      });
+      o.kind = 'ore';
+      o.world = t.world;
+      t.world.add(o);
+    }
+    if (game && t.world === game.sys.world && Math.random() < dt * 14) {
+      const M = RF.MATERIALS[mat];
+      const ang = Math.atan2(-d.y, -d.x);
+      game.particles.burst(hit.x, hit.y, 3, { sMin: 4, sMax: 14, dir: ang, spread: 0.9, color: '#ffc070', zMin: 0.15, zMax: 0.3, lMin: 0.15, lMax: 0.45 });
+      game.particles.burst(hit.x, hit.y, 1, { type: 'smoke', sMin: 1, sMax: 4, dir: ang, spread: 1, color: M.light, zMin: 0.6, zMax: 1.4, grow: 2, lMin: 0.8, lMax: 2, vx: t.vx, vy: t.vy });
+    }
     return null;
   };
 

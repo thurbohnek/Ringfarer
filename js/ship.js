@@ -345,7 +345,7 @@
         }
         if (t.kind !== 'rock') continue;
         if (Math.random() < 0.5) game.particles.burst(hit.x, hit.y, 2, { type: 'debris', sMin: 2, sMax: 7, dir: Math.atan2(-d.y, -d.x), spread: 1.6, color: RF.MATERIALS[t.mat].light, zMin: 0.15, zMax: 0.4, lMin: 0.5, lMax: 1.4, vx: t.vx, vy: t.vy });
-        const tooHard = RF.Vox.beam(t, hit, d, Dr.power, Dr.tier, dt, game);
+        const tooHard = RF.Vox.beam(t, hit, d, Dr.power, Dr.tier, dt, game, true);
         if (tooHard) hardMat = tooHard; else bit = true;
       }
       for (const L of st.lasers) {

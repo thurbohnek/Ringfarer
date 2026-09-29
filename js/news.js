@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.15.0', date: '2026-09-30', title: 'The laser is a cutting beam',
+      items: [
+        'The mining laser now cuts a thin groove instead of knocking out chunks. Hold it on a line and it slices through the rock.',
+        'Pieces only come loose when your cuts go all the way around them, and they fit the hole they came from.',
+        'Minerals show clearly in the rock as colored, glinting veins. Cut around them, then cut into the mineral to get ore.',
+        'Rock you cut away turns to vapor. Mineral you cut away comes out as ore.',
+      ],
+    },
+    {
       v: 'v0.14.2', date: '2026-09-30', title: 'Less rubble, smoother mining',
       items: [
         'Loose chunks of plain rock break up quickly in the laser, and small bits turn to dust right away.',
