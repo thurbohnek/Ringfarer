@@ -37,6 +37,53 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.14.1 · Dronene flyr inn i luken
+
+**Ønske:** «Dronene flyr ikke inn i luken men bak skipet. Kan du ordne det?»
+
+**Hva som var galt:**
+
+- Egne droner ble tegnet før spillerens skip. Når de fløy inn over skroget
+  mot luken, forsvant de under skipet og så ut til å fly bak det.
+- Dronene fløy til et punkt ved siden av skipet og derfra inn fra siden,
+  gjennom skroget.
+- Gruve- og innsamlingsdroner leverte malm til et punkt bak skipet i stedet
+  for i luken.
+
+**Hva som er gjort:**
+
+- `js/render.js`: dine egne droner tegnes nå oppå skipet. Andre skip tegnes
+  fortsatt under.
+- `js/npc.js`:
+  - Hjemkomst til dronerom og hangar: dronen flyr rett inn over luken
+    (lukene sitter i dekket, sett ovenfra). Luken åpnes når dronen er
+    nær, og dronen svever over den med nesen samme vei som skipet. Så synker
+    den ned i rommet (ny verdi `sink` fra 0 til 1) og er hjemme.
+  - Utskyting: dronen stiger opp av luken (`sink` fra 1 til 0) før den
+    flyr ut.
+  - Ny hjelper `pinTo` holder dronen over luken mens skipet beveger og dreier
+    seg.
+  - Gruve- og innsamlingsdroner med full last flyr inn i luken sin, lesser
+    av og stiger opp igjen. Droner på klemmer leverer ved klemmen.
+  - Dokkingklemmene virker som før.
+- `js/shipdraw.js`: mens dronen synker, blir den mindre og mørkere, og
+  skyggen og dyseflammene forsvinner. Det ser ut som den går ned under
+  dekket.
+- `js/news.js`, `index.html`: nyhet og versjon v0.14.1.
+
+**Testet** (Playwright, testnettleser):
+
+- Testskipet med dronerom:
+  - Dronen stiger opp av luken og flyr ut.
+  - Kalt hjem: den flyr inn over luken, luken åpnes, og den synker ned og er
+    hjemme på omtrent 8 sekunder.
+- Broodhall D-4 med hangar og dronerom:
+  - Begge droner flyr inn over hver sin luke og synker ned.
+  - Med full malmlast flyr begge inn i luken, lesser av (melding
+    «delivered 9.0 t of ore») og kommer ut igjen på jobb.
+- Ingen feil i konsollen.
+- Skjermbilde: dronen stiger synlig opp av den åpne hangaren.
+
 ## 2026-09-30: v0.14.0 · Porten bygget av ekte deler, kraftig åpning, tettere zoom og friere panorering
 
 Ønske fra brukeren: «Må kunne zoome helt inn på små skip. Så skipet dekker

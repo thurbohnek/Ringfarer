@@ -295,9 +295,23 @@
       return (n + 0.5) * RF.CELL;
     }
 
+    // Følg skipet over luken (brukes mens dronen stiger opp eller synker ned).
+    // k = hvor raskt den trekkes inn til midten av luken.
+    pinTo(dt, p, a, k) {
+      const b = this.body, ob = this.owner.body;
+      const v = ob.pointVel(p.x, p.y);
+      const f = Math.min(1, k * 6 * dt);
+      b.x += (p.x - b.x) * f; b.y += (p.y - b.y) * f;
+      b.vx = v.x; b.vy = v.y;
+      b.a += G.wrapAngle(a - b.a) * f;
+      b.w = ob.w;
+      for (const k2 in this.fx) this.fx[k2] = 0;
+    }
+
     recall() {
       if (this.state === 'prelaunch') { this.game && this.game.droneHome(this); this.state = 'home'; return; }
       if (this.state === 'inStation') return; // kommer når den er ferdig på stasjonen
+      this.unload = false;
       if (this.state !== 'enter') this.state = 'recall';
     }
 
@@ -333,8 +347,10 @@
         const P = this.dockPose(), ob = this.owner.body;
         const a = this.dockKind === 'clamp' ? ob.a : P.outA;
         const v = ob.pointVel(P.inner.x, P.inner.y);
-        this.spawnAt(P.inner.x, P.inner.y, a, v.x, v.y);
+        this.spawnAt(P.inner.x, P.inner.y, this.dockKind === 'clamp' ? a : ob.a, v.x, v.y);
         this.body.w = ob.w;
+        // Fra luken stiger dronen først opp av rommet.
+        this.sink = this.dockKind === 'clamp' ? 0 : 1;
         this.state = 'launch';
         this.timer = 0;
         if (this.dockKind === 'clamp') RF.Audio.blip(240, 0.08, 'square', 0.06);
@@ -359,33 +375,61 @@
         const P = this.dockPose();
         game.holdDoor(this.dockM);
         this.docking = true;
+        if (this.sink > 0) {
+          this.sink = Math.max(0, this.sink - dt / 1.1);
+          this.pinTo(dt, P.inner, ob.a, 1);
+          return;
+        }
         const v = ob.pointVel(P.outer.x, P.outer.y);
         const d = this.steer(dt, P.outer.x, P.outer.y, v.x, v.y, this.dockKind === 'clamp' ? ob.a : P.outA, 6);
         if (d < 1.5 || this.timer > 8) { this.state = 'work'; this.timer = 0; this.startWork(game); }
         return;
       }
       if (this.state === 'recall') {
+        // Klemmer: til åpningen utenfor. Luker: rett inn over luken i dekket.
         const P = this.dockPose();
-        const v = ob.pointVel(P.outer.x, P.outer.y);
-        const d = this.steer(dt, P.outer.x, P.outer.y, v.x, v.y, d0(this, P) < 25 ? P.dockA : null, 30);
-        if (d < 2.5 && G.len(b.vx - v.x, b.vy - v.y) < 2) { this.state = 'enter'; this.timer = 0; }
+        const clamp = this.dockKind === 'clamp';
+        const tgt = clamp ? P.outer : P.inner;
+        const v = ob.pointVel(tgt.x, tgt.y);
+        this.docking = !clamp && G.len(ob.x - b.x, ob.y - b.y) < ob.radius + 40;
+        const near = G.len(tgt.x - b.x, tgt.y - b.y) < 25;
+        const d = this.steer(dt, tgt.x, tgt.y, v.x, v.y, near ? (clamp ? P.dockA : ob.a) : null, near ? 8 : 30);
+        if (!clamp && d < 12) game.holdDoor(this.dockM);
+        if (d < (clamp ? 2.5 : 3) && G.len(b.vx - v.x, b.vy - v.y) < 2) { this.state = 'enter'; this.timer = 0; }
         return;
       }
       if (this.state === 'enter') {
         const P = this.dockPose();
         game.holdDoor(this.dockM);
         this.docking = true;
-        const v = ob.pointVel(P.inner.x, P.inner.y);
-        // Inn gjennom åpningen: først rett mot luken, så sakte inn.
-        const doorOpen = this.dockKind === 'clamp' || (this.dockM.door || 0) > 0.9;
-        const tgt = doorOpen ? P.inner : P.outer;
-        const dd = G.len(tgt.x - this.body.x, tgt.y - this.body.y);
-        const d = this.steer(dt, tgt.x, tgt.y, v.x, v.y, P.dockA, doorOpen ? (dd > 5 ? 7 : 2.5) : 4);
-        if (doorOpen && d < 1.4 && G.len(b.vx - v.x, b.vy - v.y) < 1.2) {
-          if (this.dockKind === 'clamp') RF.Audio.blip(200, 0.1, 'square', 0.07);
-          game.droneHome(this);
+        if (this.dockKind === 'clamp') {
+          const v = ob.pointVel(P.inner.x, P.inner.y);
+          const d = this.steer(dt, P.inner.x, P.inner.y, v.x, v.y, P.dockA, 2.5);
+          if ((d < 1.4 && G.len(b.vx - v.x, b.vy - v.y) < 1.2) || this.timer > 25) {
+            RF.Audio.blip(200, 0.1, 'square', 0.07);
+            game.droneHome(this);
+          }
+          return;
         }
-        if (this.timer > 25) game.droneHome(this);
+        // Luke: svev over åpningen til luken er oppe, synk så ned i rommet.
+        if (!this.sink) {
+          const v = ob.pointVel(P.inner.x, P.inner.y);
+          const d = this.steer(dt, P.inner.x, P.inner.y, v.x, v.y, ob.a, 2.5);
+          const open = (this.dockM.door || 0) > 0.9;
+          if ((open && d < 1.2 && G.len(b.vx - v.x, b.vy - v.y) < 1.5) || this.timer > 15) this.sink = 0.001;
+          return;
+        }
+        this.sink = Math.min(1, this.sink + dt / 1.3);
+        this.pinTo(dt, P.inner, ob.a, 0.25 + this.sink);
+        if (this.sink >= 1) {
+          if (this.unload) {
+            // Bare innom for å levere malm: tøm og stig opp igjen.
+            this.unload = false;
+            if (this.cargo > 0) game.msg(`${this.name} delivered ${(this.cargo / 1000).toFixed(1)} t of ore`, RF.HUD_COLORS.ok);
+            this.returnLoad(game);
+            this.state = 'launch'; this.timer = 0;
+          } else { this.sink = 0; game.droneHome(this); }
+        }
         return;
       }
       if (this.state === 'toStation' || this.state === 'intoStation' || this.state === 'leaveStation') { this.stationRun(dt, game); return; }
@@ -562,11 +606,13 @@
       const b = this.body, owner = this.owner, ob = owner.body, ws = this.sys.world;
       const cap = this.T.cargo || 3000;
       if (this.sub === 'deliver' || this.cargo >= cap) {
+        // Droner i luke flyr inn i luken sin, lesser av og kommer ut igjen.
+        if (this.dockKind !== 'clamp') { this.sub = 'seek'; this.unload = true; this.state = 'recall'; this.timer = 0; return; }
         this.sub = 'deliver';
-        const p = ob.toWorld(-owner.noseX - 6, 0);
+        const p = this.dockPose().outer;
         const v = ob.pointVel(p.x, p.y);
         const d = this.steer(dt, p.x, p.y, v.x, v.y, null, 30);
-        if (d < ob.radius * 0.5 + 10) {
+        if (d < 4) {
           for (const c of this.load || []) owner.processing.push(c);
           if (this.cargo > 0) game.msg(`${this.name} delivered ${(this.cargo / 1000).toFixed(1)} t of ore`, RF.HUD_COLORS.ok);
           owner.updateMass();

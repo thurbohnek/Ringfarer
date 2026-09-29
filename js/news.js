@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.14.1', date: '2026-09-30', title: 'Drones use the bay doors',
+      items: [
+        'Drones fly home to their own bay door, hover over it while it opens, and sink down into the ship.',
+        'Launching works the other way: the drone rises up out of the open bay before it flies off.',
+        'Mining and collector drones unload by dropping into their bay and coming straight back out.',
+        'Your own drones are drawn above your ship, so they no longer vanish behind the hull.',
+      ],
+    },
+    {
       v: 'v0.14.0', date: '2026-09-30', title: 'A real gate, and a closer look',
       items: [
         'The gate is a built machine: heavy hull plates, a symbol track that spins while dialing, nine chevron clamps that lock with a spark, stabilizer thrusters and a control platform.',

@@ -1130,17 +1130,23 @@
     ctx.save();
     ctx.translate(b.x, b.y);
     // Skygge ut fra sola.
+    // sink: dronen synker ned i luken (0 = ute, 1 = inne). Den blir mindre
+    // og mørkere, som om den forsvinner ned under dekket.
+    const sink = obj.sink || 0;
+    const sc = (obj.scale || 1) * (1 - 0.4 * sink);
     const sd = (this._sunDir || 0) + Math.PI;
     ctx.save();
-    ctx.translate(Math.cos(sd) * 1.1, Math.sin(sd) * 1.1);
+    ctx.translate(Math.cos(sd) * 1.1 * (1 - sink), Math.sin(sd) * 1.1 * (1 - sink));
     ctx.rotate(b.a);
-    if (obj.scale) ctx.scale(obj.scale, obj.scale);
-    ctx.globalAlpha = 0.55;
+    if (sc !== 1) ctx.scale(sc, sc);
+    ctx.globalAlpha = 0.55 * (1 - sink);
     ctx.drawImage(art.sh, art.x0, art.y0, art.w, art.h);
     ctx.restore();
     ctx.rotate(b.a);
-    if (obj.scale) ctx.scale(obj.scale, obj.scale);
+    if (sc !== 1) ctx.scale(sc, sc);
+    if (sink > 0) ctx.globalAlpha = 1 - 0.85 * sink;
     ctx.drawImage(art.cv, art.x0, art.y0, art.w, art.h);
+    if (sink > 0) ctx.globalAlpha = 1;
     drawDoors(ctx, L);
     for (const m of L) if (RF.MODULES[m.t].anchor) m.fired = !!((obj.anchor && obj.anchor.module === m) || (obj.harpoon && obj.harpoon.mod === m));
     for (const m of L) if (RF.MODULES[m.t].mount) tool(ctx, m, time);
@@ -1204,8 +1210,10 @@
     ctx.save();
     ctx.translate(b.x, b.y);
     ctx.rotate(b.a);
-    if (obj.scale) ctx.scale(obj.scale, obj.scale);
+    const fsc = (obj.scale || 1) * (1 - 0.4 * (obj.sink || 0));
+    if (fsc !== 1) ctx.scale(fsc, fsc);
     ctx.globalCompositeOperation = 'lighter';
+    if (obj.sink) ctx.globalAlpha = 1 - obj.sink;
     const flame = (x, y, dx, dy, len, wid) => {
       if (len < 0.15) return;
       const ex = x + dx * len, ey = y + dy * len;

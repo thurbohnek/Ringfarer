@@ -388,7 +388,9 @@
       for (const b of sys.world.bodies) {
         if (b.kind === 'wreck' && vis(b.x, b.y, b.radius)) this.drawModular(b._draw || (b._draw = { body: b, layout: b.modules }), game.time);
       }
-      for (const n of sys.npcs || []) if (n.active && vis(n.body.x, n.body.y, 40)) this.drawModular(n, game.time);
+      // Andres skip under ditt eget. Dine egne droner tegnes oppå skipet,
+      // så man ser dem fly inn over luken og synke ned i den.
+      for (const n of sys.npcs || []) if (n.active && !n.owner && vis(n.body.x, n.body.y, 40)) this.drawModular(n, game.time);
       if (shipLive) {
         ship._lights = ship.lightOn && !ship.docked ? RF.lightSources(ship) : [];
         // Delen av skipet som har gått gjennom en åpen port, synes ikke.
@@ -397,6 +399,7 @@
         this.drawClamped(ship, game);
         if (clip) ctx.restore();
       }
+      for (const n of sys.npcs || []) if (n.active && n.owner && vis(n.body.x, n.body.y, 40)) this.drawModular(n, game.time);
       this.drawMotes(game, dt);
 
       // 3. Mørke med lys.
