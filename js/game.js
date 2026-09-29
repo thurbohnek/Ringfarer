@@ -514,6 +514,9 @@
 
   function navInput(inp) {
     const ship = game.ship, b = ship.body, N = ship.nav, st = ship.stats;
+    // I testmodus styrer autopiloten unna hindringer på alle skip, også uten
+    // navigasjonsdatamaskin.
+    const navc = st.navcomp || game.testMode;
     const p = game.navPoint();
     let tvx = 0, tvy = 0;
     if (N.body) { const v = N.body.pointVel(p.x, p.y); tvx = v.x; tvy = v.y; }
@@ -530,7 +533,7 @@
       N.check = (N.check || 0) - 1;
       if (N.check <= 0) {
         N.check = 18;
-        if (st.navcomp) {
+        if (navc) {
           if (N.via && G.len(N.via.x - b.x, N.via.y - b.y) < R + 10) N.via = null;
           if (!blockedPath(b.x, b.y, p.x, p.y, R)) N.via = null;
           else if (!N.via || blockedPath(b.x, b.y, N.via.x, N.via.y, R)) {
@@ -562,7 +565,7 @@
           game.msg('Obstacle ahead. A navigation computer lets the autopilot steer around it', RF.HUD_COLORS.amber);
         }
       }
-      if (N.via && st.navcomp) {
+      if (N.via && navc) {
         dx = N.via.x - b.x; dy = N.via.y - b.y;
         vd = Math.min(vd, 25);
       }
@@ -570,7 +573,7 @@
       // omveispunkt som er sjekket og fritt (ellers kryper det langs steinen).
       const rs = G.len(rvx, rvy), dd = G.len(dx, dy) || 1;
       const onCourse = N.via && rs > 0.5 && (rvx * dx + rvy * dy) / (rs * dd) > 0.9 && N.safeT > dd + R;
-      if (st.navcomp && N.safeV != null && !onCourse) vd = Math.min(vd, Math.max(1.5, N.safeV));
+      if (navc && N.safeV != null && !onCourse) vd = Math.min(vd, Math.max(1.5, N.safeV));
     } else N.via = null;
     const dl = G.len(dx, dy) || 1e-6;
     const ax = ((dx / dl) * vd - rvx) * 2.5, ay = ((dy / dl) * vd - rvy) * 2.5;
@@ -581,7 +584,7 @@
     // På vei: nesen i fartsretningen. I lav fart peker nesen dit skipet skal
     // akselerere, og etter hvert som farten øker tar fartsretningen over.
     // Nær målet: den retningen spilleren valgte.
-    const near = st.navcomp && N.clear != null && N.clear < 20;
+    const near = navc && N.clear != null && N.clear < 20;
     // Nær en hindring snur skipet bare sakte (tuppen av skroget maks 2,5 m/s).
     const hx = rvx + (dx / dl) * 3, hy = rvy + (dy / dl) * 3;
     const aim = d > 30 && !N.arrived && !N.rotate ? Math.atan2(hy, hx) : N.heading != null ? N.heading : null;

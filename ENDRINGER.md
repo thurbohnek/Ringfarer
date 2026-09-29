@@ -25,6 +25,22 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-29: v0.9.5 · Autopiloten styrer unna på alle skip i testmodus
+
+Ønske fra brukeren: «Autopiloten må virke på alle skip i testfunksjonen.»
+
+Hva som er gjort:
+- `js/game.js` (`navInput`): i testmodus styrer autopiloten nå unna
+  asteroider og stasjoner på alle skip, også på skip som ikke har
+  navigasjonsdatamaskin. Før gjaldt dette bare testskipet, som har den
+  montert. Ellers i spillet kreves fortsatt navigasjonsdatamaskinen.
+- `index.html`: versjon v0.9.5.
+
+Testet: i testmodus ble hvert av de tre skipene (Hopper, Graver, Fjell)
+kjøpt, og hvert fløy to turer med en asteroide midt i veien. Alle seks turene
+la kurs rundt steinen og kom fram. Hopperen fikk ett lett støt på den ene
+turen. Ingen feil i konsollen.
+
 ## 2026-09-29: v0.9.4 · Autopiloten flyr med nesen først
 
 Ønske fra brukeren: «Når autopiloten navigerer må romskipet forsøke å fly med
