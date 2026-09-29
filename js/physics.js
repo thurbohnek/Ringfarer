@@ -303,6 +303,9 @@
       this.ropes = []; // { A, la, B, lb, length } — trekker bare, som en kabel
       this.onImpact = null; // (contact, J, vn0) => void
       this.shouldCollide = null; // (A, B) => bool
+      // (A, B) => 0 | 1 | 2: 1 = A skyves ikke av B, 2 = B skyves ikke av A.
+      // Brukes så små malmbiter kan treffe skipet uten å flytte det.
+      this.oneWay = null;
       this.stamp = 0;
     }
 
@@ -349,13 +352,16 @@
         const mu = Math.sqrt(A.friction * B.friction);
         c.mu = mu;
         c.vn0 = 0;
+        const ow = this.oneWay ? this.oneWay(A, B) : 0;
+        c.imA = ow === 1 ? 0 : A.invMass; c.iiA = ow === 1 ? 0 : A.invI;
+        c.imB = ow === 2 ? 0 : B.invMass; c.iiB = ow === 2 ? 0 : B.invI;
         for (const p of c.points) {
           p.rAx = p.x - A.x; p.rAy = p.y - A.y;
           p.rBx = p.x - B.x; p.rBy = p.y - B.y;
           const rnA = p.rAx * ny - p.rAy * nx, rnB = p.rBx * ny - p.rBy * nx;
           const rtA = p.rAx * ty - p.rAy * tx, rtB = p.rBx * ty - p.rBy * tx;
-          p.mN = 1 / (A.invMass + B.invMass + A.invI * rnA * rnA + B.invI * rnB * rnB);
-          p.mT = 1 / (A.invMass + B.invMass + A.invI * rtA * rtA + B.invI * rtB * rtB);
+          p.mN = 1 / (c.imA + c.imB + c.iiA * rnA * rnA + c.iiB * rnB * rnB);
+          p.mT = 1 / (c.imA + c.imB + c.iiA * rtA * rtA + c.iiB * rtB * rtB);
           const dvx = B.vx - B.w * p.rBy - A.vx + A.w * p.rAy;
           const dvy = B.vy + B.w * p.rBx - A.vy - A.w * p.rAx;
           const vn = dvx * nx + dvy * ny;
@@ -413,10 +419,10 @@
             p.jn = Math.max(j0 + dj, 0);
             dj = p.jn - j0;
             let Px = dj * nx, Py = dj * ny;
-            A.vx -= Px * A.invMass; A.vy -= Py * A.invMass;
-            A.w -= A.invI * (p.rAx * Py - p.rAy * Px);
-            B.vx += Px * B.invMass; B.vy += Py * B.invMass;
-            B.w += B.invI * (p.rBx * Py - p.rBy * Px);
+            A.vx -= Px * c.imA; A.vy -= Py * c.imA;
+            A.w -= c.iiA * (p.rAx * Py - p.rAy * Px);
+            B.vx += Px * c.imB; B.vy += Py * c.imB;
+            B.w += c.iiB * (p.rBx * Py - p.rBy * Px);
 
             dvx = B.vx - B.w * p.rBy - A.vx + A.w * p.rAy;
             dvy = B.vy + B.w * p.rBx - A.vy - A.w * p.rAx;
@@ -427,10 +433,10 @@
             p.jt = G.clamp(t0 + djt, -maxF, maxF);
             djt = p.jt - t0;
             Px = djt * tx; Py = djt * ty;
-            A.vx -= Px * A.invMass; A.vy -= Py * A.invMass;
-            A.w -= A.invI * (p.rAx * Py - p.rAy * Px);
-            B.vx += Px * B.invMass; B.vy += Py * B.invMass;
-            B.w += B.invI * (p.rBx * Py - p.rBy * Px);
+            A.vx -= Px * c.imA; A.vy -= Py * c.imA;
+            A.w -= c.iiA * (p.rAx * Py - p.rAy * Px);
+            B.vx += Px * c.imB; B.vy += Py * c.imB;
+            B.w += c.iiB * (p.rBx * Py - p.rBy * Px);
           }
         }
       }
@@ -466,14 +472,14 @@
       for (const c of contacts) if (c.pair) c.pair.n++;
       for (const c of contacts) {
         const { A, B, nx, ny } = c;
-        const im = A.invMass + B.invMass;
+        const im = c.imA + c.imB;
         if (im <= 0) continue;
         let depth = 0;
         for (const p of c.points) depth = Math.max(depth, p.depth);
         const share = c.pair ? 1 / Math.sqrt(c.pair.n) : 1;
         const corr = (Math.max(depth - 0.03, 0) * 0.45 * share) / im;
-        A.x -= nx * corr * A.invMass; A.y -= ny * corr * A.invMass;
-        B.x += nx * corr * B.invMass; B.y += ny * corr * B.invMass;
+        A.x -= nx * corr * c.imA; A.y -= ny * corr * c.imA;
+        B.x += nx * corr * c.imB; B.y += ny * corr * c.imB;
       }
 
       // Integrer posisjon.

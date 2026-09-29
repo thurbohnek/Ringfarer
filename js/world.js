@@ -8,11 +8,11 @@
   // som blir ferdig vare etter prosessering om bord. hard er hvor sterk laser
   // som trengs (1–4). Harde steiner kan også knuses med kanon og raketter.
   RF.MATERIALS = {
-    kondritt: { name: 'Chondrite', product: 'jern', density: 1500, grade: 0.35, hard: 1,
+    kondritt: { stone: true, name: 'Chondrite', product: 'jern', density: 1500, grade: 0.35, hard: 1,
       base: '#817a71', dark: '#3e3a35', light: '#b3aa9e' },
-    silikat: { name: 'Silicate', product: 'silisium', density: 1400, grade: 0.4, hard: 1,
+    silikat: { stone: true, name: 'Silicate', product: 'silisium', density: 1400, grade: 0.4, hard: 1,
       base: '#978b79', dark: '#4d443a', light: '#c9bba4' },
-    karbon: { name: 'Carbonaceous chondrite', product: 'grafitt', density: 1100, grade: 0.5, hard: 1,
+    karbon: { stone: true, name: 'Carbonaceous chondrite', product: 'grafitt', density: 1100, grade: 0.5, hard: 1,
       base: '#4a4745', dark: '#1f1e1d', light: '#6f6a65' },
     is: { name: 'Ice', product: 'vann', density: 750, grade: 0.85, hard: 1,
       base: '#b9c0c3', dark: '#636a6e', light: '#e8ecec' },
@@ -29,6 +29,14 @@
     trinium: { name: 'Trinium crystal', product: 'trinium', density: 2000, grade: 0.12, hard: 4,
       base: '#5f5268', dark: '#2c2331', light: '#907f99', vein: '#caa6e0', crystal: true },
   };
+
+  // stone = vanlig gråstein. Små biter av den fordamper i laseren. Is og
+  // mineralene (nikkel-jern og hardere) blir liggende som malm.
+  RF.isStone = (o) => o.kind === 'ore' && !!(RF.MATERIALS[o.mat] && RF.MATERIALS[o.mat].stone);
+
+  // De minste steinene: skjoldet dytter dem unna, og autopiloten styrer ikke
+  // rundt dem.
+  RF.isSmallRock = (o) => o.kind === 'rock' && o.radius < 3.5;
 
   // Vrakdeler fra skip som er slått i stykker. Kan samles inn og selges som skrap.
   RF.MATERIALS.skrap = { name: 'Salvage', product: 'skrap', density: 900, grade: 0.6, hard: 1,

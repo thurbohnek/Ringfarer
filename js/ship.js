@@ -295,10 +295,11 @@
         const mp = this.mountOf(Dr.m);
         Dr.m.active = true;
         const o = b.toWorld(mp.lx, mp.ly), d = b.dirWorld(Math.cos(mp.a), Math.sin(mp.a));
-        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, Dr.range, (x) => x !== b && !x.ghost && x.kind !== 'ore');
+        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, Dr.range, (x) => x !== b && !x.ghost && (x.kind !== 'ore' || RF.isStone(x)));
         Dr.m.touch = hit ? hit.t : null;
         if (!hit) continue;
         const t = hit.body;
+        if (RF.isStone(t)) { t.heat = 1; this.burnStone(t, game); continue; }
         if (t.kind === 'ore' || t.kind === 'wreck') {
           t.applyForce(d.x * 40000, d.y * 40000, t.x, t.y, dt);
           continue;
@@ -311,13 +312,19 @@
       for (const L of st.lasers) {
         if (!L.m.onTarget) continue;
         const { p: o, d, lx, ly, a } = this.muzzle(L.m);
-        // Løse malmbiter stopper ikke strålen, den går rett gjennom dem.
-        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost && x.kind !== 'ore');
+        // Løse mineralbiter stopper ikke strålen, den går rett gjennom dem.
+        // Småstein av gråstein treffes og fordamper.
+        const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost && (x.kind !== 'ore' || RF.isStone(x)));
         this.beams.push({ lx, ly, a, len: hit ? hit.t : L.range, hit, color: L.color, w: 0.35 + L.tier * 0.12 });
         this.laser.on = true;
         if (!hit) continue;
         if (!this.laser.hit) this.laser.hit = hit;
         const t = hit.body;
+        if (RF.isStone(t)) {
+          t.heat = Math.min(1, (t.heat || 0) + dt * 5);
+          if (t.heat >= 0.6) this.burnStone(t, game);
+          continue;
+        }
         if (t.kind === 'ore' || t.kind === 'wreck') {
           // Løse biter dyttes ut av strålen så de ikke står i veien.
           const side = (t.x - o.x) * -d.y + (t.y - o.y) * d.x >= 0 ? 1 : -1;
@@ -346,6 +353,11 @@
         game._hardWarn = game.time;
         game.msg(`${M.name} is too hard (${M.hard}). Needs a stronger laser, cannon or rockets`, RF.HUD_COLORS.amber);
       }
+    }
+
+    burnStone(t, game) {
+      t.dead = true;
+      game.particles.burst(t.x, t.y, 8, { type: 'smoke', sMin: 1, sMax: 4, color: RF.MATERIALS[t.mat].light, zMin: 0.5, zMax: 1, grow: 1.5, lMin: 0.8, lMax: 1.6, vx: t.vx, vy: t.vy });
     }
 
     releaseAnchor(game) {
@@ -427,6 +439,47 @@
       if (p.mass <= 0.01) {
         this.processing.shift();
         game.onProcessed(p);
+      }
+    }
+
+    // Skjoldet dytter småstein og løse malmbiter unna skroget. Feltet virker
+    // bare på biten, ikke tilbake på skipet. Malm som traktorstrålen trekker
+    // inn, slipper gjennom.
+    updateDeflector(dt, game) {
+      if (!(this.shield > 0) || this.docked) return;
+      const b = this.body, reach = 5, H = RF.CELL * 0.7;
+      const mods = this.s.layout;
+      for (const o of game.sys.world.bodies) {
+        if (o === b || o.dead || o.ghost || o.isStatic) continue;
+        if (!(o.kind === 'ore' ? !this.tractor.on : RF.isSmallRock(o))) continue;
+        const cd = G.len(o.x - b.x, o.y - b.y);
+        if (cd > b.radius + o.radius + reach + 25) continue;
+        const l = b.toLocal(o.x, o.y);
+        let best = null, bd = Infinity;
+        for (const m of mods) {
+          if (m.lx == null) continue;
+          const d = G.len(l.x - m.lx, l.y - m.ly);
+          if (d < bd) { bd = d; best = m; }
+        }
+        if (!best) continue;
+        const gap = bd - H - o.radius;
+        if (gap > reach + 25) continue;
+        const nl = { x: (l.x - best.lx) / (bd || 1), y: (l.y - best.ly) / (bd || 1) };
+        const n = b.dirWorld(nl.x, nl.y);
+        const pv = b.pointVel(o.x, o.y);
+        const vn = (o.vx - pv.x) * n.x + (o.vy - pv.y) * n.y;
+        // Feltet rekker lenger ut jo fortere biten nærmer seg.
+        const R2 = reach + Math.max(0, -vn) * 0.5;
+        if (gap > R2) continue;
+        const want = 1.5 + (R2 - Math.max(0, gap)) * 0.4;
+        if (vn >= want) continue;
+        const dv = Math.min(want - vn, dt * 150);
+        o.vx += n.x * dv; o.vy += n.y * dv;
+        o.w *= 1 - Math.min(1, dt * 2);
+        if (want - vn > 1.5) {
+          this.shieldFlash = Math.max(this.shieldFlash, 0.3);
+          this.shieldHitDir = Math.atan2(l.y, l.x);
+        }
       }
     }
 

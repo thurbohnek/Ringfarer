@@ -22,8 +22,58 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   hvis det hakker på telefonen.
 - **Kjempeasteroider tar tid å bore i.** En tunnel stor nok til skipet krever
   mange biter. Raketter går mye raskere. Farten kan justeres etter testing.
+- **Laseren gir ikke lenger malm av gråstein** (kondritt, silikat, karbon).
+  Jern, silisium og grafitt kommer nå bare fra biter som løsner når steinen
+  sprekker, eller fra kanon og raketter. Si fra om det gjør det for vanskelig
+  å tjene penger i starten.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-29: v0.9.6 · Laseren fordamper gråstein, malm dytter ikke skipet, skjold mot småstein
+
+Ønske fra brukeren: «Når man skyter laser på en asteroide så kommer de små
+bitene ut mot skipet i full fart. Laseren bør ødelegge disse bitene så lenge
+det ikke er mineraler. Mineralene bør ikke ha innvirkning på skipet når de
+treffer det. Altså fysikken. Kan kollidere men må ikke flytte på skipet.
+Autopiloten må heller ikke ta hensyn til de minste steinene. Kanskje et skjold
+rundt skipet kan dytte bort små objekter som de minste steinene.»
+
+Hva som er gjort:
+- `js/world.js`: vanlig gråstein (kondritt, silikat og karbonholdig kondritt)
+  er merket som `stone`. Is og mineralene (nikkel-jern og hardere) regnes som
+  mineraler. Nye hjelpere: `RF.isStone` og `RF.isSmallRock` (stein med radius
+  under 3,5 m).
+- `js/voxel.js`: bitene laseren slår løs av gråstein fordamper med en liten
+  røyksky i stedet for å fly ut. Mineralbiter løsner som malm, som før.
+- `js/ship.js`: laser- og borestrålen går fortsatt rett gjennom løse
+  mineralbiter, men treffer løse gråsteinsbiter og fordamper dem (for
+  eksempel biter fra sprekker eller kanonskudd).
+- `js/physics.js`: ny `oneWay`-regel i kollisjonene. Den ene parten kan
+  kollidere uten å bli skjøvet.
+- `js/game.js`: malmbiter kolliderer med skip (spillerens og andres), men
+  flytter dem ikke og gjør ingen skade.
+- `js/ship.js` (`updateDeflector`): skjoldet dytter småstein og løse malmbiter
+  unna skroget. Feltet rekker lenger ut jo fortere biten kommer, og virker
+  ikke tilbake på skipet. Skjoldet blinker der det dytter. Når traktorstrålen
+  er på, slipper malmen gjennom så den kan trekkes inn. Uten skjold (tomt)
+  virker ikke feltet.
+- `js/game.js`: autopiloten ser bort fra småstein (under 3,5 m radius) når
+  den legger kurs, og bremser ikke for dem.
+- `index.html`: versjon v0.9.6.
+
+Testet:
+- Laser i 12 sekunder mot en kondrittstein: ingen gråsteinsbiter fra laseren.
+  Fire biter kom fra sprekker. Mot nikkel-jern og kobber løsnet 20 og 36
+  malmbiter, og ingen kom mot skipet i mer enn 3 m/s.
+- Malmbit kastet mot skipet i 12 m/s, med og uten skjold: skipet flyttet seg
+  ikke (0,00 m/s) og fikk ingen skade.
+- Småstein (radius 3 m) mot skipet i 4 m/s: med skjold ble den dyttet tilbake
+  før den traff (skipet 0,00 m/s). Uten skjold dyttet den skipet 0,74 m/s.
+- Autopilot: alle tre skipene kom fram rundt en asteroide uten støt. To
+  runder med åtte turer i asteroidefeltet ga ett lett støt (2,7 m/s mot en
+  stor stein i lav fart, tatt av skjoldet). Ingen småstein traff skipet.
+  Lange turer (over 1 km) rakk ikke fram innen testens grense på ett minutt,
+  og én tur på 660 m heller ikke. Ingen feil i konsollen.
 
 ## 2026-09-29: v0.9.5 · Autopiloten styrer unna på alle skip i testmodus
 

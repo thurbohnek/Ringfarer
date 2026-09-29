@@ -432,6 +432,15 @@
     if (!b.dead && b.mass > 0) { b.vx -= px / b.mass; b.vy -= py / b.mass; }
   }
 
+  function vaporize(made, game) {
+    return made.filter((o) => {
+      if (!RF.isStone(o)) return true;
+      o.dead = true;
+      if (game && o.world === game.sys.world) game.particles.burst(o.x, o.y, 6, { type: 'smoke', sMin: 1, sMax: 4, color: RF.MATERIALS[o.mat].light, zMin: 0.5, zMax: 1, grow: 1.5, lMin: 0.6, lMax: 1.4, vx: o.vx, vy: o.vy });
+      return false;
+    });
+  }
+
   // Laseren slår løs en bit der den treffer. Biten har nøyaktig formen til
   // hullet den etterlater. Mineraler som er for harde for laseren blir stående.
   Vox.chip = (b, hit, d, game, R, tier = 9) => {
@@ -451,14 +460,15 @@
       if (k < 0) return false;
       nodes = [k];
     }
-    const made = detach(b, nodes, game);
+    // Småbiter av gråstein fordamper i strålen. Bare mineraler løsner som malm.
+    const made = vaporize(detach(b, nodes, game), game);
     const side = Math.random() < 0.5 ? -1 : 1;
     kickPieces(b, made, (o) => {
       const k = G.rand(1.2, 3.2), sk = G.rand(0.4, 1.6) * side;
       o.vx += -d.x * k - d.y * sk; o.vy += -d.y * k + d.x * sk;
       o.w += G.rand(-1.5, 1.5) / (1 + o.radius);
     });
-    Vox.settle(b, game);
+    vaporize(Vox.settle(b, game), game);
     b.stress = Math.min(b.stress, (b.integrity || 1) * 0.95);
     if (game && b.world === game.sys.world) {
       const M = RF.MATERIALS[b.mat];

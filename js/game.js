@@ -61,6 +61,9 @@
       const st = RF.createSystemState(RF.systemById(id));
       st.world.onImpact = onImpact;
       st.world.shouldCollide = (A, B) => !(A.kind === 'gate' && B.kind === 'gate');
+      // Malmbiter kan treffe skip, men dytter dem ikke.
+      const heavy = (o) => o.kind === 'ship' || !!o.npc;
+      st.world.oneWay = (A, B) => (B.kind === 'ore' && heavy(A) ? 1 : A.kind === 'ore' && heavy(B) ? 2 : 0);
       RF.spawnNPCs(st);
       game.systems[id] = st;
     }
@@ -289,6 +292,8 @@
     }
     if (sb && (c.A === sb || c.B === sb)) {
       const other = c.A === sb ? c.B : c.A;
+      // Malm dytter ikke skipet og gjør ingen skade.
+      if (other.kind === 'ore') return;
       const dv = J * sb.invMass;
       if (dv < 0.5) return;
       const dmg = ship.takeImpact(dv, p.x, p.y, game);
@@ -311,7 +316,6 @@
       }
       if (dmg > 0.5) game.msg(`Hull damage −${Math.ceil(dmg)} (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.danger);
       else if (dv > 2 && ship.shield > 0) game.msg(`Shield absorbed the impact (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.gate);
-      if (other.kind === 'ore' && dv < 1) return;
       return;
     }
     // Stein mot stein: støv hvis det er nær nok til å se.
@@ -460,7 +464,7 @@
     const dx = bx - ax, dy = by - ay, L = G.len(dx, dy);
     if (L < 1) return null;
     const ux = dx / L, uy = dy / L, px = -uy, py = ux;
-    const skip = (o) => o === sb || o.ghost || o.dead || o.kind === 'ore' || (o.npc && o.npc.own);
+    const skip = (o) => o === sb || o.ghost || o.dead || o.kind === 'ore' || RF.isSmallRock(o) || (o.npc && o.npc.own);
     const w = R + 6; // litt margin utenfor skroget
     let best = null;
     for (const off of [0, w, -w, w / 2, -w / 2]) {
@@ -546,7 +550,7 @@
           // for da feier tuppen av skroget inn i dem.
           let minC = Infinity;
           for (const o of game.sys.world.bodies) {
-            if (o === b || o.ghost || o.dead || o.kind === 'ore' || (o.npc && o.npc.own)) continue;
+            if (o === b || o.ghost || o.dead || o.kind === 'ore' || RF.isSmallRock(o) || (o.npc && o.npc.own)) continue;
             const c = G.len(o.x - b.x, o.y - b.y) - o.radius - R;
             if (c < minC) minC = c;
           }
@@ -977,6 +981,7 @@
     if (fire && ship.tool === 'kanon') RF.Weapons.fireGuns(ship, game);
     ship.updateTractor(dt, game);
     ship.updateProcessing(dt, game);
+    ship.updateDeflector(dt, game);
     ship.updateShield(dt);
     ship.updateAnchor(inp.winch, inp.winchOut, dt, game);
     ship.updateMass();
