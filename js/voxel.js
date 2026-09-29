@@ -189,6 +189,10 @@
     let best = 0;
     for (let i = 1; i < cnt.length; i++) if (cnt[i] > cnt[best]) best = i;
     b.mat = MATS[best];
+    // Hvor stor del av steinen som er gråstein (uten verdi).
+    let stoneN = 0, allN = 0;
+    for (let i = 0; i < cnt.length; i++) { allN += cnt[i]; if (RF.MATERIALS[MATS[i]].stone) stoneN += cnt[i]; }
+    b.stoneFrac = allN ? stoneN / allN : 1;
     b.kind = 'rock';
     b.integrity = (1.5 + 0.25 * Math.sqrt(area)) * RF.MATERIALS[b.mat].hard;
     V.dirty = true;
@@ -271,6 +275,7 @@
     const craters = (pb.craters || []).filter((c) => c.x > x0 && c.x < x1 && c.y > y0 && c.y < y1).map((c) => Object.assign({}, c));
     const b = makeBody(V, { x: pb.x, y: pb.y, a: pb.a, vx: pb.vx, vy: pb.vy, w: pb.w, restitution: pb.restitution, craters, world: pb.world });
     if (b) {
+      b.debris = true; // løsnet fra en større stein
       b.rockType = pb.rockType;
       b.comet = pb.comet && b.area > 150;
     }
@@ -314,6 +319,7 @@
     blob = blob.map((p) => ({ x: p.x * k, y: p.y * k }));
     const b = RF.makeRock(blob, mat, o);
     b.rubble = b.kind === 'rock';
+    b.debris = true;
     return b;
   }
   Vox.makeBlob = makeBlob;
@@ -333,7 +339,7 @@
     // Gråstein i laseren: små klumper fordamper, store deler seg i to eller tre.
     // Ellers: biter på malmstørrelse (inntil 18), resten blir mindre klumper.
     let n;
-    if (byLaser && stone) n = t.area > 45 ? G.randInt(2, 3) : 0;
+    if (byLaser && stone) n = t.area > 120 ? 2 : 0;
     else n = G.clamp(Math.ceil(t.area / (RF.ORE_MAX_AREA * 0.9)), 2, 18);
     const out = [];
     for (let i = 0; i < n; i++) {
@@ -357,6 +363,14 @@
       RF.Audio.thud(0.3, true);
     }
     return out;
+  };
+
+  // Løse biter av nesten bare gråstein knuses av laseren i stedet for å
+  // skjæres bit for bit. Ellers vanlig skjæring (Vox.laser).
+  Vox.isJunk = (t) => t.debris && !t.dead && (t.rubble ? !!RF.MATERIALS[t.mat].stone : t.vox && t.area < 600 && t.stoneFrac > 0.85);
+  Vox.beam = (t, hit, d, power, tier, dt, game) => {
+    if (t.vox && !Vox.isJunk(t)) return Vox.laser(t, hit, d, power, tier, dt, game);
+    return Vox.hitRubble(t, dt * power * 0.8 * (Vox.isJunk(t) ? 3 : 1), tier, d, game, true);
   };
 
   // Laser, bor, kanon eller rakett mot en klump. stress = hvor mye den tåler.
@@ -510,9 +524,11 @@
     if (!b.dead && b.mass > 0) { b.vx -= px / b.mass; b.vy -= py / b.mass; }
   }
 
+  // Gråstein som løsner i strålen fordamper: malm av gråstein og små klumper.
+  const smallStone = (o) => RF.isStone(o) || (o.rubble && o.area < 60 && RF.MATERIALS[o.mat].stone);
   function vaporize(made, game) {
     return made.filter((o) => {
-      if (!RF.isStone(o)) return true;
+      if (!smallStone(o)) return true;
       o.dead = true;
       if (game && o.world === game.sys.world) game.particles.burst(o.x, o.y, 6, { type: 'smoke', sMin: 1, sMax: 4, color: RF.MATERIALS[o.mat].light, zMin: 0.5, zMax: 1, grow: 1.5, lMin: 0.6, lMax: 1.4, vx: o.vx, vy: o.vy });
       return false;

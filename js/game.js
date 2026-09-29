@@ -1073,14 +1073,36 @@
     }
   }
 
+  // Løs gråstein (biter uten verdi som har løsnet) smuldrer bort når det blir
+  // for mye av den, eller når den er langt unna. Da holder spillet farten.
+  const JUNK_MAX = 28, JUNK_FAR = 1400;
+  function crumble(b, seen) {
+    b.dead = true;
+    if (seen) {
+      const M = RF.MATERIALS[b.mat];
+      game.particles.burst(b.x, b.y, 8 + Math.min(20, b.radius * 2), { type: 'smoke', sMin: 1, sMax: 3 + b.radius * 0.5, color: M.light, zMin: 0.6, zMax: 1.4, grow: 2, lMin: 1, lMax: 2.5, vx: b.vx, vy: b.vy });
+      game.particles.burst(b.x, b.y, 6, { type: 'debris', sMin: 1, sMax: 4, color: M.base, zMin: 0.2, zMax: 0.5, lMin: 0.6, lMax: 1.4, vx: b.vx, vy: b.vy });
+    }
+  }
+
   function cleanupWorld() {
-    const sys = game.sys, ws = sys.world;
+    const sys = game.sys, ws = sys.world, sb = game.ship.body;
+    // Det som synes på skjermen nå (med litt margin).
+    const R = RF.renderer, cam = game.cam;
+    const viewR = (R ? G.len(R.w, R.h) / 2 / cam.zoom : 600) + 40;
+    const seen = (b) => G.len(b.x - cam.x, b.y - cam.y) < viewR + b.radius;
+    const junk = [];
     let comets = 0, ore = 0;
     for (const b of ws.bodies) {
       if (b.isStatic || b.kind === 'ship' || b.dead) continue;
       const d = G.len(b.x, b.y);
       if (b.comet) comets++;
       if (b.kind === 'ore') ore++;
+      if (RF.Vox.isJunk(b)) {
+        const ds = G.len(b.x - sb.x, b.y - sb.y);
+        if (d > 3600 || (ds > JUNK_FAR && !seen(b))) { crumble(b, false); continue; }
+        junk.push({ b, ds, on: seen(b) });
+      }
       if (d > 3600) {
         if (b.comet || b.kind === 'ore') { b.dead = true; continue; }
         // Steiner som driver ut kommer inn igjen på motsatt side.
@@ -1089,11 +1111,22 @@
       if (b.heat > 0) b.heat = Math.max(0, b.heat - 0.02);
     }
     if (comets < sys.def.comets) sys.respawnComet(false);
+    // For mye løs gråstein: det som ikke synes og er lengst unna går først.
+    // Det som synes smuldrer opp i støv, litt om gangen.
+    if (junk.length > JUNK_MAX) {
+      junk.sort((a, c) => (a.on - c.on) || (c.ds - a.ds));
+      let n = junk.length - JUNK_MAX, shown = 0;
+      for (let i = 0; i < junk.length && n > 0; i++) {
+        if (junk[i].on && ++shown > 6) break;
+        crumble(junk[i].b, junk[i].on);
+        n--;
+      }
+    }
     // Hold antallet løse malmbiter nede.
-    if (ore > 260) {
+    if (ore > 150) {
       const sb = game.ship.body;
       const list = ws.bodies.filter((b) => b.kind === 'ore').sort((a, c) => G.len(c.x - sb.x, c.y - sb.y) - G.len(a.x - sb.x, a.y - sb.y));
-      for (let i = 0; i < ore - 240; i++) list[i].dead = true;
+      for (let i = 0; i < ore - 130; i++) list[i].dead = true;
     }
   }
 

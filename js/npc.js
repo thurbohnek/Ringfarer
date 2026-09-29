@@ -258,8 +258,7 @@
       if (game.sys === this.sys && Math.random() < 0.4) game.laserDust(hit);
       const L = this.T.laser || { power: 0.6, tier: 1 };
       const pw = L.power * (this.owner ? this.owner.stats.droneMul || 1 : 1);
-      if (t.vox) RF.Vox.laser(t, hit, dir, pw, L.tier, dt, game);
-      else if (t.rubble) RF.Vox.hitRubble(t, dt * pw * 0.8, L.tier, dir, game, true);
+      if (t.vox || t.rubble) RF.Vox.beam(t, hit, dir, pw, L.tier, dt, game);
       return true;
     }
 

@@ -252,15 +252,42 @@
     return p;
   }
 
+  // Rutenett over bitene til et sammensatt legeme (i dets egne koordinater),
+  // så vi bare ser på bitene i nærheten. Lages på nytt når bitene endres.
+  function partGrid(A) {
+    const g = A._pgrid;
+    if (g && g.parts === A.parts) return g;
+    let maxR = 0, x0 = Infinity, y0 = Infinity;
+    for (const p of A.parts) { if (p.r > maxR) maxR = p.r; if (p.cx < x0) x0 = p.cx; if (p.cy < y0) y0 = p.cy; }
+    const cs = Math.max(1.5, maxR * 2), cells = new Map();
+    for (const p of A.parts) {
+      const k = Math.floor((p.cx - x0) / cs) * 65536 + Math.floor((p.cy - y0) / cs);
+      let c = cells.get(k);
+      if (!c) cells.set(k, (c = []));
+      c.push(p);
+    }
+    return (A._pgrid = { parts: A.parts, x0, y0, cs, maxR, cells });
+  }
+
   // Bitene av A som kan røre B.
   function nearShapes(A, B, stamp) {
     if (!A.parts) return [A];
     const l = A.toLocal(B.x, B.y);
     const out = [];
-    for (const p of A.parts) {
+    const test = (p) => {
       const dx = p.cx - l.x, dy = p.cy - l.y, rr = p.r + B.radius;
-      if (dx * dx + dy * dy > rr * rr) continue;
-      out.push(p);
+      if (dx * dx + dy * dy <= rr * rr) out.push(p);
+    };
+    if (A.parts.length < 24) for (const p of A.parts) test(p);
+    else {
+      const g = partGrid(A), R = B.radius + g.maxR;
+      const i0 = Math.floor((l.x - R - g.x0) / g.cs), i1 = Math.floor((l.x + R - g.x0) / g.cs);
+      const j0 = Math.floor((l.y - R - g.y0) / g.cs), j1 = Math.floor((l.y + R - g.y0) / g.cs);
+      if ((i1 - i0 + 1) * (j1 - j0 + 1) > A.parts.length) for (const p of A.parts) test(p);
+      else for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const c = g.cells.get(i * 65536 + j);
+        if (c) for (const p of c) test(p);
+      }
     }
     // To store sammensatte legemer: sjekk mot det konvekse omrisset til B.
     if (B.parts && out.length > 24) {

@@ -12,7 +12,7 @@
 
   // --- Partikler ---
   class Particles {
-    constructor(max = 1600) { this.list = []; this.max = max; }
+    constructor(max = 1000) { this.list = []; this.max = max; }
     add(p) {
       if (this.list.length >= this.max) this.list.shift();
       p.life = p.max = p.life || 1;
@@ -518,15 +518,28 @@
       L.fillStyle = `rgb(${mix(sh, sun.r) + 4},${mix(sh, sun.g) + 6},${mix(sh, sun.b) + 14})`;
       // Skyggen faller bare på andre ting (steiner, skip, stasjonen), ikke på
       // planeten og stjernene langt bak. Klipp derfor til omrisset av dem.
-      const recv = sys.world.bodies.filter((o) => !o.dead && o.kind !== 'gate' && vis(o.x, o.y, o.radius));
-      L.save();
-      L.beginPath();
+      // Steiner med rutenett bruker den virkelige formen (med groper og hull),
+      // ikke det konvekse omrisset. Ellers ble det skygge der biter har løsnet.
+      const recv = sys.world.bodies.filter((o) => !o.dead && o.kind !== 'gate' && o.kind !== 'ore' && vis(o.x, o.y, o.radius));
+      const clip = new Path2D(), M = new DOMMatrix();
       for (const o of recv) {
+        if (o.loops) {
+          if (!o._shape || o._shape.loops !== o.loops) {
+            const P = new Path2D();
+            for (const l of o.loops) { l.forEach((p, i) => (i ? P.lineTo(p.x, p.y) : P.moveTo(p.x, p.y))); P.closePath(); }
+            o._shape = { loops: o.loops, P };
+          }
+          const c = Math.cos(o.a) * o.s, sn = Math.sin(o.a) * o.s;
+          M.a = c; M.b = sn; M.c = -sn; M.d = c; M.e = o.x; M.f = o.y;
+          clip.addPath(o._shape.P, M);
+          continue;
+        }
         o.updateWorld();
-        o.wv.forEach((p, i) => (i ? L.lineTo(p.x, p.y) : L.moveTo(p.x, p.y)));
-        L.closePath();
+        o.wv.forEach((p, i) => (i ? clip.lineTo(p.x, p.y) : clip.moveTo(p.x, p.y)));
+        clip.closePath();
       }
-      L.clip();
+      L.save();
+      L.clip(clip);
       for (const o of sys.world.bodies) {
         if (o.dead || o.kind === 'ore' || o.kind === 'gate' || o.radius < 2.5 || !vis(o.x, o.y, o.radius * 3)) continue;
         // Skyggeformen regnes i steinens egne koordinater og lagres til steinen
@@ -707,7 +720,11 @@
     voxCache(b) {
       const V = b.vox;
       const now = performance.now();
-      if (V.cache && (!V.dirty || now - (V.cacheT || 0) < 120)) return V.cache;
+      // Oppløsningen følger zoomen: langt ute trengs få piksler per meter.
+      // Zoomer man inn, tegnes steinen skarpere på nytt.
+      const want = Math.min(10, Math.max(2.5, RF.game.cam.zoom * this.dpr * 1.3));
+      const sharp = !V.cache || V.ppm >= Math.min(want, V.ppmMax || want) * 0.7;
+      if (V.cache && sharp && (!V.dirty || now - (V.cacheT || 0) < 200)) return V.cache;
       V.dirty = false;
       V.cacheT = now;
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -716,7 +733,8 @@
         if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
       }
       const ext = Math.max(x1 - x0, y1 - y0, 0.5);
-      const ppm = Math.min(10, 1000 / ext);
+      V.ppmMax = 1000 / ext;
+      const ppm = (V.ppm = Math.min(want, V.ppmMax));
       const pad = 2;
       const cw = Math.ceil((x1 - x0) * ppm) + pad * 2, ch = Math.ceil((y1 - y0) * ppm) + pad * 2;
       const c = V.cache || document.createElement('canvas');
@@ -837,6 +855,26 @@
       ctx.translate(b.x, b.y);
       ctx.rotate(b.a);
       const v = b.verts, n = v.length, r = b.radius;
+      // Små på skjermen (under omtrent 16 piksler): én flate i stedet for en
+      // trekant per side. Ser likt ut på den størrelsen og er mye raskere
+      // når det ligger mange løse biter rundt etter gruvedrift.
+      if (r < this.px * 8) {
+        ctx.beginPath();
+        ctx.moveTo(v[0].x, v[0].y);
+        for (let i = 1; i < n; i++) ctx.lineTo(v[i].x, v[i].y);
+        ctx.closePath();
+        ctx.fillStyle = M.base;
+        ctx.fill();
+        ctx.strokeStyle = b.kind === 'ore' ? M.light + 'aa' : M.dark;
+        ctx.lineWidth = this.px * 1.2;
+        ctx.stroke();
+        ctx.restore();
+        if (b.kind === 'ore' && b.radius < this.px * 3) {
+          ctx.fillStyle = (M.vein || M.light) + 'aa';
+          ctx.beginPath(); ctx.arc(b.x, b.y, this.px * 1.8, 0, Math.PI * 2); ctx.fill();
+        }
+        return;
+      }
       let ax = b.apex ? b.apex.x * r : 0, ay = b.apex ? b.apex.y * r : 0;
       if (b.kind === 'ore' || !b.containsPoint(b.toWorld(ax, ay).x, b.toWorld(ax, ay).y)) { ax = 0; ay = 0; }
       const la = sunDir - b.a, lx = Math.cos(la), ly = Math.sin(la);

@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.14.2', date: '2026-09-30', title: 'Less rubble, smoother mining',
+      items: [
+        'Loose chunks of plain rock break up quickly in the laser, and small bits turn to dust right away.',
+        'When too much loose rock piles up, the pieces furthest away crumble to dust.',
+        'Mining runs smoother: small rocks and ore are drawn faster.',
+        'Fixed a dark shadow left behind where pieces had broken off an asteroid.',
+      ],
+    },
+    {
       v: 'v0.14.1', date: '2026-09-30', title: 'Drones use the bay doors',
       items: [
         'Drones fly home to their own bay door, hover over it while it opens, and sink down into the ship.',

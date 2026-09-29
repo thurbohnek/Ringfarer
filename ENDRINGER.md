@@ -17,9 +17,11 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Hva som skal låses senere:** navigasjonsdatamaskinen (og annet med
   `unlock` over 0) skal bli en oppgradering senere i spillet. Nå er alt åpent
   til brukeren sier fra.
-- **Ytelse:** med større steiner og ny himmel gikk testnettleseren (uten
-  grafikkort) ned til rundt 30 bilder i sekundet i asteroidefeltet. Si fra
-  hvis det hakker på telefonen.
+- **Ytelse:** testnettleseren (uten grafikkort) går på rundt 20–25 bilder i
+  sekundet, og ned mot 12–15 midt i tung gruvedrift med mange malmbiter. På
+  en PC med grafikkort bør det gå mye bedre. Si fra hvis det fortsatt hakker.
+- **Løs gråstein smuldrer bort:** når det blir mer enn 28 biter, forsvinner de
+  som er lengst unna. Grensen kan justeres.
 - **Kjempeasteroider tar tid å bore i.** En tunnel stor nok til skipet krever
   mange biter. Raketter går mye raskere. Farten kan justeres etter testing.
 - **Laseren gir ikke lenger malm av gråstein** (kondritt, silikat, karbon).
@@ -36,6 +38,66 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   passasjerer de hadde med seg akkurat da, blir borte.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-30: v0.14.2 · Mindre løs stein, raskere gruvedrift og riktig skygge
+
+**Ønske:** «Steinen som blir av mining som ikke er mineraler gjør spillet
+tregt. Bli veldig mange og når de ikke kan skytes bort me laser så blir d for
+mange. Vet ikke om du har nå smart løsning på det. Der bitene løsner fra
+kometen/astroiden blir d en skygge hvor de opprinnelig var.»
+
+**Hva som var galt:**
+
+- Biter som løsnet fra asteroider ble liggende for alltid. Driver de ut av
+  systemet, kommer de inn igjen på motsatt side.
+- Laseren skar løse steinbiter bit for bit, som store asteroider. Det tok lang
+  tid og ga enda flere biter.
+- Hver liten stein og malmbit ble tegnet som 10–15 trekanter, med fyll og kant
+  på hver. Med mange løse biter ble det tungt.
+- Skyggen fra sola ble klippet til det konvekse omrisset av steinen, ikke den
+  virkelige formen. Der biter hadde løsnet, ble det liggende skygge i «lufta».
+
+**Hva som er gjort:**
+
+- `js/voxel.js`:
+  - Biter som løsner, merkes som løse (`debris`), og hver stein vet hvor stor
+    del som er gråstein (`stoneFrac`).
+  - Ny `Vox.isJunk`: løse klumper av gråstein, og løse biter med rutenett
+    under 600 m² som er minst 85 % gråstein.
+  - Ny `Vox.beam`: laseren knuser slike biter tre ganger så fort i stedet for
+    å skjære dem. Klumper under 120 m² fordamper, større deler seg i to.
+  - Gråsteinsklumper under 60 m² som løsner i laseren, fordamper med én gang.
+- `js/ship.js`, `js/npc.js`: laser og bor på skipet og på dronene bruker
+  `Vox.beam`.
+- `js/game.js` (`cleanupWorld`):
+  - Løs gråstein mer enn 1,4 km unna og utenfor skjermen smuldrer bort.
+  - Er det mer enn 28 løse gråsteinsbiter, smuldrer de overskytende bort.
+    Først de som ikke synes og er lengst unna. De som synes, smuldrer opp i
+    støv, noen få om gangen.
+  - Løs malm holdes under 150 biter (før 260). De lengst unna går først.
+- `js/render.js`:
+  - Steiner og malmbiter som er små på skjermen, tegnes som én flate.
+  - Steinen man borer i, tegnes i oppløsning etter zoomen og sjeldnere mens
+    man borer.
+  - Partikler maks 1000 (før 1600).
+  - Solskyggen klippes til den virkelige formen på steinen (med groper og
+    hull).
+- `js/physics.js`: rutenett over delene av store steiner, så kollisjoner
+  bare sjekker delene i nærheten.
+- `js/news.js`, `index.html`: nyhet og versjon v0.14.2.
+
+**Testet** (Playwright, testnettleser uten grafikkort):
+
+- 80 løse gråsteinsklumper rundt skipet: 44 igjen etter 8 sekunder, og
+  antallet går videre ned mot 28.
+- Laser på en løs bit med rutenett (278–385 m², gråstein): knust på 2,4–2,7
+  sekunder.
+- Tung situasjon med 150 malmbiter og fullt med partikler: 40–42 ms per bilde,
+  mot 55–75 ms før.
+- 40 sekunder gruvedrift med testskipet: ingen feil i konsollen.
+- En asteroide med et stort hakk: ingen mørk skygge i hakket. Planeten og
+  verdensrommet synes rett gjennom.
+- Dronene går fortsatt inn og ut av luken.
 
 ## 2026-09-30: v0.14.1 · Dronene flyr inn i luken
 
