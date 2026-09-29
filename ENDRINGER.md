@@ -25,6 +25,26 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-29: v0.9.4 · Autopiloten flyr med nesen først
+
+Ønske fra brukeren: «Når autopiloten navigerer må romskipet forsøke å fly med
+nesen i fartsretningen.»
+
+Hva som er gjort:
+- `js/game.js` (`navInput`): på vei mot målet peker nå nesen dit skipet
+  faktisk beveger seg. Fra stillstand peker den dit skipet skal akselerere.
+  Når farten øker, tar fartsretningen over, også når skipet svinger rundt en
+  hindring. Før pekte nesen rett mot målet eller omveispunktet, og skipet
+  kunne da drive sidelengs.
+- De siste 30 meterne snur skipet seg til retningen spilleren valgte, som
+  før. Nær steiner snur det fortsatt bare sakte.
+- `index.html`: versjon v0.9.4.
+
+Testet: åtte turer med autopilot gjennom asteroidefeltet. Det var ingen
+kollisjoner, og alle kortere turer kom fram. Nesen pekte i snitt 5–30 grader
+fra fartsretningen i fart over 6 m/s. Det største avviket var i svingene rundt
+steiner. Ingen feil i konsollen.
+
 ## 2026-09-28: v0.9.3 · Tryggere autopilot, zoom på skipet i utstyrsmenyen, markering som varer
 
 Ønsker fra brukeren (med skjermbilder):

@@ -578,11 +578,13 @@
       N.arrived = true;
       game.msg('Arrived', RF.HUD_COLORS.ok);
     }
-    // På vei: nesen mot målet. Nær målet: den retningen spilleren valgte.
+    // På vei: nesen i fartsretningen. I lav fart peker nesen dit skipet skal
+    // akselerere, og etter hvert som farten øker tar fartsretningen over.
+    // Nær målet: den retningen spilleren valgte.
     const near = st.navcomp && N.clear != null && N.clear < 20;
-    // Nær en hindring: behold retningen og flytt skipet sidelengs med dysene,
-    // og snu bare sakte (tuppen av skroget maks 2,5 m/s).
-    const aim = d > 30 && !N.arrived && !near ? Math.atan2(dy, dx) : N.heading != null ? N.heading : null;
+    // Nær en hindring snur skipet bare sakte (tuppen av skroget maks 2,5 m/s).
+    const hx = rvx + (dx / dl) * 3, hy = rvy + (dy / dl) * 3;
+    const aim = d > 30 && !N.arrived && !N.rotate ? Math.atan2(hy, hx) : N.heading != null ? N.heading : null;
     const maxW = near ? Math.max(0.1, 2.5 / R) : null;
     return Object.assign({}, inp, { accel: { x: ax, y: ay }, aim, aimThrust: 0, maxW });
   }
