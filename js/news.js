@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.18.0', date: '2026-09-30', title: 'New sound',
+      items: [
+        'All sound is reworked: a deep engine rumble, soft puffs from the thrusters, a smoother laser and no more clicks.',
+        'New sounds for the mass driver, rocket launches and explosions. Explosions far away are quieter.',
+        'A limiter keeps many sounds at once from distorting.',
+        'Volume control in the pause menu. It is remembered.',
+      ],
+    },
+    {
       v: 'v0.17.4', date: '2026-09-30', title: 'Clearer repair buttons',
       items: [
         'The Repairs tab now says what each button does: Repair, Rebuild, Refuel and Restock, and Service all for everything at once.',

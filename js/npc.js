@@ -780,7 +780,7 @@
         if (game.sys === this.sys) {
           game.particles.burst(n.x, n.y, 4, { type: 'glow', dir: b.a, spread: 0.4, sMin: 8, sMax: 30, color: '#ff9a70', zMin: 0.15, zMax: 0.3, lMin: 0.05, lMax: 0.12, vx: b.vx, vy: b.vy });
           const near = G.len(dx, dy) < 600;
-          if (near) RF.Audio.thud(0.12, true);
+          if (near) RF.Audio.gun(0.45 * RF.Audio.near(n.x, n.y, 700));
         }
       }
     }
@@ -932,7 +932,7 @@
         game.particles.burst(b.x, b.y, 50, { sMin: 5, sMax: 30, color: '#ffcf80', zMin: 0.2, zMax: 0.6, lMin: 0.5, lMax: 1.4, vx: b.vx, vy: b.vy });
         game.particles.burst(b.x, b.y, 30, { type: 'smoke', sMin: 1, sMax: 8, color: '#5d5a52', zMin: 1.5, zMax: 3, grow: 3, lMin: 1.2, lMax: 3, vx: b.vx, vy: b.vy });
         game.spawnWreck(this.layout.filter(() => Math.random() < 0.5).map((m) => ({ t: m.t, x: m.x, y: m.y, hp: 1 })), b);
-        RF.Audio.thud(0.9);
+        RF.Audio.boom(0.8 * RF.Audio.near(b.x, b.y, 1200));
         game.credits += this.T.bounty;
         game.msg(`${this.name} destroyed. Bounty +${this.T.bounty} cr`, RF.HUD_COLORS.ok);
         this.leave(game);
@@ -943,7 +943,7 @@
         game.particles.burst(b.x, b.y, 30, { type: 'smoke', sMin: 1, sMax: 8, color: '#5d5a52', zMin: 1.5, zMax: 3, grow: 3, lMin: 1.2, lMax: 3, vx: b.vx, vy: b.vy });
         game.particles.burst(b.x, b.y, 20, { type: 'debris', sMin: 3, sMax: 15, color: '#8a8e92', zMin: 0.3, zMax: 1, lMin: 2, lMax: 5, vx: b.vx, vy: b.vy });
         game.spawnWreck(this.layout.filter(() => Math.random() < 0.4).map((m) => ({ t: m.t, x: m.x, y: m.y, hp: 1 })), b);
-        RF.Audio.thud(0.9);
+        RF.Audio.boom(0.8 * RF.Audio.near(b.x, b.y, 1200));
         game.msg(`${this.name} was destroyed`, RF.HUD_COLORS.danger);
       }
       this.despawn();

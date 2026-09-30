@@ -703,7 +703,7 @@
     ship.updateMass();
     const ip = o._tractorFrom || ship.body;
     game.particles.burst(ip.x, ip.y, 8, { type: 'glow', sMin: 1, sMax: 4, color: '#7dffd2', zMin: 0.15, zMax: 0.3, lMin: 0.2, lMax: 0.5, vx: ship.body.vx, vy: ship.body.vy });
-    Audio.blip(520, 0.06, 'sine', 0.08);
+    Audio.pickup();
   };
 
   game.onProcessed = (p) => {
@@ -747,7 +747,7 @@
       game.particles.burst(p.x, p.y, 14, { type: 'smoke', sMin: 1, sMax: 5, color: '#5d5a52', zMin: 1, zMax: 2.5, grow: 3, lMin: 1, lMax: 2.5, vx: b.vx, vy: b.vy });
       if (m.t !== 'part') game.msg(`Lost ${RF.MODULES[m.t].name.toLowerCase()}`, RF.HUD_COLORS.danger);
     }
-    Audio.thud(0.9);
+    Audio.boom(0.7);
     game.shake = Math.min(1, game.shake + 0.6);
     s.layout = s.layout.filter((m) => !dead.includes(m));
     const loose = lostCockpit ? s.layout.slice() : RF.disconnected(s.layout);
@@ -1052,7 +1052,7 @@
     game.particles.burst(b.x, b.y, 40, { type: 'glow', sMin: 2, sMax: 18, color: '#ff8a3a', zMin: 0.4, zMax: 1, lMin: 0.4, lMax: 1.2, vx: b.vx, vy: b.vy });
     game.particles.burst(b.x, b.y, 40, { type: 'smoke', sMin: 1, sMax: 10, color: '#6d6f78', zMin: 1.5, zMax: 3, grow: 4, lMin: 1.2, lMax: 3, vx: b.vx, vy: b.vy });
     game.particles.burst(b.x, b.y, 30, { type: 'debris', sMin: 3, sMax: 20, color: '#8e9aab', zMin: 0.4, zMax: 1.2, lMin: 2, lMax: 5, vx: b.vx, vy: b.vy });
-    Audio.thud(1);
+    Audio.boom(1);
     Audio.thud(0.8, true);
     game.shake = 1;
   }
@@ -1406,8 +1406,10 @@
       for (const m of game.messages) m.t -= dt;
       game.messages = game.messages.filter((m) => m.t > 0);
       game.flash = Math.max(0, game.flash - dt * 1.5);
-      Audio.update(ship.docked || game.dead ? 0 : Math.max(ship.fx.main, ship.fx.retro * 0.6, (ship.fx.left + ship.fx.right) * 0.4),
-        ship.laser.on && !game.dead, ship.tractor.on && !ship.docked && !game.dead, !!ship.laser.hit);
+      const idle = ship.docked || game.dead, fx = ship.fx;
+      Audio.update(idle ? 0 : Math.max(fx.main, fx.retro * 0.6),
+        ship.laser.on && !game.dead, ship.tractor.on && !ship.docked && !game.dead, !!ship.laser.hit,
+        idle ? 0 : Math.min(1, (fx.left + fx.right) * 0.6 + (fx.rotL + fx.rotR) * 0.5));
       const cut = game._cut && game.time - game._cut.t < 0.12 && !game.dead;
       Audio.updateCut(cut, cut ? game._cut.hard : 1, cut && game._cut.mineral);
     }

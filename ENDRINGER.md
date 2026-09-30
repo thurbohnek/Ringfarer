@@ -45,6 +45,62 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.18.0 · Ny lyd i hele spillet
+
+**Ønske:** «Du må ordne lydene i spillet»
+
+**Hva som var galt:**
+
+- Ingen beskyttelse mot overstyring. Mange lyder samtidig kunne skurre.
+- Hver kort lyd startet på full styrke uten innfading. Det gir et lite klikk.
+- Laseren var en hard sagtann-summing.
+- Motoren var hvit støy (sus) i stedet for rumling.
+- Kanon, raketter og eksplosjoner var bare støyutbrudd.
+- Eksplosjoner langt unna hørtes like sterkt som de nær skipet.
+- Skjærelyden ble endret i hvert bilde, og det kunne gi skraping.
+
+**Hva som er gjort:**
+
+- `js/audio.js` er skrevet om, med de samme funksjonene som før:
+  - Alt går gjennom en kompressor og en begrenser før høyttaleren.
+  - Alle korte lyder tones inn over noen millisekunder, så de ikke klikker.
+  - **Motor:** dyp rumling (brun støy) og en lav brumming som stiger med
+    kraften.
+  - **Sidedyser og snudyser:** egne, lyse pust.
+  - **Laser:** to myke toner med litt vibrato i stedet for sagtann. Lysere
+    når strålen treffer.
+  - **Traktorstrålen:** rundere summing.
+  - **Skjærestrålen:** knitringen endres bare noen ganger i sekundet.
+  - **Nye lyder:** `gun` (smell med et tungt slag, for massedriveren og
+    piratene), `rocket` (stigende sus), `boom` (dypt drønn og lang rumling,
+    for eksplosjoner) og `pickup` (myk plopp når malm tas inn).
+  - Firkant- og sagtanntoner i menyene er dempet med et filter.
+  - `A.near`: lyder blir svakere med avstanden. Brukes for eksplosjoner og
+    piratskudd.
+  - **Lydstyrke:** `A.setVolume` og `A.volume`. Den huskes i nettleseren.
+  - `A.tap`: måler på utgangen, til tester.
+- `js/weapons.js`, `js/npc.js`, `js/game.js`: bruker de nye lydene.
+  - Sidedysene får egen lyd.
+  - Når skipet mister moduler eller eksploderer, høres et drønn.
+- `js/ui.js`, `index.html`: «Volume − / +» i pausemenyen, i steg på 10 %.
+- `js/news.js`, `index.html`: nyhet og versjon v0.18.0.
+
+**Testet** (Playwright, med måler på utgangen):
+
+| Situasjon | Topp | Snitt |
+| --- | --- | --- |
+| Stille | 0 | 0 |
+| Skjæring | 0,59 | 0,08 |
+| Motor | 0,46 | 0,16 |
+| Sidedyser | 0,37 | 0,03 |
+| Kamp | 0,66 | 0,06 |
+| Tre eksplosjoner og flere smell samtidig | 0,94 | 0,07 |
+
+- Ingenting går over taket.
+- Volumknappene lagrer 50 % etter to trykk.
+- Pirater, droner og hold virker som før. Ingen feil i konsollen.
+- Selve lyden er ikke lyttet på, bare målt.
+
 ## 2026-09-30: v0.17.4 · Tydeligere knapper i verkstedet
 
 **Ønske:** «Må vell stå fyll opp tanken ikke fix fuel, eller noe som er

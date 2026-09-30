@@ -76,6 +76,8 @@
   .card-head h2 { margin: 0; }
   .card.narrow { width: min(420px, 100%); }
   .card.map-card { width: min(1040px, 100%); }
+  .vol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .vol-row .btn { min-width: 52px; }
   .map-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
   .map-view { flex: 1 1 420px; min-width: 0; max-width: 560px; display: flex; flex-direction: column; gap: 6px; }
   .map-view canvas { width: 100%; aspect-ratio: 1 / 1; border: 1px solid rgba(0,0,0,0.6); background: #05070a; cursor: grab; }
@@ -436,7 +438,7 @@
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.17.4 · 2026-09-30';
+  window.RF_VERSION = 'v0.18.0 · 2026-09-30';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
     var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'missions', 'input', 'audio',

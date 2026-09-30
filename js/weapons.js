@@ -36,7 +36,7 @@
       ship.body.applyImpulse(-d.x * mass * g.speed, -d.y * mass * g.speed, p.x, p.y);
       game.particles.burst(p.x, p.y, 6, { type: 'glow', dir: Math.atan2(d.y, d.x), spread: 0.4, sMin: 10, sMax: 40, color: '#ffd28a', zMin: 0.2, zMax: 0.4, lMin: 0.05, lMax: 0.15, vx: v.x, vy: v.y });
     }
-    RF.Audio.thud(0.25, true);
+    RF.Audio.gun(0.8);
   };
 
   W.fireRocket = (ship, game) => {
@@ -52,7 +52,7 @@
     const { p, d, v } = launchFrom(ship, L.m);
     const pow = (RF.MODULES[L.m.t].pow || 1) * Math.sqrt(st.gunMul || 1);
     W.list.push({ type: 'rocket', x: p.x, y: p.y, vx: v.x + d.x * 25, vy: v.y + d.y * 25, dx: d.x, dy: d.y, life: 7, owner: ship.body, arm: 0.25 * Math.sqrt(pow), pow });
-    RF.Audio.thud(0.35, true);
+    RF.Audio.rocket();
   };
 
   // Ankerkrok: skytes ut på en wire. Fester seg i det den treffer.
@@ -117,7 +117,7 @@
     game.particles.burst(x, y, 60, { type: 'glow', sMin: 5, sMax: 40, color: '#ffb050', zMin: 0.3, zMax: 0.9, lMin: 0.3, lMax: 0.9 });
     game.particles.burst(x, y, 40, { sMin: 10, sMax: 60, color: '#ffe0a0', zMin: 0.2, zMax: 0.5, lMin: 0.3, lMax: 0.8 });
     game.particles.burst(x, y, 30, { type: 'smoke', sMin: 2, sMax: 10, color: '#6a645a', zMin: 2, zMax: 4, grow: 5, lMin: 1.5, lMax: 3.5 });
-    RF.Audio.thud(1);
+    RF.Audio.boom(Math.min(1, 0.55 + 0.25 * pow) * RF.Audio.near(x, y, 1200));
     const sb = game.ship.body;
     const dist = G.len(sb.x - x, sb.y - y);
     game.shake = Math.min(1, game.shake + Math.max(0, 1 - dist / 200));

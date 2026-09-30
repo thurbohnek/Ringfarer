@@ -187,6 +187,7 @@
             <button class="btn" data-act="map">Star map</button>
             <button class="btn" data-act="raid">Call raiders (test)</button>
             <button class="btn" data-act="mute">${RF.Audio.muted ? 'Sound on' : 'Sound off'}</button>
+            <div class="row vol-row"><button class="btn" data-act="vol-down" aria-label="Lower volume">−</button><span class="num">Volume ${Math.round(RF.Audio.volume() * 100)} %</span><button class="btn" data-act="vol-up" aria-label="Raise volume">+</button></div>
             <button class="btn" data-act="touch">${game.touchUI ? 'Hide touch controls' : 'Show touch controls'}</button>
             <button class="btn ghost" data-act="quit">Main menu</button>
           </div>
@@ -1043,6 +1044,8 @@
         if (ship && ship.docked) UI.openStation(); else UI.closeAll();
         break;
       case 'mute': RF.Audio.setMuted(!RF.Audio.muted); UI.openPause(); break;
+      case 'vol-down': RF.Audio.setVolume(RF.Audio.volume() - 0.1); UI.openPause(); break;
+      case 'vol-up': RF.Audio.setVolume(RF.Audio.volume() + 0.1); UI.openPause(); break;
       case 'touch': UI.setTouch(!game.touchUI); UI.openPause(); break;
       case 'quit': game.save(); game.state = 'title'; location.reload(); break;
       case 'raid': UI.closeAll(); if (!game.ship.docked) RF.Pirates.spawn(game, 20000); break;
