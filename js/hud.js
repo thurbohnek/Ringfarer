@@ -114,14 +114,15 @@
     return { w: rows * c, h: cols * c };
   }
 
-  function edgeMarker(ctx, game, R, wx, wy, label, color) {
+  // from = punktet avstanden måles fra (standard: skipet). textDy flytter teksten.
+  function edgeMarker(ctx, game, R, wx, wy, label, color, from, textDy = 0) {
     const s = R.toScreen(game.cam, wx, wy);
     const touch = game.touchUI;
     // Rammen må alltid ha skjermens midtpunkt godt innenfor.
     const ml = 26, mr = touch ? 60 : 26, mt = 50, mb = touch ? Math.min(200, R.h * 0.3) : 80;
     const inside = s.x > ml && s.x < R.w - mr && s.y > mt && s.y < R.h - mb;
     if (inside) return;
-    const ship = game.ship.body;
+    const ship = from || game.ship.body;
     const dist = G.len(wx - ship.x, wy - ship.y);
     const cx = R.w / 2, cy = R.h / 2;
     const dx = s.x - cx, dy = s.y - cy;
@@ -140,7 +141,7 @@
     ctx.font = F.label;
     ctx.textAlign = Math.cos(a) > 0.3 ? 'right' : Math.cos(a) < -0.3 ? 'left' : 'center';
     const tx = ex - Math.cos(a) * 12, ty = ey - Math.sin(a) * 12;
-    ctx.fillText(label.toUpperCase() + ' ' + fmtDist(dist), tx, ty + 4);
+    ctx.fillText(label.toUpperCase() + ' ' + fmtDist(dist), tx, ty + 4 + textDy);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
@@ -254,7 +255,7 @@
     if (!ship.docked) {
       edgeMarker(ctx, game, R, game.sys.station.x, game.sys.station.y, game.sys.station.name, C.ok);
       // Har man panorert bort fra skipet, viser en pil hvor det er.
-      if (game.camOff.x || game.camOff.y) edgeMarker(ctx, game, R, b.x, b.y, 'Your ship', '#ffffff');
+      if (game.camFree) edgeMarker(ctx, game, R, b.x, b.y, 'Your ship', '#ffffff', game.cam, 16);
       for (const g of RF.gatesOf(game.sys)) edgeMarker(ctx, game, R, g.x, g.y, g.name || 'Gate', C.gate);
       for (const n of game.sys.npcs) {
         if (!n.T.hostile || !n.active || n.dead) continue;

@@ -45,6 +45,50 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.18.2 · Fritt kamera og knappen «Follow ship»
+
+**Ønske:** «Må kunne pane rundt mye mere. Om jeg planer til en asteroide så
+trykker på siden av den for at autopiloten skal ta skipet der så må kamera
+holde seg iro ved astroiden der det var. Så kommer skipet dit. Må ha en
+knapp eller funksjon som jeg kan trykke på så kameraet går tilbake til
+skipet og følger det.»
+
+**Hva som var galt:** kameraet fulgte skipet med en forskyvning, så bildet
+gled med når skipet fløy. Panoreringen var begrenset til halvannen skjerm
+fra skipet.
+
+**Hva som er gjort:**
+
+- `js/game.js`:
+  - **Fritt kamera** (`game.camFree`): når man drar i skjermen, løsner
+    kameraet fra skipet og står stille over et punkt i verden. Det flytter
+    seg ikke når skipet flyr.
+  - **Grense:** ingen grense i forhold til skipet, bare innenfor 9 km fra
+    stasjonen.
+  - **Følg skipet igjen** (`game.followShip`): tasten O, trykk på skipet,
+    FOLLOW SHIP i ⋯-menyen på mobil eller den nye knappen. Kameraet følger
+    også skipet igjen ved dokking og når man går gjennom en port.
+- `index.html`:
+  - Knappen «◎ Follow ship O» nederst på midten vises bare når kameraet står
+    fritt, på PC og mobil.
+  - ⋯-menyen: «CENTER CAMERA» heter nå «FOLLOW SHIP».
+- `js/hud.js`: pilen «Your ship» viser avstanden fra det du ser på (før
+  alltid «0 m»), og står på egen linje så den ikke dekker andre markører.
+  Punkt 16 i planen.
+- `js/ui.js`: hjelpeteksten om kameraet er oppdatert.
+- `PLAN.md`: punkt 16 er strøket over.
+- `js/news.js`, `index.html`: nyhet og versjon v0.18.2.
+
+**Testet** (Playwright, med musen):
+
+- Panorering med høyre museknapp: kameraet sto 781 m fra skipet, og knappen
+  kom fram.
+- Klikk på tomt rom: autopiloten fløy, og kameraet flyttet seg 0 m på seks
+  sekunder mens skipet kom nærmere.
+- Pilen viser «Your ship 668 m».
+- «Follow ship»: kameraet gikk tilbake til skipet, og knappen forsvant.
+- Pirater og kart virker som før. Ingen feil i konsollen.
+
 ## 2026-09-30: v0.18.1 · Bakgrunnen følger zoomen
 
 **Ønske:** «Så må du ordne slik at når man zoomer så endres størrelsen på

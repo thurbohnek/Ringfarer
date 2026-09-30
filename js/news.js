@@ -10,6 +10,14 @@
 
   RF.NEWS = [
     {
+      v: 'v0.18.2', date: '2026-09-30', title: 'Free camera',
+      items: [
+        'Pan as far as you like. The camera stays where you leave it, also while the ship flies, so you can pan to an asteroid, tap next to it and watch your ship arrive.',
+        'A Follow ship button appears when the camera is free (or press O, or tap your ship).',
+        'The arrow to your ship shows how far away it is from what you are looking at.',
+      ],
+    },
+    {
       v: 'v0.18.1', date: '2026-09-30', title: 'The background follows your zoom',
       items: [
         'The planet grows when you zoom in and shrinks when you zoom out. The stars shift a little, the far sky barely at all, so you feel the depth.',

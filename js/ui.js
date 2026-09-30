@@ -153,7 +153,7 @@
             <li><b>Tap to move:</b> a short tap on empty space (for example next to an asteroid) sets a target. The ship flies there and stops, and follows the rock if the target is next to one. Steering yourself switches the autopilot off. The autopilot flies straight unless the ship has a <b>navigation computer</b> (Equipment → Tools): then it plots a course around asteroids, stations and ships.</li>
             <li><b>Choose the heading:</b> press and hold on empty space until the target ring appears, then drag toward where the nose should point when the ship arrives. A green arrow shows the heading.</li>
             <li><b>Turn in place:</b> press on your ship and drag. The ship turns to face your finger without moving anywhere.</li>
-            <li><b>Camera:</b> drag the screen to look around. The ship always stays on screen. Tap your ship (or ⋯ → Center camera, key O) to center again.</li>
+            <li><b>Camera:</b> drag the screen to look around as far as you like. The camera stays where you leave it, also when the ship flies somewhere, so you can pan to an asteroid, tap next to it and watch the ship arrive. An arrow at the edge shows where your ship is. Press <b>Follow ship</b> (key O, or tap your ship) to follow it again.</li>
             <li><b>Firing:</b> press and hold on a rock to aim at it and use the tool. The aim follows the rock. The trigger at the bottom right (or Space) fires at the current aim. Lasers, drills and guns pass straight through loose ore chunks.</li>
             <li><b>Touch:</b> the stick is the circle at the bottom left: drag to turn, drag far out to thrust.</li>
             <li><b>Brake:</b> BRAKE (or S) uses every engine to stop the ship along the direction it is actually moving, wherever the nose points.</li>
@@ -287,8 +287,8 @@
       ${k(['Mouse'], 'Aim. Click empty space: move there. Click and hold a rock: fire')}
       ${k(['Hold', 'Drag'], 'On empty space: move there and face the drag direction')}
       ${k(['Ship', 'Drag'], 'Turn the ship in place')}
-      ${k(['Drag'], 'Move the camera (also right mouse button)')}
-      ${k(['O'], 'Center camera on the ship')}
+      ${k(['Drag'], 'Move the camera freely (also right mouse button). It stays where you leave it')}
+      ${k(['O'], 'Camera follows the ship again (or the Follow ship button)')}
       ${k(['Space'], 'Use the tool')}
       ${k(['X'], 'Fire / release harpoon')}
       ${k(['C', 'V'], 'Winch in / pay out cable')}

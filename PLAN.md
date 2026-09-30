@@ -19,7 +19,7 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 13. Nasjoner som eier systemene, med egne priser, oppdrag og omdømme.
 14. Planeter med landing og persontransport.
 15. Kjempeskipet: den flyvende byen som hovedsenter for flåten.
-16. Skjul pilen «Your ship 0 m» når skipet synes på skjermen.
+16. ~~Skjul pilen «Your ship 0 m» når skipet synes på skjermen.~~ (v0.18.2)
 17. ~~Kart over systemene med porter, stasjoner og hva de kjøper.~~ (v0.17.0)
 18. Varsel om full last, med «fly til nærmeste stasjon».
 19. Raffineri om bord: malm blir rent metall (lettere og mer verdt).

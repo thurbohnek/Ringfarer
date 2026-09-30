@@ -76,6 +76,10 @@
   .card-head h2 { margin: 0; }
   .card.narrow { width: min(420px, 100%); }
   .card.map-card { width: min(1040px, 100%); }
+  .cam-follow { position: fixed; left: 50%; transform: translateX(-50%); bottom: 104px; z-index: 5; padding: 8px 16px; }
+  .cam-follow.touch { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 230px); }
+  .cam-follow kbd { font-size: 11px; opacity: 0.7; margin-left: 6px; }
+  .cam-follow.touch kbd { display: none; }
   .vol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .vol-row .btn { min-width: 52px; }
   .map-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
@@ -428,17 +432,19 @@
     <button data-tap="KeyK">DRONES OUT/IN</button>
     <button data-tap="Tab">STAR MAP</button>
     <button data-tap="KeyB">HOLD POSITION</button>
-    <button data-tap="Recenter">CENTER CAMERA</button>
+    <button data-tap="Recenter">FOLLOW SHIP</button>
     <button data-tap="Escape">PAUSE</button>
   </div>
 </div>
+
+<button id="cam-follow" class="btn primary cam-follow" hidden onclick="RF.game.followShip()">◎ Follow ship <kbd>O</kbd></button>
 
 <div id="panel" hidden></div>
 
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.18.1 · 2026-09-30';
+  window.RF_VERSION = 'v0.18.2 · 2026-09-30';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
     var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'missions', 'input', 'audio',

@@ -29,6 +29,9 @@
     ship: null,
     cam: { x: 0, y: 0, zoom: 3 },
     camOff: { x: 0, y: 0 },
+    // Fritt kamera: et punkt i verden kameraet står stille over (etter at man
+    // har panorert). null = kameraet følger skipet.
+    camFree: null,
     pointerMode: null,
     shake: 0,
     particles: new RF.Particles(),
@@ -81,6 +84,7 @@
     // Pirater følger ikke etter gjennom porten.
     if (game.sys && game.sys.npcs) for (const n of game.sys.npcs.filter((x) => x.T.hostile)) n.leave(game);
     game.sys = game.getSystem(id);
+    if (game.followShip) game.followShip(true);
     const ws = game.sys.world;
     if (!ws.bodies.includes(game.ship.body)) ws.add(game.ship.body);
     game.ship.body.dead = false;
@@ -269,7 +273,7 @@
     removeShipFromWorld();
     ship.docked = st;
     ship.nav = null;
-    game.camOff.x = game.camOff.y = 0;
+    game.followShip(true);
     ship.tractor.on = false;
     const dp = parkPoint(st);
     Object.assign(ship.body, { x: dp.x, y: dp.y, a: dp.a, vx: 0, vy: 0, w: 0 });
@@ -446,9 +450,11 @@
       }
     }
     // Kameraet følger fingeren når man drar.
+    // Kameraet løsner fra skipet og blir stående der man slipper det.
     if (game.pointerMode === 'pan' && (P.panX || P.panY)) {
-      game.camOff.x -= P.panX / game.cam.zoom;
-      game.camOff.y -= P.panY / game.cam.zoom;
+      if (!game.camFree) game.camFree = { x: game.cam.x, y: game.cam.y };
+      game.camFree.x -= P.panX / game.cam.zoom;
+      game.camFree.y -= P.panY / game.cam.zoom;
       game.cam.x -= P.panX / game.cam.zoom;
       game.cam.y -= P.panY / game.cam.zoom;
     }
@@ -458,7 +464,7 @@
       const t = P.taps.shift();
       if (t.press !== game._aimPress) continue;
       const w = toWorld(t.x, t.y);
-      if (mode === 'ship') { game.camOff.x = game.camOff.y = 0; game.msg('Camera follows the ship', RF.HUD_COLORS.gate); }
+      if (mode === 'ship') game.followShip();
       else if (mode === 'pending') game.setNav(w.x, w.y);
     }
     const L = game.aimLock;
@@ -1090,8 +1096,28 @@
   }
 
   // --- Oppdatering ---
+  // Kameraet følger skipet igjen (knappen «Follow ship», tasten O eller trykk
+  // på skipet).
+  game.followShip = (quiet) => {
+    const was = !!game.camFree;
+    game.camFree = null;
+    game.camOff.x = game.camOff.y = 0;
+    if (was && !quiet) game.msg('Camera follows the ship', RF.HUD_COLORS.gate);
+  };
+
   function updateCamera(dt) {
     const b = game.ship.body, cam = game.cam, R = RF.renderer;
+    if (game.camFree) {
+      // Fritt kamera: står stille over punktet, innenfor systemet.
+      const F = game.camFree, st = game.sys.station, lim = 9000;
+      const d = G.len(F.x - st.x, F.y - st.y);
+      if (d > lim) { F.x = st.x + ((F.x - st.x) / d) * lim; F.y = st.y + ((F.y - st.y) / d) * lim; }
+      const k = 1 - Math.exp(-dt * 12);
+      cam.x += (F.x - cam.x) * k;
+      cam.y += (F.y - cam.y) * k;
+      if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 2.5);
+      return;
+    }
     // Hvor langt kameraet kan flyttes bort fra skipet: halvannen skjerm i hver
     // retning. Er skipet utenfor bildet, viser en pil i kanten hvor det er.
     const mx = (R.w * 1.5) / cam.zoom, my = (R.h * 1.5) / cam.zoom;
@@ -1264,10 +1290,7 @@
       return;
     }
     if (RF.UI.isOpen() || game.dead) return;
-    if (Input.hit('Recenter') || Input.hit('Home') || Input.hit('KeyO')) {
-      game.camOff.x = game.camOff.y = 0;
-      game.msg('Camera follows the ship', RF.HUD_COLORS.gate);
-    }
+    if (Input.hit('Recenter') || Input.hit('Home') || Input.hit('KeyO')) game.followShip();
     const ship = game.ship;
     if (Input.hit('KeyZ')) {
       ship.fa = (ship.fa + 1) % 3;
@@ -1414,6 +1437,15 @@
       Audio.updateCut(cut, cut ? game._cut.hard : 1, cut && game._cut.mineral);
     }
     game.topUp();
+    // Knappen «Follow ship» vises bare når kameraet står fritt.
+    const fb = game._followBtn || (game._followBtn = document.getElementById('cam-follow'));
+    if (fb) {
+      const want = !!game.camFree && game.state === 'play' && !RF.UI.isOpen() && !game.ship.docked && !game.dead;
+      if (fb.hidden === want) {
+        fb.hidden = !want;
+        fb.classList.toggle('touch', !!game.touchUI);
+      }
+    }
     Input.endFrame();
     RF.renderer.draw(game, dt);
     if (!game.dead) RF.drawHUD(RF.renderer, game);
