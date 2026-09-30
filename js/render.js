@@ -300,8 +300,22 @@
       while ((vw * vh) / (C * C) > 700) C *= 3;
       const x0 = Math.floor((cam.x - vw / 2) / C), x1 = Math.floor((cam.x + vw / 2) / C);
       const y0 = Math.floor((cam.y - vh / 2) / C), y1 = Math.floor((cam.y + vh / 2) / C);
-      const sb = game.ship && game.ship.body;
-      const vx = sb ? sb.vx : 0, vy = sb ? sb.vy : 0, sp = Math.hypot(vx, vy);
+      // Stripene viser hvordan bildet beveger seg: kameraets fart, ikke
+      // skipets. Følger kameraet skipet, blir det det samme. Står kameraet
+      // stille, blir støvet bare prikker selv om skipet flyr.
+      // Rystelser (smell og kollisjoner) teller ikke med.
+      const cx = cam.bx != null ? cam.bx : cam.x, cy = cam.by != null ? cam.by : cam.y;
+      const now = performance.now() / 1000, Cv = this._camVel || (this._camVel = { x: cx, y: cy, t: now, vx: 0, vy: 0 });
+      const cdt = now - Cv.t;
+      if (cdt > 0.001) {
+        const k = Math.min(1, cdt * 8);
+        const ivx = cdt < 0.25 ? (cx - Cv.x) / cdt : 0, ivy = cdt < 0.25 ? (cy - Cv.y) / cdt : 0;
+        // Et hopp (ny plassering, portreise) gir ikke striper.
+        const jump = Math.hypot(ivx, ivy) > 400;
+        Cv.vx += ((jump ? 0 : ivx) - Cv.vx) * k; Cv.vy += ((jump ? 0 : ivy) - Cv.vy) * k;
+        Cv.x = cx; Cv.y = cy; Cv.t = now;
+      }
+      const vx = Cv.vx, vy = Cv.vy, sp = Math.hypot(vx, vy);
       const shutter = 0.07; // sekunder «eksponering» for stripene
       const px = 1 / z;
       ctx.lineCap = 'round';

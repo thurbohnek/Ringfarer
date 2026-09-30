@@ -1116,6 +1116,7 @@
       const k = 1 - Math.exp(-dt * 12);
       cam.x += (F.x - cam.x) * k;
       cam.y += (F.y - cam.y) * k;
+      cam.bx = cam.x; cam.by = cam.y;
       if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 2.5);
       return;
     }
@@ -1136,6 +1137,7 @@
     cam.y += (ty - cam.y) * k;
     cam.x = G.clamp(cam.x, b.x - mx, b.x + mx);
     cam.y = G.clamp(cam.y, b.y - my, b.y + my);
+    cam.bx = cam.x; cam.by = cam.y; // uten risting (til støvstripene)
     if (game.shake > 0) {
       const s = game.shake * 6 / cam.zoom;
       cam.x += G.rand(-s, s);

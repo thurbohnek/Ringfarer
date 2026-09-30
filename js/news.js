@@ -10,6 +10,13 @@
 
   RF.NEWS = [
     {
+      v: 'v0.19.2', date: '2026-09-30', title: 'Dust streaks follow the camera',
+      items: [
+        'Space dust only streaks when the view is moving. With the camera standing still, the dust stays as dots while your ship flies past.',
+        'Shaking from hits and explosions no longer makes the dust streak.',
+      ],
+    },
+    {
       v: 'v0.19.1', date: '2026-09-30', title: 'Softer comet tails',
       items: [
         'Comet tails are soft and glowing instead of hard bands, and they start behind the comet instead of covering it.',

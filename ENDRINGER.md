@@ -45,6 +45,36 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.19.2 · Støvstripene følger kameraet
+
+**Ønske:** «Det som gjør at man ser at skipet beveger seg. Stripene av
+partikler fungere bra når man follow ship, men når kamera står i ro og
+skipet beveger på seg så bør det ikke bli striper av partiklene»
+
+**Hva som var galt:** stripene på støvet ble regnet ut fra skipets fart,
+uansett hvor kameraet var.
+
+**Hva som er gjort:**
+
+- `js/render.js` (`drawDust`):
+  - Stripene regnes ut fra kameraets fart, altså hvordan bildet faktisk
+    beveger seg. Følger kameraet skipet, blir det som før. Står kameraet
+    stille, blir støvet bare prikker.
+  - Farten jevnes ut over noen bilder.
+  - Store hopp i kameraet (nytt sted eller portreise) gir ikke striper.
+- `js/game.js` (`updateCamera`): kameraets plassering uten risting lagres
+  (`cam.bx`, `cam.by`). Smell og kollisjoner gir derfor ikke falske striper.
+- `js/news.js`, `index.html`: nyhet og versjon v0.19.2.
+
+**Testet** (Playwright, skipet i åpent rom):
+
+| Kamera | Skipets fart | Stripenes fart | På bildet |
+| --- | --- | --- | --- |
+| Følger skipet | 51,6 m/s | 55,7 m/s | Striper |
+| Fritt kamera | 65,8 m/s | 0 | Prikker |
+
+Ingen feil i konsollen.
+
 ## 2026-09-30: v0.19.1 · Mykere kometsvans, og mineraler uten rutemønster
 
 **Ønske:** «Veldig coolt, men det er noe funky med lyset på kometen og
