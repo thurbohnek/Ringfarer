@@ -156,6 +156,11 @@
     const all = [];
     for (const l of loops) for (const p of l) { p.x -= cx; p.y -= cy; all.push(p); rad = Math.max(rad, p.x * p.x + p.y * p.y); }
     V.ox -= cx; V.oy -= cy;
+    // Det ferdigtegnede bildet av steinen (render.js) følger med når origo
+    // flyttes. Ellers ble det tegnet på feil sted til det ble laget på nytt,
+    // og steinen hoppet fram og tilbake mens man skar i den.
+    if (V.cx0 != null) { V.cx0 -= cx; V.cy0 -= cy; }
+    if (V.facets) for (const fc of V.facets) { fc.p.x -= cx; fc.p.y -= cy; }
     const bx0 = b.x, by0 = b.y;
     b.shiftOrigin(cx, cy);
     if (b.craters) for (const c of b.craters) { c.x -= cx; c.y -= cy; }
@@ -282,6 +287,10 @@
     const b = makeBody(V, { x: pb.x, y: pb.y, a: pb.a, vx: pb.vx, vy: pb.vy, w: pb.w, restitution: pb.restitution, craters, world: pb.world });
     if (b) {
       b.debris = true; // løsnet fra en større stein
+      // Biten og steinen den kom fra deler kanten der kuttet gikk. De får
+      // gli fra hverandre uten å dytte i hverandre de første sekundene.
+      const now = RF.game ? RF.game.time : 0;
+      b.sib = { body: pb, until: now + 2.5 };
       if (pb.orbit) b.orbit = pb.orbit;
       b.rockType = pb.rockType;
       b.comet = pb.comet && b.area > 150;
@@ -452,6 +461,7 @@
     const made = [];
     if (!comps.length) { b.dead = true; return made; }
     if (comps.length > 1) {
+      b.vox.force = true; // steinen deler seg: tegn den på nytt med en gang
       comps.sort((x, y) => y.length - x.length);
       for (let c = 1; c < comps.length; c++) {
         const nb = sub(b, comps[c]);

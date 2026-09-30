@@ -45,6 +45,66 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.17.2 · Steinene flimrer ikke, og innsamleren tar inn malmen
+
+**Ønsker:**
+
+- «Når man miner og deler astroidene flikker de og bitene rører rart på
+  seg.»
+- «Klarer ikke å samle resurser. Går ihvertfall tregt. Samler seg sammen
+  foran innsamleren som på bildet.»
+
+**Hva som var galt:**
+
+- **Flimring:**
+  - Når steinen bygges på nytt mens man skjærer, flyttes midtpunktet
+    (tyngdepunktet). Det ferdigtegnede bildet av steinen fulgte ikke med.
+    I opptil 0,2 sekunder ble det tegnet på feil sted, opptil 11 m unna i
+    testen. Det skjedde i 32 av 439 bilder mens man skar.
+  - Når steinen delte seg, ble det gamle bildet med biten fortsatt
+    tegnet en liten stund. Biten synes da to steder.
+- **Rare bevegelser:** biten og steinen deler kantnodene der kuttet gikk.
+  De overlappet litt, og fysikken dyttet dem fra hverandre i rykk.
+- **Innsamlingen:**
+  - Innsamleren stoppet når 25 t malm ventet på prosessering.
+  - Prosesseringen gikk bare 800–1 000 kg/s, og en malmbit fra
+    skjærestrålen veier 7–14 t. Etter to–tre biter var køen full, og resten
+    ble hengende i traktorstrålen foran innsamleren.
+  - Var lasterommet fullt, holdt strålen bitene fast der.
+
+**Hva som er gjort:**
+
+- `js/voxel.js`:
+  - Når origo flyttes, flyttes også bildet av steinen (`V.cx0`, `V.cy0`)
+    og fasettene til lyset.
+  - Når steinen deler seg, tegnes den på nytt med en gang (`V.force`).
+  - Nye biter husker hvilken stein de kom fra (`sib`).
+- `js/render.js`: tegner steinen på nytt med en gang når `V.force` er satt.
+- `js/game.js`:
+  - Nye biter kolliderer ikke med steinen de kom fra, eller med hverandre,
+    de første 2,5 sekundene. De glir rolig fra hverandre.
+  - Malm tas inn så lenge det den blir til, får plass i lasterommet. Grensen
+    på 25 t er fjernet.
+- `js/ship.js`:
+  - Ny `procProduct` (tonn produkt i køen).
+  - Er lasterommet fullt, slipper traktorstrålen bitene og sier fra: «Cargo
+    hold is full. Sell at a station or buy more cargo space».
+- `js/modules.js`: prosesseringen er raskere. Grunnfarten er 2 500 kg/s
+  (før 800), og Ore processor gir +3 000 kg/s (før 1 500).
+- `js/news.js`, `index.html`: nyhet og versjon v0.17.2.
+
+**Testet** (Playwright):
+
+- **Bildet av steinen:** før var det feil i 32 av 439 bilder, med opptil
+  11 m. Nå er det 0 av 505. I en annen kjøring var det små avvik under
+  1,1 m mens kuttet endret seg.
+- **Innsamling med startskipet**, 10 kobberbiter på 8 t: før 4 biter på
+  15 sekunder, nå 7 på 5 sekunder. Da var lasterommet på 16 t fullt, og
+  strålen slapp resten med melding.
+- **Testskipet:** alle 10 på 10 sekunder (før 15).
+- **Resten virker som før:** droner, hold posisjon, pirater og skjæring.
+  Ingen feil i konsollen.
+
 ## 2026-09-30: v0.17.1 · Zoom og panorering på stjernekartet
 
 **Ønske:** «Star map må kunne zoomes inn og ut på»

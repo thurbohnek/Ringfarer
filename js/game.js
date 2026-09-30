@@ -62,6 +62,9 @@
       st.world.onImpact = onImpact;
       // Egne droner flyr fritt inn og ut av skipet sitt.
       st.world.shouldCollide = (A, B) => !(A.kind === 'gate' && B.kind === 'gate') &&
+        // Nylig skåret løs: ikke kollider med steinen biten kom fra, eller med søsken.
+        !(A.sib && game.time < A.sib.until && (A.sib.body === B || (B.sib && B.sib.body === A.sib.body))) &&
+        !(B.sib && game.time < B.sib.until && B.sib.body === A) &&
         !(A.npc && A.npc.owner && A.npc.owner.body === B) && !(B.npc && B.npc.owner && B.npc.owner.body === A) &&
         // og ut og inn av stasjonens trafikk uten å kræsje i de andre dronene.
         !(A.npc && B.npc && (A.npc.owner || B.npc.owner));
@@ -685,14 +688,16 @@
 
   game.tryIntake = (o) => {
     const ship = game.ship;
-    if (ship.holdFree() <= 0.02) {
+    // Malmen tas inn så lenge det den blir til får plass i lasterommet.
+    // (Før stoppet inntaket når 25 t ventet på prosessering, og bitene
+    // hopet seg opp foran innsamleren.)
+    if (ship.holdFree() - ship.procProduct() <= 0.02) {
       if (!game._fullWarn || game.time - game._fullWarn > 4) {
         game._fullWarn = game.time;
         game.msg('Cargo hold is full', RF.HUD_COLORS.amber);
       }
       return;
     }
-    if (ship.procMass() > 25000) return;
     o.dead = true;
     ship.processing.push({ mat: o.kind === 'wreck' ? 'skrap' : o.mat, mass: o.mass });
     ship.updateMass();

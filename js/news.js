@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.17.2', date: '2026-09-30', title: 'Steadier cutting, faster collecting',
+      items: [
+        'Asteroids no longer flicker or jump while you cut them, and a piece cut loose no longer shows up in two places.',
+        'Pieces that come loose glide apart calmly instead of jostling the rock they came from.',
+        'The tractor beam pulls ore in much faster. Ore is taken in as long as your cargo hold has room, and ore processing is faster.',
+        'When the hold is full, the tractor lets go and tells you, instead of holding chunks in front of the intake.',
+      ],
+    },
+    {
       v: 'v0.17.1', date: '2026-09-30', title: 'Zoom on the star map',
       items: [
         'Zoom the star map with the mouse wheel, pinch or the + and − buttons, and drag to move around.',

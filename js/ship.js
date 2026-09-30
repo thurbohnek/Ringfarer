@@ -155,6 +155,16 @@
       return m;
     }
 
+    // Tonn produkt malmen i køen blir til når den er prosessert.
+    procProduct() {
+      let t = 0;
+      for (const p of this.processing) {
+        const M = RF.MATERIALS[p.mat];
+        t += (p.mass * (M ? M.grade : 0.5) * this.stats.yield) / 1000;
+      }
+      return t;
+    }
+
     extraMass() {
       return this.s.fuel + RF.cargoMass(this.s) * 1000 + this.procMass();
     }
@@ -430,6 +440,15 @@
       const T = this.tractor, b = this.body, st = this.stats;
       T.targets = [];
       if (!T.on || !st.tractors.length) return;
+      // Fullt lasterom: strålen slipper bitene i stedet for å holde dem fast
+      // foran innsamleren.
+      if (this.holdFree() - this.procProduct() <= 0.02) {
+        if (!game._fullWarn || game.time - game._fullWarn > 6) {
+          game._fullWarn = game.time;
+          game.msg('Cargo hold is full. Sell at a station or buy more cargo space', RF.HUD_COLORS.amber);
+        }
+        return;
+      }
       const intakes = st.tractors.map((t) => { const mp = this.mountOf(t.m); return b.toWorld(mp.lx + Math.cos(mp.a) * 2.2, mp.ly + Math.sin(mp.a) * 2.2); });
       const fwd = b.dirWorld(1, 0);
       const range = 150 * Math.sqrt(b.s);

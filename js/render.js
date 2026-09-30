@@ -728,8 +728,9 @@
       // Zoomer man inn, tegnes steinen skarpere på nytt.
       const want = Math.min(10, Math.max(2.5, RF.game.cam.zoom * this.dpr * 1.3));
       const sharp = !V.cache || V.ppm >= Math.min(want, V.ppmMax || want) * 0.7;
-      if (V.cache && sharp && (!V.dirty || now - (V.cacheT || 0) < 200)) return V.cache;
+      if (V.cache && sharp && (!V.dirty || (!V.force && now - (V.cacheT || 0) < 200))) return V.cache;
       V.dirty = false;
+      V.force = false;
       V.cacheT = now;
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const l of b.loops) for (const p of l) {

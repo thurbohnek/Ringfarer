@@ -38,7 +38,7 @@
       desc: '8 tonnes of cargo space.' },
     cargo2: { name: 'Large cargo bay', cat: 'Cargo', mass: 2000, hp: 110, cost: 1300, hold: 20, unlock: 1,
       desc: '20 tonnes of cargo space with reinforced walls.' },
-    refinery: { name: 'Ore processor', cat: 'Mining', mass: 3000, hp: 70, cost: 1500, proc: 1500, unlock: 1,
+    refinery: { name: 'Ore processor', cat: 'Mining', mass: 3000, hp: 70, cost: 1500, proc: 3000, unlock: 1,
       desc: 'Processes ore faster and yields 15 % more product.' },
     laser: { name: 'Mining laser', cat: 'Mining', mass: 1400, hp: 50, cost: 600, mount: true, unlock: 0,
       laser: { power: 1, tier: 1, range: 200, color: '255,150,60' },
@@ -411,7 +411,7 @@
   // Sum av alt modulene gjør for skipet.
   RF.layoutStats = (layout) => {
     const st = {
-      thrust: 0, thrusters: [], rcs: 0, rcsList: [], fuelCap: 0, hold: 0, shieldMax: 0, proc: 800, yield: 1,
+      thrust: 0, thrusters: [], rcs: 0, rcsList: [], fuelCap: 0, hold: 0, shieldMax: 0, proc: 2500, yield: 1,
       lasers: [], drills: [], guns: [], rockets: [], anchors: [], tractors: [], lights: [], bays: 0, hpMax: 0, hp: 0, blocked: [],
       pax: 0, cryo: 0, life: 6, locks: 0, power: 0, bayS: 0, hangars: 0, clamps: 0, bayPer: 1, scanRange: 700,
     };
