@@ -25,6 +25,18 @@
     tern: { name: 'Tern', mass: 4500, thrust: 170e3, torque: 0.3e6, hull: 70, maxSpeed: 30, own: true, scale: 0.48 },
     porter: { name: 'Porter', mass: 12000, thrust: 360e3, torque: 1.1e6, hull: 150, maxSpeed: 28, own: true, scale: 0.62 },
     ferryman: { name: 'Ferryman', mass: 13000, thrust: 380e3, torque: 1.2e6, hull: 150, maxSpeed: 28, own: true, scale: 0.62 },
+    // Fiender: pirater som er ute etter lasten. Raideren er et lite
+    // kampskip, stikkeren en rask drone. range = avstanden de sirkler på.
+    raider: { name: 'Raider', mass: 9000, thrust: 300e3, torque: 0.9e6, hull: 110, maxSpeed: 40, hostile: true, bounty: 650,
+      range: 95, gun: { cd: 0.55, speed: 150, mass: 2.2, pow: 0.8 } },
+    stinger: { name: 'Stinger', mass: 2200, thrust: 110e3, torque: 0.12e6, hull: 40, maxSpeed: 46, hostile: true, bounty: 180, scale: 0.55,
+      range: 55, gun: { cd: 0.8, speed: 130, mass: 0.8, pow: 0.45 } },
+  };
+
+  // Rødbrune piratfarger.
+  const PIRATE_PAL = {
+    hull: { base: ['#7c4a40', '#5e362f', '#3a211d'], deck: ['#a8766a', '#86584d', '#5a3a33'], spine: ['#c29283', '#a06f62', '#704a40'] },
+    tones: { light: ['#caa093', '#a3786b', '#6e4d44'], mid: ['#b48778', '#8e6356', '#5f4038'], dark: ['#8e6356', '#6c4a41', '#452f2a'] },
   };
 
   // Lasteporten ligger bak antennemasten, på motsatt side av dokkingsarmen.
@@ -79,6 +91,7 @@
       this.timer = G.rand(3, 25);
       this.target = null;
       this.chipT = 0;
+      if (this.T.hostile) { this.pal = PIRATE_PAL; this.gunCd = G.rand(1, 2.5); this.orbA = Math.random() * 6.28; this.side = Math.random() < 0.5 ? 1 : -1; }
     }
 
     spawnAt(x, y, a, vx = 0, vy = 0) {
@@ -215,6 +228,7 @@
       this.laser.hit = null;
       this.beams = [];
       if (this.T.own) { this.updateOwn(dt, game); this.setBeam(); return; }
+      if (this.T.hostile) { this.updateHostile(dt, game); return; }
       const st = this.sys.station;
       this.docking = this.state === 'undock' || this.state === 'dockIn';
       if (this.state === 'undock') {
@@ -681,6 +695,13 @@
           if (miss < ob.radius + o.radius + 4) { bt = t; best = o; }
         }
         this.threat = best;
+        // Pirater i nærheten går foran steiner.
+        let hd = 260;
+        for (const n of this.sys.npcs) {
+          if (!n.T.hostile || !n.active || n.dead) continue;
+          const d = G.len(n.body.x - ob.x, n.body.y - ob.y);
+          if (d < hd) { hd = d; this.threat = n.body; }
+        }
       }
       const v = G.len(ob.vx, ob.vy);
       const dir = v > 2 ? Math.atan2(ob.vy, ob.vx) : ob.a;
@@ -690,8 +711,20 @@
       const t = this.threat;
       if (!t || t.dead) { this.steer(dt, post.x, post.y, ob.vx, ob.vy, dir, 36); return; }
       const face = Math.atan2(t.y - b.y, t.x - b.x);
-      this.steer(dt, post.x, post.y, ob.vx, ob.vy, face, 36);
+      if (!(t.npc && t.npc.T.hostile)) this.steer(dt, post.x, post.y, ob.vx, ob.vy, face, 36);
       const dist = G.len(t.x - b.x, t.y - b.y);
+      if (t.npc && t.npc.T.hostile) {
+        // Mot en pirat: fly etter den og brenn den med laseren.
+        this.steer(dt, t.x - Math.cos(face) * 40, t.y - Math.sin(face) * 40, t.vx, t.vy, face, 40);
+        if (dist < 160 && Math.abs(G.wrapAngle(face - b.a)) < 0.25) {
+          this.laser.on = true;
+          this.laser.len = dist - this.noseX;
+          this.laser.hit = { x: t.x, y: t.y };
+          this.beamColor = '255,90,80';
+          t.npc.burn(dt * 9 * (owner.stats.droneMul || 1), game, t.x, t.y);
+        }
+        return;
+      }
       if (dist < 130 && Math.abs(G.wrapAngle(face - b.a)) < 0.3) {
         this.laser.on = true;
         this.laser.len = dist - this.noseX;
@@ -706,6 +739,64 @@
           this.threat = null;
         }
       }
+    }
+
+    // ---------------- Pirater ----------------
+    // Sirkler rundt spilleren på passe avstand, sikter der skipet vil være
+    // når kula kommer fram, og skyter når nesen peker riktig. Stikker av når
+    // skroget er dårlig, når spilleren er nær stasjonen eller har dokket.
+    updateHostile(dt, game) {
+      const b = this.body, ship = game.ship, sb = ship.body, T = this.T;
+      this.timer += dt;
+      this.gunCd -= dt;
+      const st = this.sys.station;
+      const nearStation = G.len(sb.x - st.x, sb.y - st.y) < 420;
+      const gone = ship.docked || game.dead || game.sys !== this.sys;
+      if (this.state !== 'flee' && (gone || nearStation || this.hull < T.hull * 0.3 || this.timer > 160)) {
+        this.state = 'flee';
+        if (!gone && game.sys === this.sys) game.msg(`${this.name} is breaking off`, RF.HUD_COLORS.amber);
+      }
+      const dx = sb.x - b.x, dy = sb.y - b.y, dist = G.len(dx, dy) || 1;
+      if (this.state === 'flee') {
+        const ax = b.x - dx / dist * 2000, ay = b.y - dy / dist * 2000;
+        this.steer(dt, ax, ay, 0, 0, null, T.maxSpeed * 1.2);
+        if (dist > 1300 || gone) this.leave(game);
+        return;
+      }
+      // Sirkel rundt målet. Sakte rundt, litt nærmere når man er på vei inn.
+      this.orbA += dt * 0.35 * this.side;
+      const R = T.range + (this.index || 0) * 12;
+      const px = sb.x + Math.cos(this.orbA) * R, py = sb.y + Math.sin(this.orbA) * R;
+      // Sikt der målet vil være når kula kommer fram.
+      const g = T.gun, rvx = sb.vx - b.vx, rvy = sb.vy - b.vy, tt = dist / g.speed;
+      const aimA = Math.atan2(dy + rvy * tt, dx + rvx * tt);
+      const face = dist < 420 ? aimA : null;
+      this.steer(dt, px, py, sb.vx, sb.vy, face, T.maxSpeed);
+      if (dist < 360 && this.gunCd <= 0 && Math.abs(G.wrapAngle(aimA - b.a)) < 0.12) {
+        this.gunCd = g.cd * G.rand(0.8, 1.3);
+        const n = b.toWorld(this.noseX + 0.6, 0), d = b.dirWorld(1, 0);
+        RF.Weapons.shoot({ x: n.x, y: n.y, vx: b.vx + d.x * g.speed, vy: b.vy + d.y * g.speed, mass: g.mass, pow: g.pow, owner: b, color: '255,120,90' }, game);
+        b.applyImpulse(-d.x * g.mass * g.speed, -d.y * g.mass * g.speed, n.x, n.y);
+        if (game.sys === this.sys) {
+          game.particles.burst(n.x, n.y, 4, { type: 'glow', dir: b.a, spread: 0.4, sMin: 8, sMax: 30, color: '#ff9a70', zMin: 0.15, zMax: 0.3, lMin: 0.05, lMax: 0.12, vx: b.vx, vy: b.vy });
+          const near = G.len(dx, dy) < 600;
+          if (near) RF.Audio.thud(0.12, true);
+        }
+      }
+    }
+
+    // Piraten forsvinner (fløy vekk, eller ble skutt ned).
+    leave(game) {
+      this.despawn();
+      this.sys.npcs = this.sys.npcs.filter((n) => n !== this);
+    }
+
+    // Laserstråle (spillerens eller vaktdronenes) mot et skip.
+    burn(dmg, game, x, y) {
+      this.hull -= dmg;
+      this.shieldFlash = Math.min(1, this.shieldFlash + dmg / 20);
+      if (x != null && Math.random() < 0.3) game.particles.burst(x, y, 2, { sMin: 3, sMax: 10, color: '#ffc070', zMin: 0.15, zMax: 0.3, lMin: 0.1, lMax: 0.3 });
+      if (this.hull <= 0) this.explode(game);
     }
 
     leaveHangar() {
@@ -835,6 +926,18 @@
 
     explode(game) {
       const b = this.body;
+      if (this.T.hostile) {
+        if (this.dead) return;
+        this.dead = true;
+        game.particles.burst(b.x, b.y, 50, { sMin: 5, sMax: 30, color: '#ffcf80', zMin: 0.2, zMax: 0.6, lMin: 0.5, lMax: 1.4, vx: b.vx, vy: b.vy });
+        game.particles.burst(b.x, b.y, 30, { type: 'smoke', sMin: 1, sMax: 8, color: '#5d5a52', zMin: 1.5, zMax: 3, grow: 3, lMin: 1.2, lMax: 3, vx: b.vx, vy: b.vy });
+        game.spawnWreck(this.layout.filter(() => Math.random() < 0.5).map((m) => ({ t: m.t, x: m.x, y: m.y, hp: 1 })), b);
+        RF.Audio.thud(0.9);
+        game.credits += this.T.bounty;
+        game.msg(`${this.name} destroyed. Bounty +${this.T.bounty} cr`, RF.HUD_COLORS.ok);
+        this.leave(game);
+        return;
+      }
       if (game.sys === this.sys) {
         game.particles.burst(b.x, b.y, 50, { sMin: 5, sMax: 30, color: '#ffcf80', zMin: 0.2, zMax: 0.6, lMin: 0.5, lMax: 1.4, vx: b.vx, vy: b.vy });
         game.particles.burst(b.x, b.y, 30, { type: 'smoke', sMin: 1, sMax: 8, color: '#5d5a52', zMin: 1.5, zMax: 3, grow: 3, lMin: 1.2, lMax: 3, vx: b.vx, vy: b.vy });

@@ -181,8 +181,10 @@
         ctx.fillStyle = b.kind === 'wreck' ? C.amber : C.naq;
         ctx.fillRect(x + dx, y + dy, 1, 1);
       } else if (b.kind === 'npc') {
-        ctx.fillStyle = '#e6dfcd';
-        ctx.fillRect(x + dx - 1, y + dy - 1, 2, 2);
+        const hostile = b.npc && b.npc.T.hostile;
+        ctx.fillStyle = hostile ? C.danger : '#e6dfcd';
+        const s2 = hostile ? 3.5 : 2;
+        ctx.fillRect(x + dx - s2 / 2, y + dy - s2 / 2, s2, s2);
       }
     }
     const st = game.sys.station;
@@ -254,6 +256,19 @@
       // Har man panorert bort fra skipet, viser en pil hvor det er.
       if (game.camOff.x || game.camOff.y) edgeMarker(ctx, game, R, b.x, b.y, 'Your ship', '#ffffff');
       for (const g of RF.gatesOf(game.sys)) edgeMarker(ctx, game, R, g.x, g.y, g.name || 'Gate', C.gate);
+      for (const n of game.sys.npcs) {
+        if (!n.T.hostile || !n.active || n.dead) continue;
+        edgeMarker(ctx, game, R, n.body.x, n.body.y, n.T.name, C.danger);
+      }
+      // Skrog-linje over piratene som er på skjermen.
+      for (const n of game.sys.npcs) {
+        if (!n.T.hostile || !n.active || n.dead) continue;
+        const p = R.toScreen(game.cam, n.body.x, n.body.y);
+        if (p.x < 0 || p.y < 0 || p.x > R.w || p.y > R.h) continue;
+        const bw = 30, yy = p.y - n.body.radius * game.cam.zoom - 12;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - bw / 2 - 1, yy - 1, bw + 2, 5);
+        ctx.fillStyle = C.danger; ctx.fillRect(p.x - bw / 2, yy, bw * G.clamp(n.hull / n.T.hull, 0, 1), 3);
+      }
     }
 
     // Øverst til venstre: ett lite panel med alt om skipet.

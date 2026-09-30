@@ -156,12 +156,14 @@
     const all = [];
     for (const l of loops) for (const p of l) { p.x -= cx; p.y -= cy; all.push(p); rad = Math.max(rad, p.x * p.x + p.y * p.y); }
     V.ox -= cx; V.oy -= cy;
+    const bx0 = b.x, by0 = b.y;
     b.shiftOrigin(cx, cy);
     if (b.craters) for (const c of b.craters) { c.x -= cx; c.y -= cy; }
     const ws = RF.game && RF.game.sys && RF.game.sys.world;
     // Punkter som er festet til steinen (autopiloten og låst sikte) flyttes med.
     const gm = RF.game;
     if (gm && gm.ship && gm.ship.nav && gm.ship.nav.body === b && gm.ship.nav.l) { gm.ship.nav.l.x -= cx; gm.ship.nav.l.y -= cy; }
+    if (gm && gm.ship && gm.ship.nav && gm.ship.nav.body === b && gm.ship.nav.off) { gm.ship.nav.off.x -= b.x - bx0; gm.ship.nav.off.y -= b.y - by0; }
     if (gm && gm.aimLock && gm.aimLock.body === b) { gm.aimLock.l.x -= cx; gm.aimLock.l.y -= cy; }
     if (ws) for (const r of ws.ropes) {
       if (r.B === b) { r.lb.x -= cx; r.lb.y -= cy; }
@@ -280,6 +282,7 @@
     const b = makeBody(V, { x: pb.x, y: pb.y, a: pb.a, vx: pb.vx, vy: pb.vy, w: pb.w, restitution: pb.restitution, craters, world: pb.world });
     if (b) {
       b.debris = true; // løsnet fra en større stein
+      if (pb.orbit) b.orbit = pb.orbit;
       b.rockType = pb.rockType;
       b.comet = pb.comet && b.area > 150;
     }
@@ -746,6 +749,8 @@
       if (k >= 0) { f[k] = Math.max(0, f[k] - rate * dt); if (f[k] < TH) crossed = true; }
     }
     t.heat = Math.min(1, (t.heat || 0) + dt * 3);
+    // Til lyden: skjærer strålen nå, og i hva.
+    if (game && t.world === game.sys.world) game._cut = { t: game.time, hard, mineral: !RF.MATERIALS[mat].stone };
     t._cutT = (t._cutT || 0) + dt;
     t._cutDirty = t._cutDirty || crossed || removed;
     // Bygg omriss og kollisjon på nytt av og til mens det skjæres.
@@ -760,7 +765,8 @@
         o.vx += (dx / l) * 0.15; o.vy += (dy / l) * 0.15;
       });
       if (made.some((o) => o.vox) && game && t.world === game.sys.world) {
-        RF.Audio.thud(0.25, true);
+        const big = made.reduce((m, o) => Math.max(m, o.vox ? o.area : 0), 0);
+        RF.Audio.crack(Math.min(1, big / 500));
         game.msg('A piece has been cut loose', RF.HUD_COLORS.ok);
       }
     }

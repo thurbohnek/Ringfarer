@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.17.0', date: '2026-09-30', title: 'Raiders, star map and moving rocks',
+      items: [
+        'Raiders: carry valuable cargo far from a station and raiders or stinger drones may come for it. Fight back for a bounty, send out guard drones, or run for the station.',
+        'Star map (Tab or ⋯ → Star map): this system seen from above, and every system with its danger and what the station pays well for.',
+        'Some rocks now race and spin through the fields. Point at one to see its speed, and press B to match it and hold position.',
+        'The cutting beam has its own sound, and a piece breaking loose cracks and rumbles.',
+      ],
+    },
+    {
       v: 'v0.16.0', date: '2026-09-30', title: 'Scanner, values and hold position',
       items: [
         'Press N (or SCAN) to send out a scanner pulse. Rocks with minerals get a colored ring and a label with what they are worth.',

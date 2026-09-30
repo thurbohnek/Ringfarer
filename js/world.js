@@ -259,7 +259,22 @@
       const type = G.weighted(f.types);
       let vx = G.rand(-f.drift, f.drift), vy = G.rand(-f.drift, f.drift);
       if (f.stream) { vx += f.stream.x * f.drift * 1.4; vy += f.stream.y * f.drift * 1.4; }
-      RF.spawnRockType(world, type, r, { x, y, a: Math.random() * 6.28, vx, vy, w: G.rand(-0.25, 0.25) * (6 / (r + 3)) });
+      let w = G.rand(-0.25, 0.25) * (6 / (r + 3));
+      // Noen steiner farter og snurrer gjennom feltet. Man må matche farten
+      // for å skjære i dem. En svak trekkraft mot midten av feltet holder dem
+      // i banen, så de svinger fram og tilbake i stedet for å forsvinne.
+      const lx0 = (x - f.cx) * cs + (y - f.cy) * sn, ly0 = -(x - f.cx) * sn + (y - f.cy) * cs;
+      const inner = (lx0 / f.rx) ** 2 + (ly0 / f.ry) ** 2 < 0.5;
+      let orbit = null;
+      if (!f.stream && r < 28 && inner && Math.random() < (f.movers != null ? f.movers : 0.45)) {
+        const sp = G.rand(3, 8), a = Math.random() * Math.PI * 2;
+        vx += Math.cos(a) * sp; vy += Math.sin(a) * sp;
+        w = (Math.random() < 0.5 ? -1 : 1) * G.rand(0.12, 0.45) * (8 / (r + 4));
+        const A = 0.5 * Math.min(f.rx, f.ry);
+        orbit = { cx: f.cx, cy: f.cy, k: (sp / A) ** 2 };
+      }
+      const b = RF.spawnRockType(world, type, r, { x, y, a: Math.random() * 6.28, vx, vy, w });
+      if (b && orbit) b.orbit = orbit;
     }
     // Noen få kjemper man kan bore seg inn i. Noen har allerede en hule.
     for (let i = 0; i < (f.giants || 0); i++) {

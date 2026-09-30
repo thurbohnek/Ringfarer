@@ -17,6 +17,11 @@
     return { p, d, v };
   }
 
+  // Et enkelt prosjektil fra et datastyrt skip (pirater).
+  W.shoot = (p, game) => {
+    W.list.push(Object.assign({ type: 'shell', life: 2.6 }, p));
+  };
+
   // Kanon: hver massedriver skyter et tungt prosjektil. Rekylen dytter skipet.
   W.fireGuns = (ship, game) => {
     const st = ship.stats;
@@ -137,7 +142,8 @@
       RF.Vox.hitRubble(o, 0.9 * pow, 9, d, game, false);
       game.laserDust(hit);
     } else if (o.npc) {
-      o.npc.takeImpact(6 * pow, hit.x, hit.y, game);
+      if (o.npc.T.hostile) o.npc.burn(9 * pow, game, hit.x, hit.y);
+      else o.npc.takeImpact(6 * pow, hit.x, hit.y, game);
     } else if (o.ship) {
       o.ship.takeImpact(0, hit.x, hit.y, game, 12 * pow);
     }
@@ -206,9 +212,11 @@
     ctx.globalCompositeOperation = 'lighter';
     for (const p of W.list) {
       if (p.type === 'shell') {
-        ctx.strokeStyle = 'rgba(255,220,150,0.9)';
-        ctx.lineWidth = Math.max(0.3, px * 2);
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.02, p.y - p.vy * 0.02); ctx.stroke();
+        // Piratkuler er røde og har lengre spor, så man ser dem komme.
+        const tr = p.color ? 0.045 : 0.02;
+        ctx.strokeStyle = p.color ? `rgba(${p.color},0.95)` : 'rgba(255,220,150,0.9)';
+        ctx.lineWidth = Math.max(0.3, px * (p.color ? 2.6 : 2));
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * tr, p.y - p.vy * tr); ctx.stroke();
       } else if (p.type === 'rocket') {
         const a = Math.atan2(p.dy, p.dx);
         ctx.save();

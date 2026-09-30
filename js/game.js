@@ -75,6 +75,8 @@
   };
 
   function enterSystem(id) {
+    // Pirater følger ikke etter gjennom porten.
+    if (game.sys && game.sys.npcs) for (const n of game.sys.npcs.filter((x) => x.T.hostile)) n.leave(game);
     game.sys = game.getSystem(id);
     const ws = game.sys.world;
     if (!ws.bodies.includes(game.ship.body)) ws.add(game.ship.body);
@@ -488,8 +490,13 @@
       const d = G.len(o.x - b.x, o.y - b.y) - o.radius - b.radius;
       if (d < nd) { nd = d; near = o; }
     }
-    ship.nav = { x: b.x, y: b.y, body: near, l: near ? near.toLocal(b.x, b.y) : null, arrived: true, hold: true, heading: b.a, headRel: near ? b.a - near.a : 0 };
-    game.msg(near ? 'Holding position at the asteroid. B to release' : 'Holding position. B to release', RF.HUD_COLORS.ok);
+    // Snurrer steinen, holder skipet avstand og retning i rommet og lar steinen
+    // snurre foran seg (som en dreiebenk). Ellers følger det steinens rotasjon.
+    const spin = near && Math.abs(near.w) > 0.05;
+    ship.nav = { x: b.x, y: b.y, body: near, l: near && !spin ? near.toLocal(b.x, b.y) : null, off: spin ? { x: b.x - near.x, y: b.y - near.y } : null,
+      arrived: true, hold: true, heading: b.a, headRel: near && !spin ? b.a - near.a : 0 };
+    const rv = near ? G.len(near.vx - b.vx, near.vy - b.vy) : 0;
+    game.msg(near ? `Holding position at the asteroid${rv > 1 ? ', matching its speed' : ''}. B to release` : 'Holding position. B to release', RF.HUD_COLORS.ok);
     Audio.blip(760, 0.06, 'sine', 0.07);
   };
 
@@ -512,6 +519,7 @@
     const N = game.ship.nav;
     if (!N) return null;
     if (N.body && N.body.dead) N.body = null;
+    if (N.body && N.off) return { x: N.body.x + N.off.x, y: N.body.y + N.off.y };
     return N.body ? N.body.toWorld(N.l.x, N.l.y) : { x: N.x, y: N.y };
   };
 
@@ -582,7 +590,8 @@
     const navc = st.navcomp || game.testMode;
     const p = game.navPoint();
     let tvx = 0, tvy = 0;
-    if (N.body) { const v = N.body.pointVel(p.x, p.y); tvx = v.x; tvy = v.y; }
+    if (N.body && N.off) { tvx = N.body.vx; tvy = N.body.vy; }
+    else if (N.body) { const v = N.body.pointVel(p.x, p.y); tvx = v.x; tvy = v.y; }
     N.x = p.x; N.y = p.y;
     let dx = p.x - b.x, dy = p.y - b.y;
     const d = G.len(dx, dy) || 1e-6;
@@ -651,7 +660,7 @@
     // Nær en hindring snur skipet bare sakte (tuppen av skroget maks 2,5 m/s).
     const hx = rvx + (dx / dl) * 3, hy = rvy + (dy / dl) * 3;
     let aim = d > 30 && !N.arrived && !N.rotate ? Math.atan2(hy, hx) : N.heading != null ? N.heading : null;
-    if (N.hold) aim = N.body ? N.body.a + N.headRel : N.heading;
+    if (N.hold) aim = N.body && !N.off ? N.body.a + N.headRel : N.heading;
     const maxW = near || N.hold ? Math.max(0.1, 2.5 / R) : null;
     const out = Object.assign({}, inp, { accel: { x: ax, y: ay }, aim, aimThrust: 0, maxW });
     if (N.hold) out.turn = 0;
@@ -1244,6 +1253,11 @@
       return;
     }
     if (Input.hit('KeyH')) { RF.UI.openHelp(); return; }
+    if (Input.hit('Tab')) {
+      if (RF.UI.current() === 'map') { if (game.ship.docked) RF.UI.openStation(); else RF.UI.closeAll(); }
+      else if (!RF.UI.isOpen() && !game.dead) RF.UI.openMap();
+      return;
+    }
     if (RF.UI.isOpen() || game.dead) return;
     if (Input.hit('Recenter') || Input.hit('Home') || Input.hit('KeyO')) {
       game.camOff.x = game.camOff.y = 0;
@@ -1292,11 +1306,11 @@
     if (N0 && N0.hold && !ship.docked && !game.dead) {
       if (inp.turn) {
         const k = inp.turn * dt * 0.6;
-        if (N0.body) N0.headRel += k; else N0.heading += k;
+        if (N0.body && !N0.off) N0.headRel += k; else N0.heading += k;
         inp = Object.assign({}, inp, { turn: 0 });
       }
       if (inp.aim != null) {
-        if (N0.body) N0.headRel = inp.aim - N0.body.a; else N0.heading = inp.aim;
+        if (N0.body && !N0.off) N0.headRel = inp.aim - N0.body.a; else N0.heading = inp.aim;
         inp = Object.assign({}, inp, { aim: null });
       }
     }
@@ -1311,6 +1325,14 @@
     for (const n of game.sys.npcs.slice()) n.update(dt, game);
     RF.Weapons.update(dt, game);
     RF.Scan.update(dt, game);
+    RF.Pirates.update(dt, game);
+    // Steiner i bane gjennom feltet trekkes svakt mot midten av det.
+    for (const o of game.sys.world.bodies) {
+      const O = o.orbit;
+      if (!O || o.dead) continue;
+      o.vx -= O.k * (o.x - O.cx) * dt;
+      o.vy -= O.k * (o.y - O.cy) * dt;
+    }
     updateGate(dt);
     game.sys.world.step(dt);
   }
@@ -1381,6 +1403,8 @@
       game.flash = Math.max(0, game.flash - dt * 1.5);
       Audio.update(ship.docked || game.dead ? 0 : Math.max(ship.fx.main, ship.fx.retro * 0.6, (ship.fx.left + ship.fx.right) * 0.4),
         ship.laser.on && !game.dead, ship.tractor.on && !ship.docked && !game.dead, !!ship.laser.hit);
+      const cut = game._cut && game.time - game._cut.t < 0.12 && !game.dead;
+      Audio.updateCut(cut, cut ? game._cut.hard : 1, cut && game._cut.mineral);
     }
     game.topUp();
     Input.endFrame();

@@ -378,6 +378,8 @@
           }
           continue;
         }
+        // Pirater tar skade av laseren.
+        if (t.npc && t.npc.T.hostile) { t.npc.burn(dt * L.power * 7, game, hit.x, hit.y); continue; }
         if (t.kind !== 'rock') continue;
         t.applyImpulse(d.x * 900 * L.power * dt, d.y * 900 * L.power * dt, hit.x, hit.y);
         t.heat = Math.min(1, (t.heat || 0) + dt * 2);

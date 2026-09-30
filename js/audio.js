@@ -4,7 +4,7 @@
   const RF = (window.RF = window.RF || {});
 
   const A = { ctx: null, muted: false };
-  let master, engineGain, engineFilter, laserGain, laserOsc, tractorGain, noiseBuf;
+  let master, engineGain, engineFilter, laserGain, laserOsc, tractorGain, noiseBuf, cutGain, cutFilter, cutHiss;
 
   function noise(sec) {
     const b = A.ctx.createBuffer(1, A.ctx.sampleRate * sec, A.ctx.sampleRate);
@@ -50,6 +50,68 @@
     tractorGain = c.createGain(); tractorGain.gain.value = 0;
     to.connect(tractorGain); to2.connect(tractorGain); tractorGain.connect(master);
     to.start(); to2.start();
+
+    // Skjærestrålen: et jevnt sus (båndfiltrert støy) med knitring oppå.
+    // Tonen går opp når strålen skjærer i hardere mineraler.
+    const cs = c.createBufferSource();
+    cs.buffer = noiseBuf; cs.loop = true;
+    cutFilter = c.createBiquadFilter();
+    cutFilter.type = 'bandpass'; cutFilter.frequency.value = 2200; cutFilter.Q.value = 1.4;
+    cutGain = c.createGain(); cutGain.gain.value = 0;
+    cs.connect(cutFilter); cutFilter.connect(cutGain); cutGain.connect(master);
+    const ch = c.createBufferSource();
+    ch.buffer = noiseBuf; ch.loop = true; ch.playbackRate.value = 0.37;
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 5200;
+    cutHiss = c.createGain(); cutHiss.gain.value = 0;
+    ch.connect(hp); hp.connect(cutHiss); cutHiss.connect(master);
+    cs.start(); ch.start();
+  };
+
+  // cut: 0 = strålen skjærer ikke. hard = hardheten der den skjærer (1–4),
+  // mineral = skjærer i mineral (ikke gråstein).
+  A.updateCut = (cut, hard = 1, mineral = false) => {
+    if (!A.ctx || !cutGain) return;
+    const t = A.ctx.currentTime;
+    const flutter = 0.75 + Math.random() * 0.5;
+    cutGain.gain.setTargetAtTime(cut ? 0.12 * flutter : 0, t, cut ? 0.04 : 0.12);
+    cutFilter.frequency.setTargetAtTime(1500 + hard * 550 + (mineral ? 900 : 0) + Math.random() * 300, t, 0.05);
+    cutHiss.gain.setTargetAtTime(cut ? (mineral ? 0.06 : 0.025) * (Math.random() < 0.3 ? 2.2 : 1) : 0, t, 0.02);
+  };
+
+  // En bit knekker løs: et skarpt knepp, et knirk og en dump rumling.
+  // size 0..1 (liten til stor bit).
+  A.crack = (size = 0.5) => {
+    if (!A.ctx) return;
+    const c = A.ctx, t = c.currentTime;
+    const snap = c.createBufferSource();
+    snap.buffer = noiseBuf;
+    const sf = c.createBiquadFilter();
+    sf.type = 'highpass'; sf.frequency.value = 2600;
+    const sg = c.createGain();
+    sg.gain.setValueAtTime(0.5, t);
+    sg.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    snap.connect(sf); sf.connect(sg); sg.connect(master);
+    snap.start(t, Math.random()); snap.stop(t + 0.1);
+    const o = c.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(420 - size * 180, t + 0.02);
+    o.frequency.exponentialRampToValueAtTime(90 - size * 30, t + 0.4 + size * 0.3);
+    const of = c.createBiquadFilter();
+    of.type = 'lowpass'; of.frequency.value = 900;
+    const og = c.createGain();
+    og.gain.setValueAtTime(0.0001, t);
+    og.gain.exponentialRampToValueAtTime(0.07, t + 0.05);
+    og.gain.exponentialRampToValueAtTime(0.001, t + 0.45 + size * 0.3);
+    o.connect(of); of.connect(og); og.connect(master);
+    o.start(t); o.stop(t + 0.8 + size * 0.3);
+    setTimeout(() => A.thud(0.25 + size * 0.5, false), 40);
+  };
+
+  // Alarm: to toner som veksler, for fiender på vei.
+  A.alarm = () => {
+    if (!A.ctx) return;
+    for (let i = 0; i < 4; i++) setTimeout(() => A.blip(i % 2 ? 620 : 880, 0.16, 'square', 0.06), i * 190);
   };
 
   A.setMuted = (m) => {

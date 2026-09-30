@@ -11,8 +11,8 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 5. Test på ekte telefon (ytelse og berøringsstyring).
 6. Lagring til fil (eksport og import av karrieren).
 7. Borehodene som skjærestråle, eller som et eget tunnelverktøy.
-8. Lyd for skjæring: jevnt sus og et knepp når en bit løsner.
-9. Pirater og fiendtlige droner som angriper skip med mye last.
+8. ~~Lyd for skjæring: jevnt sus og et knepp når en bit løsner.~~ (v0.17.0)
+9. ~~Pirater og fiendtlige droner som angriper skip med mye last.~~ (v0.17.0)
 10. Skade fra kollisjoner med store løse biter.
 11. Kostnader: drivstoff, reparasjon og havneavgift.
 12. Enkel flåte: 2–3 egne skip med ordrene «følg», «min» og «forsvar».
@@ -20,12 +20,12 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 14. Planeter med landing og persontransport.
 15. Kjempeskipet: den flyvende byen som hovedsenter for flåten.
 16. Skjul pilen «Your ship 0 m» når skipet synes på skjermen.
-17. Kart over systemene med porter, stasjoner og hva de kjøper.
+17. ~~Kart over systemene med porter, stasjoner og hva de kjøper.~~ (v0.17.0)
 18. Varsel om full last, med «fly til nærmeste stasjon».
 19. Raffineri om bord: malm blir rent metall (lettere og mer verdt).
 20. Ulike laserformer: bred for grovskjæring, smal for presisjon.
 21. Kometer med is og gass som gir drivstoff og vann.
-22. Asteroider i bevegelse og rotasjon som man må matche farten med.
+22. ~~Asteroider i bevegelse og rotasjon som man må matche farten med.~~ (v0.17.0)
 23. Vrak å berge: skjær løs moduler og last og selg dem.
 24. Oppdrag med historie og små valg underveis.
 25. Rangering og titler som låser opp bedre oppdrag.

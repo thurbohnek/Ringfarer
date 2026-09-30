@@ -75,6 +75,15 @@
   .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .card-head h2 { margin: 0; }
   .card.narrow { width: min(420px, 100%); }
+  .card.map-card { width: min(1040px, 100%); }
+  .map-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .map-wrap canvas { flex: 1 1 420px; min-width: 0; width: 100%; max-width: 560px; aspect-ratio: 1 / 1; border: 1px solid rgba(0,0,0,0.6); background: #05070a; }
+  .map-sys { flex: 1 1 280px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .map-sys .sys { padding: 10px 12px; border: 1px solid rgba(0,0,0,0.5); background: rgba(0,0,0,0.22); }
+  .map-sys .sys.here { border-color: var(--ok); }
+  .map-sys h3 { margin: 0 0 4px; }
+  .map-sys .buy { font-size: 13px; line-height: 1.5; }
+  .map-sys .hi { color: var(--ok); } .map-sys .lo { color: #e3a03a; } .map-sys .dz { color: #e2553d; }
   .card.danger { --steel-hi: #3a2520; --steel: #261915; }
 
   /* Varselstriper langs toppen av et panel. */
@@ -410,6 +419,7 @@
     <button data-tap="KeyL" id="tc-light">LIGHTS</button>
     <button data-tap="KeyZ">FLIGHT ASSIST</button>
     <button data-tap="KeyK">DRONES OUT/IN</button>
+    <button data-tap="Tab">STAR MAP</button>
     <button data-tap="KeyB">HOLD POSITION</button>
     <button data-tap="Recenter">CENTER CAMERA</button>
     <button data-tap="Escape">PAUSE</button>
@@ -421,10 +431,10 @@
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.16.0 · 2026-09-30';
+  window.RF_VERSION = 'v0.17.0 · 2026-09-30';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
-    var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'missions', 'input', 'audio',
+    var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'missions', 'input', 'audio',
       'render', 'sky', 'shipdraw', 'weapons', 'hud', 'ui', 'game'];
     var i = 0;
     (function next() {

@@ -149,8 +149,18 @@
     ctx.globalAlpha = 1;
   }
 
+  // Fart i forhold til skipet og hvor fort biten snurrer.
+  function motion(o, game) {
+    const sb = game.ship.body;
+    const rv = G.len(o.vx - sb.vx, o.vy - sb.vy), spin = Math.abs(o.w) * 57.3;
+    if (rv < 1 && spin < 3) return null;
+    const hold = game.ship.nav && game.ship.nav.hold && game.ship.nav.body === o;
+    return { t: `Moving ${rv.toFixed(1)} m/s · spin ${spin.toFixed(0)}°/s${rv > 2 && !hold ? ' · B to match' : ''}`, c: rv > 4 || spin > 12 ? '#e3a03a' : '#b8b09c' };
+  }
+
   function describe(o, game, full) {
     const c = Scan.composition(o, game);
+    const mv = o.kind === 'rock' ? motion(o, game) : null;
     const main = RF.MATERIALS[o.mat];
     const what = o.kind === 'ore' ? main.name : o.debris ? 'Loose rock' : o.comet ? 'Comet' : 'Asteroid';
     const lines = [{ t: `${what} · ${Scan.fmtMass(c.mass)}`, c: '#ffffff' }];
@@ -158,6 +168,7 @@
       lines.push({ t: main.stone ? 'Plain rock, no value' : `Worth about ${Scan.fmtCr(c.value)}`, c: main.stone ? '#8f887a' : '#95c46a' });
       return { lines, color: main.stone ? '#8f887a' : Scan.colorOf(o.mat) };
     }
+    if (mv) lines.push(mv);
     if (!full) {
       lines.push({ t: `${main.name}. Scan (N) to see minerals`, c: '#8f887a' });
       return { lines, color: '#8f887a' };
@@ -197,6 +208,18 @@
     }
     if (hover) {
       const p = toS(hover.x, hover.y);
+      const sb = game.ship.body, rvx = hover.vx - sb.vx, rvy = hover.vy - sb.vy, rv = G.len(rvx, rvy);
+      if (rv > 1 && hover.kind === 'rock') {
+        // Pil: hvor biten er på vei i forhold til skipet (lengden viser farten).
+        const r0 = hover.radius * z + 6, L = Math.min(90, 14 + rv * 7);
+        const ux = rvx / rv, uy = rvy / rv;
+        const x0 = p.x + ux * r0, y0 = p.y + uy * r0, x1 = x0 + ux * L, y1 = y0 + uy * L;
+        ctx.strokeStyle = rv > 4 ? 'rgba(227,160,58,0.9)' : 'rgba(230,223,205,0.7)';
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x1 + ux * 7, y1 + uy * 7); ctx.lineTo(x1 - uy * 5, y1 + ux * 5); ctx.lineTo(x1 + uy * 5, y1 - ux * 5); ctx.closePath(); ctx.fill();
+      }
       const d = describe(hover, game, hover.kind !== 'rock' || hover.debris || Scan.scanned(hover, game));
       const r = hover.radius * z;
       label(ctx, Math.min(R.w - 190, p.x + r * 0.7 + 14), Math.max(40, p.y - r * 0.7 - 10), d.lines, d.color, 0.95);

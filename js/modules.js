@@ -279,6 +279,9 @@
     burrower: [['thruster', 0, 0], ['cargo', 1, -1], ['cockpit', 1, 0], ['cargo', 1, 1], ['laser2', 2, 0], ['rcs', 2, -1], ['rcs', 2, 1]],
     picket: [['thruster', 0, 0], ['shield', 1, 0], ['cockpit', 2, 0], ['cannon', 3, 0], ['rcs', 2, -1], ['rcs', 2, 1], ['armor', 1, -1], ['armor', 1, 1]],
     tern: [['thruster', 0, 0], ['cabin', 1, 0], ['cockpit', 2, 0], ['airlock', 1, -1], ['airlock', 1, 1], ['light', 3, 0]],
+    // Pirater.
+    raider: [['thruster', 0, -1], ['thruster', 0, 1], ['fuel', 1, 0], ['armor', 1, -1], ['armor', 1, 1], ['cockpit', 2, 0], ['rcs', 2, -1], ['rcs', 2, 1], ['cannon', 3, 0]],
+    stinger: [['thruster', 0, 0], ['cockpit', 1, 0], ['cannon', 2, 0], ['rcs', 1, -1], ['rcs', 1, 1]],
     porter: [['thruster', 0, -1], ['thruster', 0, 1], ['frame', 0, 0], ['cargo2', 1, -1], ['cargo2', 1, 0], ['cargo2', 1, 1], ['cargo2', 2, -1], ['cockpit', 2, 0], ['cargo2', 2, 1], ['tractor', 3, 0]],
     ferryman: [['thruster', 0, -1], ['thruster', 0, 1], ['lifesup', 0, 0], ['hab', 1, -1], ['hab', 1, 0], ['hab', 1, 1], ['airlock', 2, -1], ['cockpit', 2, 0], ['airlock', 2, 1], ['light', 3, 0]],
   };

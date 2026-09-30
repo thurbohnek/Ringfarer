@@ -26,6 +26,9 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   mange biter. Raketter går mye raskere. Farten kan justeres etter testing.
 - **Borehodene maler fortsatt løs biter** (som før). Bare laseren er en
   skjærestråle. Si fra om borene også skal endres.
+- **Pirater:** styrken (skudd, skrog, dusør) og hvor ofte de kommer kan
+  justeres etter testing. Pirater blir liggende i systemet man forlater til
+  man kommer tilbake. De stikker av med en gang man går gjennom porten.
 - **Skjærefarten** kan justeres etter testing. Startlaseren bruker omtrent
   25 sekunder gjennom en gråstein på 50 m.
 - **Laseren gir ikke lenger malm av gråstein** (kondritt, silikat, karbon).
@@ -42,6 +45,79 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   passasjerer de hadde med seg akkurat da, blir borte.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-09-30: v0.17.0 · Pirater, stjernekart, steiner i bevegelse og skjærelyd
+
+**Ønske:** «8,9, 17 og 22» (punktene i `PLAN.md`: lyd for skjæring, pirater
+og fiendtlige droner, kart over systemene, og asteroider i bevegelse som man
+må matche farten med).
+
+**Hva som er gjort:**
+
+- **8. Lyd for skjæring** (`js/audio.js`, `js/voxel.js`, `js/game.js`):
+  - Jevnt sus med knitring mens strålen skjærer. Tonen går opp i hardere
+    mineraler, og det knitrer mer i mineral enn i gråstein.
+  - Når en bit løsner: skarpt knepp, et knirk som går nedover og en dump
+    rumling. Større bit gir dypere lyd (`Audio.crack`).
+  - Alarm med to toner når pirater kommer (`Audio.alarm`).
+- **9. Pirater** (ny fil `js/pirates.js`, `js/npc.js`, `js/weapons.js`,
+  `js/ship.js`, `js/modules.js`):
+  - To nye fiender: Raider (lite kampskip, 110 i skrog, dusør 650 cr) og
+    Stinger (rask drone, 40 i skrog, dusør 180 cr). Begge i rødbrune
+    piratfarger.
+  - De kan dukke opp når lasten er verdt over 2 000 cr og man er mer enn
+    600 m fra stasjonen. Sjansen øker med verdien og med hvor farlig
+    systemet er: Midgard lav, Vanaheim middels, Muspelheim høy. Det sjekkes
+    hvert 15. sekund, med minst 150 sekunder mellom hvert angrep.
+  - De kommer fra motsatt side av stasjonen, sirkler rundt skipet, sikter dit
+    skipet vil være og skyter røde kuler med lengre spor.
+  - De stikker av når skroget deres er under 30 %, når man er innen 420 m av
+    stasjonen, når man dokker, etter 160 sekunder, eller når man går gjennom
+    porten.
+  - Laser, kanon og raketter skader dem. Nedskutte pirater gir dusør og vrak.
+  - Vaktdronene (Picket) går etter pirater innen 260 m og brenner dem med
+    laseren.
+  - Radaren viser dem som røde prikker. Pilen i skjermkanten viser hvor de
+    er, og de har en rød skrogmåler over seg.
+  - Pausemenyen har «Call raiders (test)» for å teste.
+- **17. Stjernekart** (`js/ui.js`, `index.html`, `js/input.js`,
+  `js/game.js`):
+  - Tasten Tab, «Star map» i pausemenyen eller STAR MAP i ⋯-menyen på
+    mobil. Spillet står stille mens kartet er åpent.
+  - Kartet over systemet viser:
+    - Feltene med de vanligste steintypene.
+    - Alle steinene. De skannede steinene med mineraler vises i farge.
+    - Stasjonen med den trygge sonen, begge portene, skipet, dronene og
+      piratene.
+    - Målestokk på 1 km.
+  - Liste over alle systemene med beskrivelse, stasjon og hvor farlig det er
+    med pirater. Den viser også hva stasjonen betaler godt for (i cr/t) og
+    hva den betaler lite for.
+- **22. Steiner i bevegelse** (`js/world.js`, `js/game.js`,
+  `js/scan.js`):
+  - Omtrent hver femte mindre stein i den indre delen av et felt farter
+    (3–8 m/s) og snurrer (opptil rundt 25°/s). En svak kraft mot midten av
+    feltet holder dem i bane, så de svinger fram og tilbake gjennom feltet.
+    Biter som skjæres løs, følger samme bane.
+  - Merkelappen ved musen viser farten i forhold til skipet og hvor fort
+    steinen snurrer, med «B to match». En pil viser hvor steinen er på vei.
+  - Hold posisjon (B) matcher farten. Snurrer steinen, holder skipet avstand
+    og retning i rommet mens steinen snurrer foran det (som en dreiebenk).
+- `js/ui.js`: nye tips i hjelpen om skjæring, skanner, steiner i bevegelse
+  og pirater. Tab står i tastelisten.
+- `PLAN.md`: punkt 8, 9, 17 og 22 er strøket over.
+
+**Testet** (Playwright):
+
+- 15 av 70 steiner i Midgard beveger seg. Etter 20 sekunder var de
+  fortsatt 100–250 m fra midten av feltet.
+- Hold ved en stein som farter 5 m/s og snurrer 21°/s: skipet holdt seg
+  innenfor 0,3–2,6 m.
+- Pirater mot startskipet: de kom inn fra 800 m og skjøt. Skroget gikk ned.
+- Nedskyting ga dusør (1 010 cr for tre pirater).
+- Kartet åpnes og lukkes med Tab.
+- Lyden startet uten feil.
+- Skanner, drone og skjæring virker som før. Ingen feil i konsollen.
 
 ## 2026-09-30: v0.16.0 · Skanner, verdi på biter og hold posisjon
 

@@ -32,7 +32,7 @@
     root.innerHTML = html;
     root.hidden = false;
     root.dataset.panel = name;
-    game.paused = game.state === 'play' && !game.ship.docked && (name === 'pause' || name === 'help');
+    game.paused = game.state === 'play' && !game.ship.docked && (name === 'pause' || name === 'help' || name === 'map');
     const first = root.querySelector('[data-autofocus]');
     if (first) first.focus({ preventScroll: true });
   }
@@ -58,6 +58,7 @@
 
   const UI = {
     isOpen: () => open !== null,
+    current: () => open,
     closeAll() {
       open = null;
       game.paused = false;
@@ -156,7 +157,10 @@
             <li><b>Firing:</b> press and hold on a rock to aim at it and use the tool. The aim follows the rock. The trigger at the bottom right (or Space) fires at the current aim. Lasers, drills and guns pass straight through loose ore chunks.</li>
             <li><b>Touch:</b> the stick is the circle at the bottom left: drag to turn, drag far out to thrust.</li>
             <li><b>Brake:</b> BRAKE (or S) uses every engine to stop the ship along the direction it is actually moving, wherever the nose points.</li>
-            <li><b>Caves:</b> rocks are made of small pieces. The laser breaks off chunks that fit the hole they leave, so you can tunnel into big asteroids and fly inside. Some big asteroids already have a cave. Rockets blast big craters.</li>
+            <li><b>Cutting:</b> the mining laser is a cutting beam. Hold it on one line and it cuts deeper until it goes through. A piece only comes loose when your cuts go all the way around it, and it fits the hole it came from. Plain rock turns to vapor, minerals come out as ore. Some big asteroids already have a cave. Rockets blast big craters.</li>
+            <li><b>Scanner:</b> press N (SCAN) to send out a pulse. Rocks with minerals get a colored ring and a label with their value. Point at a rock to see what it holds.</li>
+            <li><b>Moving rocks:</b> some rocks race and spin through the field. Point at one to see how fast it moves compared to you. Press B to hold position: the ship matches its speed and stays put while you cut. A spinning rock turns in front of you like on a lathe.</li>
+            <li><b>Raiders:</b> with valuable cargo far from a station, raiders and stinger drones may come for you. Their shots are red. Fight back with laser, cannon or rockets (bounty paid), send out guard drones, or run: they break off near the station. Some systems are more dangerous than others (see the star map, Tab).</li>
             <li><b>Zoom:</b> pinch with two fingers, or use the mouse wheel or + and −.</li>
             <li><b>Hardness:</b> every rock type has a hardness from 1 to 4. The laser must be at least that tier. Cannons and rockets break anything.</li>
             <li><b>Ice crust:</b> some asteroids and comets have ice on the outside and a valuable mineral inside.</li>
@@ -180,6 +184,8 @@
             <button class="btn primary" data-act="close" data-autofocus>Resume</button>
             <button class="btn" data-act="help">Controls</button>
             <button class="btn" data-act="money">Give me 1,000,000 cr</button>
+            <button class="btn" data-act="map">Star map</button>
+            <button class="btn" data-act="raid">Call raiders (test)</button>
             <button class="btn" data-act="mute">${RF.Audio.muted ? 'Sound on' : 'Sound off'}</button>
             <button class="btn" data-act="touch">${game.touchUI ? 'Hide touch controls' : 'Show touch controls'}</button>
             <button class="btn ghost" data-act="quit">Main menu</button>
@@ -198,6 +204,40 @@
           <p class="muted">Deductible ${kr(fee)}. Cargo, haul contracts and drones that were out are lost.</p>
           <div class="row"><button class="btn primary" data-act="respawn" data-autofocus>Take the new ship</button></div>
         </div>`);
+    },
+
+    // Stjernekart: dette systemet tegnet ovenfra, og alle systemene med
+    // stasjon, fare og hva stasjonen betaler godt for.
+    openMap() {
+      const here = game.sys.def.id;
+      const sysRows = RF.SYSTEMS.map((d) => {
+        const st = d.station;
+        const prods = Object.keys(RF.PRODUCTS).filter((p) => p !== 'skrap');
+        const rows = prods.map((p) => ({ p, mul: st.prices[p] || 1, price: game.sellPrice(st.id, p) })).sort((a, b) => b.mul - a.mul);
+        const hi = rows.filter((r) => r.mul >= 1.15).slice(0, 4);
+        const lo = rows.filter((r) => r.mul <= 0.9);
+        const dz = RF.Pirates.dangerText(d);
+        const fmt = (r) => `${esc(RF.PRODUCTS[r.p].name)} ${r.price} cr/t`;
+        return `<div class="sys${d.id === here ? ' here' : ''}">
+          <h3>${esc(d.name)}${d.id === here ? ' <span class="hi small">· You are here</span>' : ''}</h3>
+          <div class="muted small">${esc(d.blurb)}</div>
+          <div class="buy">${esc(st.name)} · Raiders: <span class="${dz === 'High' ? 'dz' : dz === 'Medium' ? 'lo' : 'hi'}">${dz}</span></div>
+          ${hi.length ? `<div class="buy"><span class="hi">Pays well:</span> ${hi.map(fmt).join(', ')}</div>` : ''}
+          ${lo.length ? `<div class="buy"><span class="lo">Pays little:</span> ${lo.map(fmt).join(', ')}</div>` : ''}
+        </div>`;
+      }).join('');
+      show('map', `
+        <div class="card plate map-card"><div class="hazard"></div>
+          <div class="card-head"><h2>Star map · ${esc(game.sys.def.name)}</h2><button class="btn ghost" data-act="close">✕ Close</button></div>
+          <div class="map-wrap">
+            <canvas id="map-cv" width="1000" height="1000"></canvas>
+            <div class="map-sys">${sysRows}
+              <p class="muted small">All systems are linked by the gates. Prices show what each station pays per tonne right now. Selling a lot at once pushes the price down.</p>
+            </div>
+          </div>
+          <div class="row"><button class="btn primary" data-act="close" data-autofocus>Back</button></div>
+        </div>`);
+      drawMap();
     },
 
     openDial() {
@@ -244,12 +284,81 @@
       ${k(['K'], 'Launch / recall drones')}
       ${k(['N'], 'Scan for minerals (hover a rock to see what it holds)')}
       ${k(['B'], 'Hold position next to the asteroid (steer with A/D, B again to release)')}
+      ${k(['Tab'], 'Star map: systems, prices and this system')}
       ${k(['L'], 'Work lights on/off')}
       ${k(['Z'], 'Flight assist')}
       ${k(['T', 'G'], 'Dock / dial the gate')}
       ${k(['+', '−'], 'Zoom (or mouse wheel)')}
       ${k(['Esc'], 'Pause')}
     </div>`;
+  }
+
+  // Kartet over systemet man er i: felt, stasjon, porter, skipet, droner,
+  // pirater og skannede steiner med mineraler.
+  function drawMap() {
+    const cv = root.querySelector('#map-cv');
+    if (!cv) return;
+    const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+    const sys = game.sys, def = sys.def, sb = game.ship.body;
+    const pts = [{ x: sys.station.x, y: sys.station.y }, { x: sb.x, y: sb.y }];
+    for (const g of RF.gatesOf(sys)) pts.push({ x: g.x, y: g.y });
+    for (const f of def.fields) { pts.push({ x: f.cx - f.rx, y: f.cy - f.rx }); pts.push({ x: f.cx + f.rx, y: f.cy + f.rx }); }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pts) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+    const pad = 300, span = Math.max(x1 - x0, y1 - y0) + pad * 2;
+    const k = W / span, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const X = (x) => W / 2 + (x - cx) * k, Y = (y) => H / 2 + (y - cy) * k;
+    ctx.fillStyle = '#05070a'; ctx.fillRect(0, 0, W, H);
+    // Rutenett hver kilometer.
+    ctx.strokeStyle = 'rgba(108,196,224,0.08)'; ctx.lineWidth = 1;
+    for (let gx = Math.floor((cx - span / 2) / 1000) * 1000; gx < cx + span / 2; gx += 1000) { ctx.beginPath(); ctx.moveTo(X(gx), 0); ctx.lineTo(X(gx), H); ctx.stroke(); }
+    for (let gy = Math.floor((cy - span / 2) / 1000) * 1000; gy < cy + span / 2; gy += 1000) { ctx.beginPath(); ctx.moveTo(0, Y(gy)); ctx.lineTo(W, Y(gy)); ctx.stroke(); }
+    // Asteroidefelt og steinene i dem.
+    for (const f of def.fields) {
+      ctx.save(); ctx.translate(X(f.cx), Y(f.cy)); ctx.rotate(f.rot);
+      ctx.fillStyle = 'rgba(180,160,120,0.06)'; ctx.strokeStyle = 'rgba(180,160,120,0.25)'; ctx.setLineDash([6, 6]);
+      ctx.beginPath(); ctx.ellipse(0, 0, f.rx * k, f.ry * k, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.restore(); ctx.setLineDash([]);
+      const main = Object.entries(f.types).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t]) => RF.MATERIALS[RF.ROCK_TYPES[t].mat].name);
+      ctx.fillStyle = 'rgba(220,205,170,0.8)'; ctx.font = '600 22px "Saira Condensed", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(main.join(' · '), X(f.cx), Y(f.cy - f.ry) - 10);
+    }
+    for (const o of sys.world.bodies) {
+      if (o.dead || o.kind !== 'rock') continue;
+      const scanned = RF.Scan.scanned(o, game);
+      const c = scanned ? RF.Scan.composition(o, game) : null;
+      ctx.fillStyle = c && c.best ? RF.Scan.colorOf(c.best.mat) : 'rgba(160,150,130,0.55)';
+      const r = Math.max(1.5, o.radius * k * (c && c.best ? 1.6 : 1));
+      ctx.beginPath(); ctx.arc(X(o.x), Y(o.y), r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.textAlign = 'left';
+    ctx.font = '600 24px "Saira Condensed", sans-serif';
+    const tag = (x, y, text, col) => { ctx.fillStyle = col; ctx.fillText(text, X(x) + 14, Y(y) + 8); };
+    // Stasjonen og den trygge sonen rundt den.
+    ctx.strokeStyle = 'rgba(149,196,106,0.35)'; ctx.setLineDash([4, 6]);
+    ctx.beginPath(); ctx.arc(X(sys.station.x), Y(sys.station.y), 600 * k, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#95c46a'; ctx.fillRect(X(sys.station.x) - 8, Y(sys.station.y) - 8, 16, 16);
+    tag(sys.station.x, sys.station.y, sys.station.name, '#95c46a');
+    for (const g of RF.gatesOf(sys)) {
+      ctx.strokeStyle = '#6cc4e0'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(X(g.x), Y(g.y), g.key === 'gate2' ? 12 : 8, 0, Math.PI * 2); ctx.stroke();
+      tag(g.x, g.y, g.name || 'Gate', '#6cc4e0');
+    }
+    for (const n of sys.npcs || []) {
+      if (!n.active) continue;
+      ctx.fillStyle = n.T.hostile ? '#e2553d' : n.owner ? '#9dffb0' : '#e6dfcd';
+      ctx.beginPath(); ctx.arc(X(n.body.x), Y(n.body.y), n.T.hostile ? 6 : 4, 0, Math.PI * 2); ctx.fill();
+      if (n.T.hostile) tag(n.body.x, n.body.y, n.T.name, '#e2553d');
+    }
+    // Skipet: hvit pil.
+    ctx.save(); ctx.translate(X(sb.x), Y(sb.y)); ctx.rotate(sb.a);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, 9); ctx.lineTo(-8, -9); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    tag(sb.x, sb.y + 20, 'You', '#ffffff');
+    // Målestokk.
+    ctx.strokeStyle = '#e6dfcd'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(30, H - 30); ctx.lineTo(30 + 1000 * k, H - 30); ctx.stroke();
+    ctx.fillStyle = '#e6dfcd'; ctx.fillText('1 km', 30, H - 40);
   }
 
   // ---------- Stasjonen ----------
@@ -827,6 +936,8 @@
       case 'mute': RF.Audio.setMuted(!RF.Audio.muted); UI.openPause(); break;
       case 'touch': UI.setTouch(!game.touchUI); UI.openPause(); break;
       case 'quit': game.save(); game.state = 'title'; location.reload(); break;
+      case 'raid': UI.closeAll(); if (!game.ship.docked) RF.Pirates.spawn(game, 20000); break;
+      case 'map': UI.openMap(); break;
       case 'money': game.giveMoney(); if (game.ship && game.ship.docked) renderStation(); else UI.openPause(); break;
       case 'respawn': game.respawn(); break;
       case 'dial': game.dial(id); break;
