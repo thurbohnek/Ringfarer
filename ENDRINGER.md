@@ -45,6 +45,31 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.17.3 · Ingen flimring når en asteroide deles
+
+**Ønske:** «Fortsatt noen flinring når man deler en asteroide i to deler»
+
+**Hva som var galt:** jeg målte hvor mye skjermbildet endret seg fra bilde
+til bilde rundt delingen. Vanlige bilder endret seg rundt 2–4, men bildet
+rett etter hver deling hoppet til 8–12, også med lysene av. Endringen lå i
+et bånd langs laserstrålen, fra steinen og helt ut til kanten av skjermen.
+Når kuttet gikk gjennom, skjøt strålen ut i sprekken og tilbake igjen fra
+bilde til bilde, mens bitene gled fra hverandre. Strålen blinket mellom kort
+og lang.
+
+**Hva som er gjort:**
+
+- `js/ship.js`:
+  - Laserstrålen vokser jevnt ut når den plutselig når lenger, omtrent fire
+    ganger sin egen lengde per sekund. Kortere blir den med en gang.
+  - Treffpunktet vises ikke før strålen har nådd fram.
+  - Når laseren slås på, starter strålen i full lengde som før.
+- `js/news.js`, `index.html`: nyhet og versjon v0.17.3.
+
+**Testet** (Playwright, samme måling): etter delingen er endringen 2,5–5,8,
+som vanlige bilder. Ingen topper i fire kjøringer, med og uten lys. Ingen
+feil i konsollen.
+
 ## 2026-09-30: v0.17.2 · Steinene flimrer ikke, og innsamleren tar inn malmen
 
 **Ønsker:**

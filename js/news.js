@@ -10,6 +10,12 @@
 
   RF.NEWS = [
     {
+      v: 'v0.17.3', date: '2026-09-30', title: 'No flicker when a rock splits',
+      items: [
+        'When your cut goes through a rock, the beam now reaches smoothly into the gap instead of flickering between short and long.',
+      ],
+    },
+    {
       v: 'v0.17.2', date: '2026-09-30', title: 'Steadier cutting, faster collecting',
       items: [
         'Asteroids no longer flicker or jump while you cut them, and a piece cut loose no longer shows up in two places.',

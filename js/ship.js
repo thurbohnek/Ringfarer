@@ -364,7 +364,18 @@
         // Løse mineralbiter stopper ikke strålen, den går rett gjennom dem.
         // Småstein av gråstein treffes og fordamper.
         const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost && (x.kind !== 'ore' || RF.isStone(x)));
-        this.beams.push({ lx, ly, a, len: hit ? hit.t : L.range, hit, color: L.color, w: (0.35 + L.tier * 0.12) * Math.sqrt(b.s) });
+        // Strålen vokser jevnt ut når den plutselig når lenger (for eksempel
+        // når et kutt går gjennom og den skyter ut i sprekken). Ellers blinket
+        // den mellom kort og lang fra bilde til bilde mens bitene gled fra
+        // hverandre. Kortere blir den med en gang.
+        const want = hit ? hit.t : L.range;
+        const fresh = L.m._beamT == null || game.time - L.m._beamT > 0.15;
+        L.m._beamT = game.time;
+        const prev = !fresh && L.m._beamLen != null ? L.m._beamLen : want;
+        const len = want > prev ? Math.min(want, prev + Math.max(4, prev) * dt * 4) : want;
+        L.m._beamLen = len;
+        const shown = hit && len < want - 0.5 ? null : hit;
+        this.beams.push({ lx, ly, a, len, hit: shown, color: L.color, w: (0.35 + L.tier * 0.12) * Math.sqrt(b.s) });
         this.laser.on = true;
         if (!hit) continue;
         if (!this.laser.hit) this.laser.hit = hit;
