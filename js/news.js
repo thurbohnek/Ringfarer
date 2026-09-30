@@ -10,6 +10,13 @@
 
   RF.NEWS = [
     {
+      v: 'v0.18.1', date: '2026-09-30', title: 'The background follows your zoom',
+      items: [
+        'The planet grows when you zoom in and shrinks when you zoom out. The stars shift a little, the far sky barely at all, so you feel the depth.',
+        'Zoomed in close, the planet is drawn sharper.',
+      ],
+    },
+    {
       v: 'v0.18.0', date: '2026-09-30', title: 'New sound',
       items: [
         'All sound is reworked: a deep engine rumble, soft puffs from the thrusters, a smoother laser and no more clicks.',

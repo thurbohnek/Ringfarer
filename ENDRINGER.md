@@ -45,6 +45,39 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.18.1 · Bakgrunnen følger zoomen
+
+**Ønske:** «Så må du ordne slik at når man zoomer så endres størrelsen på
+bakgrunden seg slik som jorden.»
+
+**Hva som er gjort** (`js/sky.js`):
+
+- **Skalering:** bakgrunnen skaleres med zoomen, rundt midten av skjermen.
+  Siden den ligger langt unna, endrer den seg mindre enn skipet:
+
+  | Lag | Skalering | Grenser |
+  | --- | --- | --- |
+  | Planeten | zoom^0,4 | ×0,4 til ×3 |
+  | Stjernelagene | zoom^0,15 | ×0,6 til ×1,6 (prikkene blir ikke store) |
+  | Stjernehimmelen | zoom^0,06 | ×0,9 til ×1,12 |
+
+- **Utgangspunkt:** zoomen spillet starter med for skipet (samme som
+  `fitZoom`). Uten zoom ser alt ut som før, uansett skipsstørrelse.
+- **Større himmel:** stjernehimmelen lages 25 % større, så den dekker
+  skjermen også når den krymper.
+- **Skarpere planet:** en versjon med dobbel oppløsning brukes når man har
+  zoomet inn. Den lages i bakgrunnen når nettleseren har tid, så det ikke
+  hakker første gang man zoomer inn.
+- `js/news.js`, `index.html`: nyhet og versjon v0.18.1.
+
+**Testet** (Playwright, startskipet):
+
+- Zoom ×1,05, ×7 (start) og ×19,6: planeten er tydelig mindre ute og større
+  inne. Stjernehimmelen dekker hele skjermen.
+- Tegnetiden var 2–22 ms per bilde. Før den skarpe planeten ble laget i
+  bakgrunnen, var første innzoom 470 ms.
+- Pirater og kart virker som før. Ingen feil i konsollen.
+
 ## 2026-09-30: v0.18.0 · Ny lyd i hele spillet
 
 **Ønske:** «Du må ordne lydene i spillet»

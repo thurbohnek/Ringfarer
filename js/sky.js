@@ -73,8 +73,9 @@
 
   // --- Planet ---
   // type: 'ocean' (jordlik), 'gas' (gasskjempe med bånd), 'lava' (glødende).
-  function makePlanet(pl, sunDir, seed) {
-    const R = pl.ring ? 230 : 300;
+  // big = skarpere versjon til når man har zoomet inn.
+  function makePlanet(pl, sunDir, seed, big) {
+    const R = (pl.ring ? 230 : 300) * (big ? 2 : 1);
     const ringOut = pl.ring ? 2.05 : 1.08;
     const W = Math.ceil(R * ringOut * 2) + 8, H = pl.ring ? Math.ceil(R * 2.3) : W;
     const c = document.createElement('canvas');
@@ -180,10 +181,20 @@
     let S = cache[key];
     if (!S) {
       for (const k in cache) if (k.startsWith(def.id + ':')) delete cache[k];
-      S = cache[key] = { sky: makeSky(Math.ceil(w + 160), Math.ceil(h + 160), sky, seed) };
+      S = cache[key] = { sky: makeSky(Math.ceil(w * 1.25 + 160), Math.ceil(h * 1.25 + 160), sky, seed) };
     }
-    const sx0 = -80 + G.clamp(-cam.x * 0.01, -70, 70), sy0 = -80 + G.clamp(-cam.y * 0.01, -70, 70);
-    ctx.drawImage(S.sky, sx0, sy0);
+    // Zoom: det som ligger langt unna endrer størrelse mindre enn skipet.
+    // Planeten mest, stjernelagene litt, stjernehimmelen nesten ikke.
+    // Utgangspunkt: zoomen spillet starter med for dette skipet (fitZoom).
+    const r0 = game.ship ? game.ship.body.radius : 8;
+    const zRef = G.clamp((game.touchUI ? 42 : 64) / r0, 0.03, 7);
+    const zr = cam.zoom / zRef;
+    const sSky = G.clamp(Math.pow(zr, 0.06), 0.9, 1.12);
+    const sPl = G.clamp(Math.pow(zr, 0.4), 0.4, 3);
+    const sStar = G.clamp(Math.pow(zr, 0.15), 0.6, 1.6);
+    const skW = S.sky.width * sSky, skH = S.sky.height * sSky;
+    const sx0 = w / 2 - skW / 2 + G.clamp(-cam.x * 0.01, -70, 70), sy0 = h / 2 - skH / 2 + G.clamp(-cam.y * 0.01, -70, 70);
+    ctx.drawImage(S.sky, sx0, sy0, skW, skH);
 
     // Sola: liten, hvit kjerne og stor, svak blending.
     const sd = sky.starDir, D = Math.max(w, h);
@@ -213,29 +224,46 @@
 
     // Planeten ligger også langt unna og flytter seg bare litt.
     const pl = def.planet;
-    if (!S.planet) S.planet = makePlanet(pl, sd, seed);
-    const Pn = S.planet;
-    const pr = Math.min(w, h) * pl.r;
+    if (!S.planet) {
+      S.planet = makePlanet(pl, sd, seed);
+      // Den skarpe versjonen lages når nettleseren har tid, så det ikke
+      // hakker første gang man zoomer inn.
+      const mk = () => { if (!S.planetBig) S.planetBig = makePlanet(pl, sd, seed, true); };
+      if (window.requestIdleCallback) requestIdleCallback(mk, { timeout: 4000 }); else setTimeout(mk, 1500);
+    }
+    const pr = Math.min(w, h) * pl.r * sPl;
+    // Zoomet langt inn: lag en skarpere planet (én gang per system).
+    if (pr > S.planet.R * 1.4 && !S.planetBig) S.planetBig = makePlanet(pl, sd, seed, true);
+    const Pn = S.planetBig && pr > S.planet.R * 1.2 ? S.planetBig : S.planet;
     const k = pr / Pn.R;
-    const px = pl.x * w - G.clamp(cam.x * 0.004, -30, 30), py = pl.y * h - G.clamp(cam.y * 0.004, -30, 30);
+    // Planeten skaleres rundt midten av skjermen, som når man zoomer.
+    const px = w / 2 + (pl.x * w - w / 2) * sPl - G.clamp(cam.x * 0.004, -30, 30);
+    const py = h / 2 + (pl.y * h - h / 2) * sPl - G.clamp(cam.y * 0.004, -30, 30);
     ctx.drawImage(Pn.cv, px - (Pn.W / 2) * k, py - (Pn.H / 2) * k, Pn.W * k, Pn.H * k);
 
-    // Stjerner i nærmere lag gir følelse av fart når man flyr.
+    // Stjerner i nærmere lag gir følelse av fart når man flyr. De skaleres
+    // litt rundt midten av skjermen når man zoomer.
+    ctx.save();
+    ctx.translate(w / 2, h / 2); ctx.scale(sStar, sStar); ctx.translate(-w / 2, -h / 2);
+    const x0 = w / 2 - w / (2 * sStar), x1 = w / 2 + w / (2 * sStar);
+    const y0 = h / 2 - h / (2 * sStar), y1 = h / 2 + h / (2 * sStar);
+    const dotK = 0.8 / Math.sqrt(sStar);
     for (const Lr of this.layers) {
       const ox = -cam.x * Lr.par, oy = -cam.y * Lr.par;
       for (const s of Lr.stars) {
-        let x = (s.x + ox) % 2048, y = (s.y + oy) % 2048;
+        let x = (s.x + ox - x0) % 2048, y = (s.y + oy - y0) % 2048;
         if (x < 0) x += 2048;
         if (y < 0) y += 2048;
-        for (let tx = x; tx < w; tx += 2048) {
-          for (let ty = y; ty < h; ty += 2048) {
+        for (let tx = x0 + x; tx < x1; tx += 2048) {
+          for (let ty = y0 + y; ty < y1; ty += 2048) {
             ctx.globalAlpha = s.a * 0.6;
             ctx.fillStyle = s.c;
-            ctx.fillRect(tx, ty, s.r * 0.8, s.r * 0.8);
+            ctx.fillRect(tx, ty, s.r * dotK, s.r * dotK);
           }
         }
       }
     }
+    ctx.restore();
     ctx.globalAlpha = 1;
   };
 })();
