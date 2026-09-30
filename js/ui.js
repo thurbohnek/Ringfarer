@@ -163,6 +163,7 @@
             <li><b>Raiders:</b> with valuable cargo far from a station, raiders and stinger drones may come for you. Their shots are red. Fight back with laser, cannon or rockets (bounty paid), send out guard drones, or run: they break off near the station. Some systems are more dangerous than others (see the star map, Tab).</li>
             <li><b>Zoom:</b> pinch with two fingers, or use the mouse wheel or + and −.</li>
             <li><b>Hardness:</b> every rock type has a hardness from 1 to 4. The laser must be at least that tier. Cannons and rockets break anything.</li>
+            <li><b>Comets:</b> fast balls of ice with a glowing tail pointing away from the sun. Ice gives water. Pockets of frozen gas (pale green) become fuel straight into your tank, and what does not fit is stored as volatiles you can sell. Some comets hide a valuable core under the ice. Press B to match a comet's speed while you cut. Comets show on the star map (Tab).</li>
             <li><b>Ice crust:</b> some asteroids and comets have ice on the outside and a valuable mineral inside.</li>
             <li><b>Harpoon:</b> fires a hook on a cable that sticks to whatever it hits. Winch in to land, or thrust and tow the comet wherever you like.</li>
             <li><b>Damage:</b> modules that get hit take damage and can break off. Lose the cockpit and the ship is lost. Salvage can be pulled in with the tractor and sold as scrap.</li>
@@ -416,6 +417,14 @@
       const r = Math.max(1.5, o.radius * k * (c && c.best && o.radius * k < 6 ? 1.6 : 1));
       if (X(o.x) < -r || Y(o.y) < -r || X(o.x) > W + r || Y(o.y) > H + r) continue;
       ctx.beginPath(); ctx.arc(X(o.x), Y(o.y), r, 0, Math.PI * 2); ctx.fill();
+      if (o.comet) {
+        // Komet: blå hale bort fra sola og navn.
+        const sd = def.sky.starDir + Math.PI, L = Math.max(24, o.radius * 14 * k);
+        ctx.strokeStyle = 'rgba(120,200,255,0.7)'; ctx.lineWidth = Math.max(2, r * 0.8); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(X(o.x), Y(o.y)); ctx.lineTo(X(o.x) + Math.cos(sd) * L, Y(o.y) + Math.sin(sd) * L); ctx.stroke();
+        ctx.fillStyle = '#9fdcff'; ctx.font = '600 20px "Saira Condensed", sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText('Comet', X(o.x) + r + 6, Y(o.y) - 6);
+      }
       if (c && c.best && z >= 3) {
         ctx.font = '600 20px "Saira Condensed", sans-serif'; ctx.textAlign = 'left';
         ctx.fillText(`${c.best.name} ${RF.Scan.fmtCr(c.value)}`, X(o.x) + r + 6, Y(o.y) + 6);

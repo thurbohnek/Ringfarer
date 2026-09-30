@@ -45,6 +45,50 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.19.0 · Kometer med is og gass som gir drivstoff og vann
+
+**Ønske:** «Utfør oppgave 21» (`PLAN.md`: kometer med is og gass som gir
+drivstoff og vann).
+
+**Hva som er gjort:**
+
+- `js/world.js`:
+  - **Nytt mineral:** frossen gass («Frozen volatiles»). Den er lysegrønn,
+    har hardhet 1 og tetthet 600, og gir 0,8 kg drivstoff per kg.
+  - **Ny vare:** Volatiles, 75 cr/t. Midgard betaler ×1,1, Vanaheim ×0,8
+    (mange kometer der) og Muspelheim ×1,7 (boreplattformen trenger
+    drivstoff).
+  - **Nye kometer:**
+    - «komet»: is med omtrent 26 % gasslommer og litt karbon.
+    - «kometkjerne»: is med gass og en verdifull kjerne av metall, kobber,
+      titan eller gull.
+    - 40 % av kometene har kjerne.
+  - **Kometer i alle systemene:** Midgard 2, Vanaheim 7 og Muspelheim 2.
+- `js/ship.js`: frossen gass som prosesseres, fyller drivstofftanken først.
+  Det som ikke får plass, går i lasten som Volatiles.
+- `js/game.js`: melding «+X kg fuel» når gass er prosessert.
+- `js/render.js`: ny `drawCometTail`. Svansene blir svakere jo mindre gass
+  kometen har igjen:
+  - **Koma:** en lysende sky rundt kjernen.
+  - **Støvhale:** bred, varm og buet bort fra sola og bakover langs banen.
+  - **Gasshale:** fire blålige striper rett bort fra sola, som bølger litt.
+- `js/ui.js`: kometer på stjernekartet med blå hale og navnet «Comet».
+  Nytt tips i hjelpen om kometer.
+- `js/hud.js`: kometer er blå prikker på radaren.
+- `PLAN.md`: punkt 21 er strøket over.
+- `js/news.js`, `index.html`: nyhet og versjon v0.19.0.
+
+**Testet** (Playwright):
+
+- **Kometene i Midgard:** den ene hadde is 79 %, gass 13 % og karbon 8 %.
+  Den andre hadde en titankjerne under isen.
+- **Drivstoff:** fire gassbiter fylte tanken til startskipet fra 900 til
+  3 000 kg. 2,17 t havnet i lasten som Volatiles.
+- **Bilder:** svansen peker bort fra sola, og kartet viser kometene med
+  hale.
+- **Resten virker som før:** pirater, kart og gruvedrift. Ingen feil i
+  konsollen.
+
 ## 2026-09-30: v0.18.2 · Fritt kamera og knappen «Follow ship»
 
 **Ønske:** «Må kunne pane rundt mye mere. Om jeg planer til en asteroide så

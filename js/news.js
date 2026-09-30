@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.19.0', date: '2026-09-30', title: 'Comets with fuel',
+      items: [
+        'Comets now fly through every system, with a blue gas tail and a wide dust tail pointing away from the sun.',
+        'Comets carry pockets of frozen gas. Cut them out and the gas becomes fuel straight into your tank. What does not fit is stored as Volatiles you can sell.',
+        'Ice still gives water, and some comets hide a valuable core under the ice.',
+        'Comets show on the star map and as blue dots on the radar.',
+      ],
+    },
+    {
       v: 'v0.18.2', date: '2026-09-30', title: 'Free camera',
       items: [
         'Pan as far as you like. The camera stays where you leave it, also while the ship flies, so you can pan to an asteroid, tap next to it and watch your ship arrive.',

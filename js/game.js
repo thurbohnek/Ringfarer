@@ -714,6 +714,7 @@
 
   game.onProcessed = (p) => {
     const M = RF.MATERIALS[p.mat];
+    if (p.fuel > 1) game.msg(`+${Math.round(p.fuel)} kg fuel`, RF.PRODUCTS[M.product].color);
     if (p.made > 0.005) game.msg(`+${p.made.toFixed(2)} t ${RF.PRODUCTS[M.product].name}`, RF.PRODUCTS[M.product].color);
     game.ship.updateMass();
   };

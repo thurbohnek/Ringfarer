@@ -407,6 +407,7 @@
 
       // 4. Selvlysende.
       this.worldTransform(ctx, game, this.dpr);
+      for (const b of sys.world.bodies) if (b.comet && !b.dead) this.drawCometTail(b, game, vis);
       if (RF.Scan) RF.Scan.drawWorld(ctx, game, this.px);
       for (const g of RF.gatesOf(sys)) this.drawGateGlow(g, game.time, vis);
       // Skipet foran horisonten tegnes oppå den, så det ser ut som det glir inn.
@@ -816,6 +817,63 @@
       }
       V.cache = c;
       return c;
+    }
+
+    // Kometsvans: en rett, blålig gasshale bort fra sola og en bredere, varm
+    // støvhale som bøyer seg bakover langs banen. Svakere jo mindre gass
+    // kometen har igjen.
+    drawCometTail(b, game, vis) {
+      const ctx = this.ctx, sd = game.sys.def.sky.starDir + Math.PI;
+      const ax = Math.cos(sd), ay = Math.sin(sd);
+      const r = b.radius, L = r * 14;
+      if (!vis(b.x + ax * L * 0.5, b.y + ay * L * 0.5, L * 0.6)) return;
+      if (!b._gasT || game.time - b._gasT > 3) {
+        b._gasT = game.time;
+        const c = RF.Scan.composition(b, game), g = c.items.find((x) => x.mat === 'gass');
+        b._gas = g ? g.frac : 0;
+      }
+      const k = Math.min(1, 0.25 + (b._gas || 0) * 3);
+      const t = game.time;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      // Koma: lysende sky rundt kjernen.
+      const cg = ctx.createRadialGradient(b.x, b.y, r * 0.5, b.x, b.y, r * 3);
+      cg.addColorStop(0, `rgba(170,225,255,${0.16 * k})`);
+      cg.addColorStop(1, 'rgba(170,225,255,0)');
+      ctx.fillStyle = cg;
+      ctx.beginPath(); ctx.arc(b.x, b.y, r * 3, 0, Math.PI * 2); ctx.fill();
+      // Støvhalen: bort fra sola, dratt bakover langs farten.
+      const sp = Math.hypot(b.vx, b.vy) || 1;
+      let dx = ax * 1.2 - (b.vx / sp) * 0.8, dy = ay * 1.2 - (b.vy / sp) * 0.8;
+      const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+      const px = -ay, py = ax;
+      const hx = b.x + ax * r * 0.6, hy = b.y + ay * r * 0.6;
+      const ex = b.x + dx * L * 0.8, ey = b.y + dy * L * 0.8, mx = b.x + ax * L * 0.45, my = b.y + ay * L * 0.45;
+      const dg = ctx.createLinearGradient(hx, hy, ex, ey);
+      dg.addColorStop(0, `rgba(255,238,205,${0.2 * k})`);
+      dg.addColorStop(1, 'rgba(255,238,205,0)');
+      ctx.fillStyle = dg;
+      ctx.beginPath();
+      ctx.moveTo(hx + px * r * 0.9, hy + py * r * 0.9);
+      ctx.quadraticCurveTo(mx + px * r * 2.2, my + py * r * 2.2, ex + px * r * 3.2, ey + py * r * 3.2);
+      ctx.lineTo(ex - px * r * 1.2, ey - py * r * 1.2);
+      ctx.quadraticCurveTo(mx - px * r * 0.8, my - py * r * 0.8, hx - px * r * 0.9, hy - py * r * 0.9);
+      ctx.closePath(); ctx.fill();
+      // Gasshalen: rett bort fra sola, med tynne striper som bølger litt.
+      for (let i = 0; i < 4; i++) {
+        const off = (i - 1.5) * r * 0.35 + Math.sin(t * 0.7 + i * 1.7) * r * 0.15;
+        const len = L * (0.8 + 0.2 * Math.sin(t * 0.5 + i));
+        const sx = hx + px * off, sy = hy + py * off;
+        const gx = sx + ax * len + px * off * 0.6, gy = sy + ay * len + py * off * 0.6;
+        const ig = ctx.createLinearGradient(sx, sy, gx, gy);
+        ig.addColorStop(0, `rgba(120,200,255,${0.22 * k})`);
+        ig.addColorStop(1, 'rgba(120,200,255,0)');
+        ctx.strokeStyle = ig;
+        ctx.lineWidth = r * (0.35 + 0.15 * (i % 2));
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(gx, gy); ctx.stroke();
+      }
+      ctx.restore();
     }
 
     drawVox(b, sunDir) {

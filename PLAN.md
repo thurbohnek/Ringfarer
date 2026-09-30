@@ -24,7 +24,7 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 18. Varsel om full last, med «fly til nærmeste stasjon».
 19. Raffineri om bord: malm blir rent metall (lettere og mer verdt).
 20. Ulike laserformer: bred for grovskjæring, smal for presisjon.
-21. Kometer med is og gass som gir drivstoff og vann.
+21. ~~Kometer med is og gass som gir drivstoff og vann.~~ (v0.19.0)
 22. ~~Asteroider i bevegelse og rotasjon som man må matche farten med.~~ (v0.17.0)
 23. Vrak å berge: skjær løs moduler og last og selg dem.
 24. Oppdrag med historie og små valg underveis.

@@ -173,7 +173,10 @@
     for (const b of game.sys.world.bodies) {
       const dx = (b.x - ship.x) * k, dy = (b.y - ship.y) * k;
       if (dx * dx + dy * dy > r * r) continue;
-      if (b.kind === 'rock') {
+      if (b.kind === 'rock' && b.comet) {
+        ctx.fillStyle = '#9fdcff';
+        ctx.beginPath(); ctx.arc(x + dx, y + dy, 2.5, 0, Math.PI * 2); ctx.fill();
+      } else if (b.kind === 'rock') {
         const M = RF.MATERIALS[b.mat];
         ctx.fillStyle = M.vein || M.light;
         const s = G.clamp(b.radius * k * 1.6, 1, 3.5);

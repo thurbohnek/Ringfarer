@@ -504,7 +504,14 @@
       const take = Math.min(this.stats.proc * dt, p.mass);
       p.mass -= take;
       const M = RF.MATERIALS[p.mat];
-      const out = (take * M.grade * this.stats.yield) / 1000;
+      let out = (take * M.grade * this.stats.yield) / 1000;
+      // Frossen gass fyller tanken først (kg drivstoff), resten går i lasten.
+      if (M.fuel) {
+        const kg = Math.min(out * 1000, Math.max(0, this.stats.fuelCap - this.s.fuel));
+        this.s.fuel += kg;
+        p.fuel = (p.fuel || 0) + kg;
+        out -= kg / 1000;
+      }
       const add = Math.min(out, Math.max(0, this.holdFree()));
       this.s.cargo[M.product] += add;
       p.made = (p.made || 0) + add;

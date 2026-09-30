@@ -38,6 +38,11 @@
   // rundt dem.
   RF.isSmallRock = (o) => o.kind === 'rock' && o.radius < 3.5;
 
+  // Frossen gass i kometene. Blir drivstoff rett på tanken; det som ikke får
+  // plass, lagres som flyktige stoffer man kan selge.
+  RF.MATERIALS.gass = { name: 'Frozen volatiles', product: 'gass', density: 600, grade: 0.8, hard: 1, fuel: true,
+    base: '#a9c9c4', dark: '#4f6a67', light: '#dff7f2', mark: '#8fffe0', vein: '#bfffee' };
+
   // Vrakdeler fra skip som er slått i stykker. Kan samles inn og selges som skrap.
   RF.MATERIALS.skrap = { name: 'Salvage', product: 'skrap', density: 900, grade: 0.6, hard: 1,
     base: '#6d6a60', dark: '#2a2824', light: '#b8b2a2' };
@@ -54,6 +59,7 @@
     naquadah: { name: 'Naquadah', price: 1150, color: '#5dffc8' },
     trinium: { name: 'Trinium', price: 3800, color: '#e0b0ff' },
     skrap: { name: 'Scrap metal', price: 60, color: '#a39c8c' },
+    gass: { name: 'Volatiles', price: 75, color: '#8fffe0' },
   };
 
   // Asteroidetyper. blobs = klumper av andre mineraler, veins = årer,
@@ -70,6 +76,10 @@
     naquadah: { mat: 'naquadah', blobs: { metall: 0.12 }, veins: { trinium: 0.03 } },
     trinium: { mat: 'trinium', blobs: { silikat: 0.15 } },
     iskledd: { mat: 'is', blobs: { karbon: 0.08 }, core: { metall: 0.4, kobber: 0.3, titan: 0.2, gull: 0.1 }, coreFrac: 0.4 },
+    // Kometer: is (vann) med lommer av frossen gass (drivstoff), noen med en
+    // verdifull kjerne under isen.
+    komet: { mat: 'is', blobs: { gass: 0.26, karbon: 0.08 } },
+    kometkjerne: { mat: 'is', blobs: { gass: 0.2, karbon: 0.06 }, core: { metall: 0.4, kobber: 0.3, titan: 0.2, gull: 0.1 }, coreFrac: 0.35 },
   };
 
   // Største bit (m²) som får plass i inntaket og kan prosesseres.
@@ -87,7 +97,7 @@
       sky: { deep: '#020409', neb: ['#1c3358', '#3a2150', '#123a4a'], star: '#ffd9a0', starDir: -2.3 },
       planet: { type: 'ocean', color: '#3f6fa8', band: '#6aa0d8', atmo: '#8fc0ff', r: 0.55, x: 0.95, y: 1.0, ring: false },
       station: { id: 'midgard', name: 'Midgard Shipyard', x: 0, y: 0, a: 0,
-        prices: { jern: 1.0, nikkel: 1.05, vann: 1.1, naquadah: 1.15, titan: 1.1, trinium: 1.2, skrap: 1.2 } },
+        prices: { jern: 1.0, nikkel: 1.05, vann: 1.1, naquadah: 1.15, titan: 1.1, trinium: 1.2, skrap: 1.2, gass: 1.1 } },
       npcs: { drone: 3, hauler: 1 },
       gate: { x: 900, y: -1100, a: Math.PI * 0.6 },
       glyphs: [0, 3, 5, 1, 6, 2, 4],
@@ -97,7 +107,7 @@
         { cx: -900, cy: -500, rx: 450, ry: 300, rot: -0.6, count: 18, rMin: 4, rMax: 30, drift: 1.0, giants: 1,
           types: { kondritt: 0.5, silikat: 0.3, karbon: 0.2 } },
       ],
-      comets: 0,
+      comets: 2,
     },
     {
       id: 'vanaheim',
@@ -106,7 +116,7 @@
       sky: { deep: '#020605', neb: ['#12433d', '#1e3a5c', '#0f2a2a'], star: '#cfe8ff', starDir: 0.7 },
       planet: { type: 'gas', color: '#a8844f', band: '#e3cfa5', atmo: '#f0dcb0', ringColor: '#cbb996', r: 0.3, x: 0.2, y: 0.24, ring: true },
       station: { id: 'vanaheim', name: 'Vanaheim Trading Post', x: 0, y: 0, a: Math.PI,
-        prices: { jern: 1.25, nikkel: 1.2, vann: 0.7, naquadah: 1.0, kobber: 1.25, grafitt: 1.3, gull: 1.1 } },
+        prices: { jern: 1.25, nikkel: 1.2, vann: 0.7, naquadah: 1.0, kobber: 1.25, grafitt: 1.3, gull: 1.1, gass: 0.8 } },
       npcs: { drone: 1, hauler: 2 },
       gate: { x: -1200, y: 700, a: -0.4 },
       glyphs: [2, 6, 1, 4, 0, 5, 3],
@@ -123,7 +133,7 @@
       sky: { deep: '#070203', neb: ['#5a1a10', '#3a0f22', '#6a3a10'], star: '#ff9a5a', starDir: 1.9 },
       planet: { type: 'lava', color: '#6a3a2a', band: '#d8642a', atmo: '#ff9a5a', r: 0.34, x: 0.82, y: 0.18, ring: false },
       station: { id: 'muspel', name: 'Surtr Drilling Station', x: 0, y: 0, a: -Math.PI / 2,
-        prices: { jern: 1.3, nikkel: 1.35, vann: 2.6, naquadah: 0.9, silisium: 1.4, titan: 0.9 } },
+        prices: { jern: 1.3, nikkel: 1.35, vann: 2.6, naquadah: 0.9, silisium: 1.4, titan: 0.9, gass: 1.7 } },
       npcs: { drone: 2, hauler: 1 },
       gate: { x: 700, y: 1100, a: -Math.PI * 0.35 },
       glyphs: [5, 1, 4, 6, 3, 0, 2],
@@ -133,7 +143,7 @@
         { cx: -700, cy: -900, rx: 500, ry: 400, rot: 0.2, count: 22, rMin: 4, rMax: 32, drift: 3, giants: 2,
           types: { metall: 0.35, kobber: 0.25, gull: 0.15, titan: 0.15, naquadah: 0.1 } },
       ],
-      comets: 0,
+      comets: 2,
     },
   ];
 
@@ -303,7 +313,7 @@
     const sp = G.rand(12, 24);
     const r = G.rand(34, 60);
     // Noen kometer har en verdifull kjerne under isen.
-    const type = Math.random() < 0.45 ? 'iskledd' : 'is';
+    const type = Math.random() < 0.4 ? 'kometkjerne' : 'komet';
     // Kometer er grå og gropete, med mange kratre.
     return RF.spawnRockType(world, type, r,
       { x, y, a: Math.random() * 6.28, vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, w: G.rand(-0.1, 0.1) }, { lumpy: true, comet: true });
