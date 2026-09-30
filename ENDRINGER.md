@@ -27,8 +27,7 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Borehodene maler fortsatt løs biter** (som før). Bare laseren er en
   skjærestråle. Si fra om borene også skal endres.
 - **Pirater:** styrken (skudd, skrog, dusør) og hvor ofte de kommer kan
-  justeres etter testing. Pirater blir liggende i systemet man forlater til
-  man kommer tilbake. De stikker av med en gang man går gjennom porten.
+  justeres etter testing. De følger ikke etter gjennom porten.
 - **Skjærefarten** kan justeres etter testing. Startlaseren bruker omtrent
   25 sekunder gjennom en gråstein på 50 m.
 - **Laseren gir ikke lenger malm av gråstein** (kondritt, silikat, karbon).
