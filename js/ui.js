@@ -163,6 +163,7 @@
             <li><b>Raiders:</b> with valuable cargo far from a station, raiders and stinger drones may come for you. Their shots are red. Fight back with laser, cannon or rockets (bounty paid), send out guard drones, or run: they break off near the station. Some systems are more dangerous than others (see the star map, Tab).</li>
             <li><b>Zoom:</b> pinch with two fingers, or use the mouse wheel or + and −.</li>
             <li><b>Hardness:</b> every rock type has a hardness from 1 to 4. The laser must be at least that tier. Cannons and rockets break anything.</li>
+            <li><b>Station shield:</b> every station has a deflector shield about 240 m out. It slows and pushes away rocks, comets, ore and wreckage before they hit, and point-defense lasers burn away loose rubble. Ships and drones pass through, and shots from outside are stopped.</li>
             <li><b>Comets:</b> fast balls of ice with a glowing tail pointing away from the sun. Ice gives water. Pockets of frozen gas (pale green) become fuel straight into your tank, and what does not fit is stored as volatiles you can sell. Some comets hide a valuable core under the ice. Press B to match a comet's speed while you cut. Comets show on the star map (Tab).</li>
             <li><b>Ice crust:</b> some asteroids and comets have ice on the outside and a valuable mineral inside.</li>
             <li><b>Harpoon:</b> fires a hook on a cable that sticks to whatever it hits. Winch in to land, or thrust and tow the comet wherever you like.</li>

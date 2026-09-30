@@ -10,6 +10,14 @@
 
   RF.NEWS = [
     {
+      v: 'v0.20.0', date: '2026-09-30', title: 'Station shields',
+      items: [
+        'Every station has a deflector shield. Rocks, comets, ore and wreckage heading for it are slowed and pushed away, and the shield flares where they hit.',
+        'Point-defense lasers burn away loose rubble that drifts inside the shield. Ore is pushed away, not destroyed.',
+        'Ships and drones pass through the shield. Shots fired at the station from outside are stopped.',
+      ],
+    },
+    {
       v: 'v0.19.2', date: '2026-09-30', title: 'Dust streaks follow the camera',
       items: [
         'Space dust only streaks when the view is moving. With the camera standing still, the dust stays as dots while your ship flies past.',

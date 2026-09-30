@@ -428,6 +428,7 @@
       const inGate = shipLive && this.gateClip(ctx, game, ship.body);
       if (inGate) { this.drawModular(ship, game.time); ctx.restore(); }
       this.drawStationLights(sys.station, game, vis);
+      this.drawStationShield(sys.station, game, vis);
       for (const b of sys.world.bodies) {
         if (b.heat > 0.02 && b.hitX != null && vis(b.hitX, b.hitY, 10)) this.drawHeat(b);
       }
@@ -1217,6 +1218,41 @@
       dg.addColorStop(1, '#122a30');
       ctx.fillStyle = dg;
       ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Stasjonsskjoldet: en svak, blålig kant som nesten ikke synes, og glimt
+    // der noe treffer. Nærforsvarslaserne tegnes som korte stråler.
+    drawStationShield(st, game, vis) {
+      const S = RF.STATION_SHIELD, R = S.R;
+      if (!vis(st.x, st.y, R + 20)) return;
+      const ctx = this.ctx, t = game.time, fx = st.shieldFx;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const rim = ctx.createRadialGradient(st.x, st.y, R * 0.9, st.x, st.y, R);
+      rim.addColorStop(0, 'rgba(120,200,255,0)');
+      rim.addColorStop(0.85, `rgba(120,200,255,${0.03 + 0.01 * Math.sin(t * 1.3)})`);
+      rim.addColorStop(1, 'rgba(120,200,255,0)');
+      ctx.fillStyle = rim;
+      ctx.beginPath(); ctx.arc(st.x, st.y, R, 0, Math.PI * 2); ctx.fill();
+      if (fx) {
+        for (const h of fx.hits) {
+          const age = (t - h.t) / 1.2, a = (1 - age) * (0.35 + 0.45 * h.s);
+          const span = 0.25 + 0.35 * h.s + age * 0.4;
+          ctx.strokeStyle = `rgba(150,220,255,${a})`;
+          ctx.lineWidth = 3 + 6 * h.s;
+          ctx.beginPath(); ctx.arc(st.x, st.y, R - 2, h.a - span, h.a + span); ctx.stroke();
+          ctx.strokeStyle = `rgba(150,220,255,${a * 0.35})`;
+          ctx.lineWidth = 16 * (0.5 + h.s);
+          ctx.beginPath(); ctx.arc(st.x, st.y, R - 6, h.a - span * 1.3, h.a + span * 1.3); ctx.stroke();
+        }
+        for (const z of fx.zaps) {
+          const a = 1 - (t - z.t) / 0.25;
+          ctx.strokeStyle = `rgba(255,120,90,${0.8 * a})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(st.x, st.y); ctx.lineTo(z.x, z.y); ctx.stroke();
+        }
+      }
       ctx.restore();
     }
 

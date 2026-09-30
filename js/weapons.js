@@ -187,6 +187,19 @@
           continue;
         }
       }
+      // Stasjonsskjoldet stopper skudd som kommer utenfra.
+      const st = game.sys.station, SR = RF.STATION_SHIELD ? RF.STATION_SHIELD.R : 0;
+      if (SR && p.type !== 'harpoon') {
+        const ds = G.len(p.x - st.x, p.y - st.y);
+        if (p.outside == null) p.outside = ds > SR;
+        if (p.outside && ds < SR) {
+          p.dead = true;
+          const fx = st.shieldFx || (st.shieldFx = { hits: [], zaps: [], zapT: 0 });
+          fx.hits.push({ a: Math.atan2(p.y - st.y, p.x - st.x), t: game.time, s: p.type === 'rocket' ? 1 : 0.5 });
+          game.particles.burst(p.x, p.y, 8, { type: 'glow', sMin: 2, sMax: 10, color: '#8fd8ff', zMin: 0.2, zMax: 0.4, lMin: 0.2, lMax: 0.5 });
+          continue;
+        }
+      }
       const sp = G.len(p.vx, p.vy);
       const step = sp * dt;
       if (step > 0) {

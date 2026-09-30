@@ -45,6 +45,48 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.20.0 · Skjold rundt stasjonene
+
+**Ønske:** «Nr35. Stasjoner må ha en beskyttelse for objekter som kollidere
+med de. Slags skjold, eller hva tenker du?»
+
+Punkt 35 i planen er «Stasjoner som vokser». Beskyttelsen er lagt inn som et
+nytt punkt 36, og punkt 35 står fortsatt åpent.
+
+**Hva som er gjort:**
+
+- `js/game.js` (`updateStationShield`, `RF.STATION_SHIELD`):
+  - **Deflektorskjold:** en boble med radius 240 m rundt hver stasjon.
+    Stasjonen selv er omtrent 115 m. Steiner, kometer, malm og vrak som er
+    på vei inn, bremses og dyttes ut. Virkningen er svak ved kanten og øker
+    innover mot 150 m.
+  - **Skip og droner** (spilleren, datastyrte skip og pirater) slipper
+    gjennom.
+  - **Nærforsvarslasere:** løs gråstein under 200 m² som kommer innenfor
+    skjoldet, brennes bort, én bit hvert kvarte sekund. Malm og vrak blir
+    ikke ødelagt, bare dyttet bort.
+  - **Glimt og lyd:** når noe treffer skjoldet, blinker det der, med et
+    dempet smell som blir svakere med avstanden.
+- `js/weapons.js`: skudd og raketter som kommer utenfra, stoppes av
+  skjoldet med et blått glimt. Skudd fra innsiden, som ditt eget skip ved
+  stasjonen, går ut som før. Harpunen påvirkes ikke.
+- `js/render.js` (`drawStationShield`): en svak, blålig skjoldkant som
+  pulserer, lysende buer der noe treffer, og korte røde stråler fra
+  nærforsvaret.
+- `js/ui.js`: tips i hjelpen om stasjonsskjoldet.
+- `PLAN.md`: nytt punkt 36, ferdig.
+- `js/news.js`, `index.html`: nyhet og versjon v0.20.0.
+
+**Testet** (Playwright):
+
+- **Komet** med radius 40 m, rett mot stasjonen i 22 m/s: den ble bremset
+  og stoppet 227 m fra stasjonen, og dyttet rolig bort.
+- **Gråstein:** fire løse biter på vei inn ble brent bort.
+- **Malm:** en kobberbit på vei inn ble stoppet ved 234 m og er fortsatt
+  hel.
+- **Skudd** utenfra mot stasjonen ble stoppet.
+- **Resten virker som før:** pirater og droner. Ingen feil i konsollen.
+
 ## 2026-09-30: v0.19.2 · Støvstripene følger kameraet
 
 **Ønske:** «Det som gjør at man ser at skipet beveger seg. Stripene av

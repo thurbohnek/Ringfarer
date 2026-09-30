@@ -1146,6 +1146,48 @@
     }
   }
 
+  // Stasjonsskjold: en boble som bremser og dytter bort steiner, kometer,
+  // malm og vrak før de treffer stasjonen. Skip og droner slipper gjennom.
+  // Løs gråstein innenfor skjoldet brennes bort av nærforsvarslasere.
+  RF.STATION_SHIELD = { R: 240, inner: 150 };
+  function updateStationShield(dt) {
+    const st = game.sys.station, S = RF.STATION_SHIELD;
+    const fx = st.shieldFx || (st.shieldFx = { hits: [], zaps: [], zapT: 0 });
+    fx.zapT -= dt;
+    for (const o of game.sys.world.bodies) {
+      if (o.dead || o.isStatic || o.kind === 'ship' || o.kind === 'npc' || o.kind === 'gate') continue;
+      const dx = o.x - st.x, dy = o.y - st.y, d = G.len(dx, dy) - o.radius;
+      if (d > S.R) continue;
+      const nx = dx / (G.len(dx, dy) || 1), ny = dy / (G.len(dx, dy) || 1);
+      // Nærforsvar: små biter av gråstein brennes bort.
+      if (RF.Vox.isJunk(o) && o.area < 200 && fx.zapT <= 0) {
+        fx.zapT = 0.25;
+        fx.zaps.push({ x: o.x, y: o.y, t: game.time });
+        o.dead = true;
+        game.particles.burst(o.x, o.y, 10, { type: 'smoke', sMin: 1, sMax: 3 + o.radius * 0.4, color: RF.MATERIALS[o.mat].light, zMin: 0.6, zMax: 1.4, grow: 2, lMin: 0.8, lMax: 1.8, vx: o.vx, vy: o.vy });
+        if (Audio.near(o.x, o.y, 700) > 0.05) Audio.blip(1500, 0.05, 'sine', 0.05 * Audio.near(o.x, o.y, 700));
+        continue;
+      }
+      const vr = o.vx * nx + o.vy * ny; // fart ut fra stasjonen (negativ = på vei inn)
+      const p = G.clamp((S.R - d) / (S.R - S.inner), 0, 1);
+      // Bremser farten innover og dytter svakt ut, sterkere jo dypere inn.
+      if (vr < 0) {
+        const k = Math.min(1, dt * (1.5 + 10 * p * p));
+        o.vx -= nx * vr * k; o.vy -= ny * vr * k;
+      }
+      o.vx += nx * (2 + 10 * p) * p * dt; o.vy += ny * (2 + 10 * p) * p * dt;
+      // Glimt i skjoldet der noe treffer.
+      if (vr < -1.2 && (!o._shT || game.time - o._shT > 1.2)) {
+        o._shT = game.time;
+        fx.hits.push({ a: Math.atan2(ny, nx), t: game.time, s: Math.min(1, -vr / 12 + o.radius / 60) });
+        const v = Audio.near(o.x, o.y, 900);
+        if (v > 0.05) Audio.thud(0.2 * v, true);
+      }
+    }
+    fx.hits = fx.hits.filter((h) => game.time - h.t < 1.2);
+    fx.zaps = fx.zaps.filter((z) => game.time - z.t < 0.25);
+  }
+
   // Løs gråstein (biter uten verdi som har løsnet) smuldrer bort når det blir
   // for mye av den, eller når den er langt unna. Da holder spillet farten.
   const JUNK_MAX = 28, JUNK_FAR = 1400;
@@ -1357,6 +1399,7 @@
     RF.Weapons.update(dt, game);
     RF.Scan.update(dt, game);
     RF.Pirates.update(dt, game);
+    updateStationShield(dt);
     // Steiner i bane gjennom feltet trekkes svakt mot midten av det.
     for (const o of game.sys.world.bodies) {
       const O = o.orbit;

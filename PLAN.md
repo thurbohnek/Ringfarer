@@ -39,3 +39,4 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 33. Tidsakselerasjon på lange flyturer.
 34. Romvær: solstormer og tåker.
 35. Stasjoner som vokser når spilleren handler mye der.
+36. ~~Skjold rundt stasjonene som beskytter mot steiner, kometer og skudd.~~ (v0.20.0)
