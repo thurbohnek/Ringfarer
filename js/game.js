@@ -1410,9 +1410,10 @@
         const sd = game.sys.def.sky.starDir + Math.PI;
         for (const c of game.sys.world.bodies) {
           if (!c.comet || G.len(c.x - game.cam.x, c.y - game.cam.y) > 900) continue;
-          if (Math.random() < 0.3) {
-            const a = Math.random() * 6.28, r = c.radius * 0.9;
-            game.particles.add({ type: 'smoke', x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, vx: c.vx * 0.6 + Math.cos(sd) * 6 + G.rand(-1.5, 1.5), vy: c.vy * 0.6 + Math.sin(sd) * 6 + G.rand(-1.5, 1.5), life: G.rand(2, 4), size: c.radius * 0.05, grow: 1.6, color: '#8f979c' });
+          // Fint støv og gass som slipper ut på solsiden og blåses bakover.
+          if (Math.random() < 0.35) {
+            const a = sd + Math.PI + G.rand(-1.1, 1.1), r = c.radius * 0.95;
+            game.particles.add({ type: 'debris', x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, vx: c.vx + Math.cos(sd) * G.rand(3, 8) + G.rand(-1, 1), vy: c.vy + Math.sin(sd) * G.rand(3, 8) + G.rand(-1, 1), life: G.rand(2, 5), size: G.rand(0.15, 0.4), color: G.pick(['#cfe6f0', '#e8f4f8', '#b8d4de']) });
           }
           // Småstein og grus som følger kometen.
           if (Math.random() < 0.5) {

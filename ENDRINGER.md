@@ -45,6 +45,47 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.19.1 · Mykere kometsvans, og mineraler uten rutemønster
+
+**Ønske:** «Veldig coolt, men det er noe funky med lyset på kometen og
+støveffekten»
+
+**Hva som var galt:**
+
+- **Gasshalen** var fire striper med harde kanter. De la seg som
+  gjennomsiktige bjelker over planeten og over selve kometen.
+- **Støvhalen** var en flate med skarpe kanter.
+- **Røykskyer:** en gammel røykeffekt la store, grå skiver rundt kometen.
+- **Grå glød:** kometen hadde i tillegg en grå glød som ble mørklagt av
+  lyset og så skitten ut.
+- **Rutemønster:** glitteret i mineralene lå i et rutemønster når et helt
+  område var mineral, for eksempel kjernen i en komet.
+
+**Hva som er gjort:**
+
+- `js/render.js`, `drawCometTail` er skrevet om. Svansene er laget av
+  mange myke, runde lysflekker som flyter over i hverandre:
+  - **Støvhalen:** 16 flekker som blir større og svakere utover, i en bue
+    bort fra sola og bakover langs banen.
+  - **Gasshalen:** 22 mindre, blålige flekker rett bort fra sola, som bølger
+    litt.
+  - **Koma:** en svak, myk glød rundt kjernen.
+  - **Maske:** selve kometen maskeres bort, så svansen starter bak den og
+    aldri legger seg oppå steinen.
+  - **Styrke:** sterkest nær kometen. Kometer med lite gass har også synlig
+    svans.
+- `js/render.js`: den grå gløden rundt kometer er fjernet. Glitteret i
+  mineralene er glissent og tilfeldig spredt, med ulik størrelse, og ikke
+  lenger et rutemønster.
+- `js/game.js`: røykskyene er byttet ut med fint, lyst støv som slipper ut
+  på solsiden og blåses bakover.
+- `js/news.js`, `index.html`: nyhet og versjon v0.19.1.
+
+**Testet** (Playwright): bilder av kometer på zoom 1 og 3. Svansene er myke
+og følger retningen bort fra sola, og kometen er ikke dekket. Kjernen og
+gasslommene har ikke rutemønster. Pirater og gruvedrift virker som før.
+Ingen feil i konsollen.
+
 ## 2026-09-30: v0.19.0 · Kometer med is og gass som gir drivstoff og vann
 
 **Ønske:** «Utfør oppgave 21» (`PLAN.md`: kometer med is og gass som gir

@@ -10,6 +10,14 @@
 
   RF.NEWS = [
     {
+      v: 'v0.19.1', date: '2026-09-30', title: 'Softer comet tails',
+      items: [
+        'Comet tails are soft and glowing instead of hard bands, and they start behind the comet instead of covering it.',
+        'Fine dust drifts off the comet instead of big smoke puffs.',
+        'Minerals inside rocks glint here and there instead of in a grid pattern.',
+      ],
+    },
+    {
       v: 'v0.19.0', date: '2026-09-30', title: 'Comets with fuel',
       items: [
         'Comets now fly through every system, with a blue gas tail and a wide dust tail pointing away from the sun.',
