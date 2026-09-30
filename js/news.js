@@ -10,6 +10,14 @@
 
   RF.NEWS = [
     {
+      v: 'v0.17.1', date: '2026-09-30', title: 'Zoom on the star map',
+      items: [
+        'Zoom the star map with the mouse wheel, pinch or the + and − buttons, and drag to move around.',
+        'Center on ship and Show all buttons.',
+        'Zoomed in, the station, gates and ships are drawn at their real size, and scanned rocks show their mineral and value.',
+      ],
+    },
+    {
       v: 'v0.17.0', date: '2026-09-30', title: 'Raiders, star map and moving rocks',
       items: [
         'Raiders: carry valuable cargo far from a station and raiders or stinger drones may come for it. Fight back for a bounty, send out guard drones, or run for the station.',

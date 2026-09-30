@@ -45,6 +45,32 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.17.1 · Zoom og panorering på stjernekartet
+
+**Ønske:** «Star map må kunne zoomes inn og ut på»
+
+**Hva som er gjort:**
+
+- `js/ui.js`:
+  - **Zoom:** musehjulet zoomer mot punktet under pekeren, og to fingre
+    zoomer på mobil. Zoomen går fra ×0,6 til ×60.
+  - **Panorering:** dra med musen eller én finger for å flytte kartet.
+  - **Knapper** under kartet: +, −, «Center on ship» (sentrerer på skipet og
+    zoomer inn til minst ×4) og «Show all» (hele systemet).
+  - **Rutenett og målestokk:** rutenettet blir finere når man zoomer inn
+    (1 km, 500 m, 100 m, 20 m). Målestokken tilpasser seg zoomen, og zoomen
+    vises nede til høyre.
+  - **Virkelig størrelse:** zoomet inn tegnes stasjonen, portene, andre skip
+    og ditt eget skip i virkelig størrelse og form.
+  - **Merkelapper:** fra ×3 får skannede steiner med mineraler en merkelapp
+    med mineral og verdi.
+- `index.html`: stil for kartet og knappene. Versjon v0.17.1.
+- `js/news.js`: nyhet.
+
+**Testet** (Playwright): musehjulet zoomer mot pekeren, dra flytter kartet,
+og alle fire knappene virker. Stasjonen og skipet tegnes i riktig form når
+man har zoomet inn. Ingen feil i konsollen.
+
 ## 2026-09-30: v0.17.0 · Pirater, stjernekart, steiner i bevegelse og skjærelyd
 
 **Ønske:** «8,9, 17 og 22» (punktene i `PLAN.md`: lyd for skjæring, pirater

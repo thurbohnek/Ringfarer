@@ -230,13 +230,24 @@
         <div class="card plate map-card"><div class="hazard"></div>
           <div class="card-head"><h2>Star map · ${esc(game.sys.def.name)}</h2><button class="btn ghost" data-act="close">✕ Close</button></div>
           <div class="map-wrap">
-            <canvas id="map-cv" width="1000" height="1000"></canvas>
+            <div class="map-view">
+              <canvas id="map-cv" width="1000" height="1000"></canvas>
+              <div class="map-tools">
+                <button class="btn small" data-map="in" aria-label="Zoom in">+</button>
+                <button class="btn small" data-map="out" aria-label="Zoom out">−</button>
+                <button class="btn small" data-map="ship">Center on ship</button>
+                <button class="btn small" data-map="fit">Show all</button>
+              </div>
+              <p class="muted small">Mouse wheel or pinch to zoom, drag to move the map.</p>
+            </div>
             <div class="map-sys">${sysRows}
               <p class="muted small">All systems are linked by the gates. Prices show what each station pays per tonne right now. Selling a lot at once pushes the price down.</p>
             </div>
           </div>
           <div class="row"><button class="btn primary" data-act="close" data-autofocus>Back</button></div>
         </div>`);
+      mapView.z = 1; mapView.ox = 0; mapView.oy = 0;
+      bindMap();
       drawMap();
     },
 
@@ -295,6 +306,77 @@
 
   // Kartet over systemet man er i: felt, stasjon, porter, skipet, droner,
   // pirater og skannede steiner med mineraler.
+  // Zoom (z, 1 = hele systemet) og forskyvning (ox, oy i meter) for kartet.
+  const mapView = { z: 1, ox: 0, oy: 0 };
+  let mapFit = null; // grunnutsnittet: midtpunkt og meter per piksel ved z = 1
+
+  // Zoom rundt et punkt på lerretet (px, py i lerretets piksler).
+  function zoomMap(f, px, py) {
+    if (!mapFit) return;
+    const cv = root.querySelector('#map-cv');
+    const W = cv.width, k0 = mapFit.k * mapView.z;
+    const wx = mapFit.cx + mapView.ox + (px - W / 2) / k0, wy = mapFit.cy + mapView.oy + (py - W / 2) / k0;
+    mapView.z = G.clamp(mapView.z * f, 0.6, 60);
+    const k1 = mapFit.k * mapView.z;
+    // Punktet under pekeren blir liggende der det er.
+    mapView.ox = wx - mapFit.cx - (px - W / 2) / k1;
+    mapView.oy = wy - mapFit.cy - (py - W / 2) / k1;
+    drawMap();
+  }
+
+  function bindMap() {
+    const cv = root.querySelector('#map-cv');
+    if (!cv) return;
+    const toCv = (e) => { const r = cv.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * cv.width, y: ((e.clientY - r.top) / r.height) * cv.height, s: cv.width / r.width }; };
+    cv.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const p = toCv(e);
+      zoomMap(Math.exp(-G.clamp(e.deltaY, -120, 120) * 0.0012), p.x, p.y);
+    }, { passive: false });
+    const ptrs = new Map();
+    let pinch = null;
+    cv.style.touchAction = 'none';
+    cv.addEventListener('pointerdown', (e) => {
+      cv.setPointerCapture(e.pointerId);
+      ptrs.set(e.pointerId, toCv(e));
+      if (ptrs.size === 2) {
+        const [a, b] = [...ptrs.values()];
+        pinch = { d: G.len(a.x - b.x, a.y - b.y) };
+      }
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (!ptrs.has(e.pointerId) || !mapFit) return;
+      const prev = ptrs.get(e.pointerId), p = toCv(e);
+      ptrs.set(e.pointerId, p);
+      if (ptrs.size >= 2 && pinch) {
+        const [a, b] = [...ptrs.values()];
+        const d = G.len(a.x - b.x, a.y - b.y);
+        if (pinch.d > 0) zoomMap(d / pinch.d, (a.x + b.x) / 2, (a.y + b.y) / 2);
+        pinch.d = d;
+        return;
+      }
+      const k = mapFit.k * mapView.z;
+      mapView.ox -= (p.x - prev.x) / k;
+      mapView.oy -= (p.y - prev.y) / k;
+      drawMap();
+    });
+    const up = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
+    root.querySelectorAll('[data-map]').forEach((b) => b.addEventListener('click', () => {
+      const W = cv.width, a = b.dataset.map;
+      if (a === 'in') zoomMap(1.6, W / 2, W / 2);
+      else if (a === 'out') zoomMap(1 / 1.6, W / 2, W / 2);
+      else if (a === 'fit') { mapView.z = 1; mapView.ox = 0; mapView.oy = 0; drawMap(); }
+      else if (a === 'ship' && mapFit) {
+        const sb = game.ship.body;
+        mapView.z = Math.max(mapView.z, 4);
+        mapView.ox = sb.x - mapFit.cx; mapView.oy = sb.y - mapFit.cy;
+        drawMap();
+      }
+    }));
+  }
+
   function drawMap() {
     const cv = root.querySelector('#map-cv');
     if (!cv) return;
@@ -305,14 +387,16 @@
     for (const f of def.fields) { pts.push({ x: f.cx - f.rx, y: f.cy - f.rx }); pts.push({ x: f.cx + f.rx, y: f.cy + f.rx }); }
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of pts) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
-    const pad = 300, span = Math.max(x1 - x0, y1 - y0) + pad * 2;
-    const k = W / span, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const pad = 300, span0 = Math.max(x1 - x0, y1 - y0) + pad * 2;
+    mapFit = { k: W / span0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+    const z = mapView.z, k = mapFit.k * z, cx = mapFit.cx + mapView.ox, cy = mapFit.cy + mapView.oy, span = W / k;
     const X = (x) => W / 2 + (x - cx) * k, Y = (y) => H / 2 + (y - cy) * k;
     ctx.fillStyle = '#05070a'; ctx.fillRect(0, 0, W, H);
-    // Rutenett hver kilometer.
+    // Rutenett: hver kilometer, eller finere når man har zoomet inn.
+    const step = span > 6000 ? 1000 : span > 1500 ? 500 : span > 400 ? 100 : 20;
     ctx.strokeStyle = 'rgba(108,196,224,0.08)'; ctx.lineWidth = 1;
-    for (let gx = Math.floor((cx - span / 2) / 1000) * 1000; gx < cx + span / 2; gx += 1000) { ctx.beginPath(); ctx.moveTo(X(gx), 0); ctx.lineTo(X(gx), H); ctx.stroke(); }
-    for (let gy = Math.floor((cy - span / 2) / 1000) * 1000; gy < cy + span / 2; gy += 1000) { ctx.beginPath(); ctx.moveTo(0, Y(gy)); ctx.lineTo(W, Y(gy)); ctx.stroke(); }
+    for (let gx = Math.floor((cx - span / 2) / step) * step; gx < cx + span / 2; gx += step) { ctx.beginPath(); ctx.moveTo(X(gx), 0); ctx.lineTo(X(gx), H); ctx.stroke(); }
+    for (let gy = Math.floor((cy - span / 2) / step) * step; gy < cy + span / 2; gy += step) { ctx.beginPath(); ctx.moveTo(0, Y(gy)); ctx.lineTo(W, Y(gy)); ctx.stroke(); }
     // Asteroidefelt og steinene i dem.
     for (const f of def.fields) {
       ctx.save(); ctx.translate(X(f.cx), Y(f.cy)); ctx.rotate(f.rot);
@@ -328,37 +412,61 @@
       const scanned = RF.Scan.scanned(o, game);
       const c = scanned ? RF.Scan.composition(o, game) : null;
       ctx.fillStyle = c && c.best ? RF.Scan.colorOf(c.best.mat) : 'rgba(160,150,130,0.55)';
-      const r = Math.max(1.5, o.radius * k * (c && c.best ? 1.6 : 1));
+      const r = Math.max(1.5, o.radius * k * (c && c.best && o.radius * k < 6 ? 1.6 : 1));
+      if (X(o.x) < -r || Y(o.y) < -r || X(o.x) > W + r || Y(o.y) > H + r) continue;
       ctx.beginPath(); ctx.arc(X(o.x), Y(o.y), r, 0, Math.PI * 2); ctx.fill();
+      if (c && c.best && z >= 3) {
+        ctx.font = '600 20px "Saira Condensed", sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(`${c.best.name} ${RF.Scan.fmtCr(c.value)}`, X(o.x) + r + 6, Y(o.y) + 6);
+      }
     }
     ctx.textAlign = 'left';
     ctx.font = '600 24px "Saira Condensed", sans-serif';
-    const tag = (x, y, text, col) => { ctx.fillStyle = col; ctx.fillText(text, X(x) + 14, Y(y) + 8); };
+    const tag = (x, y, text, col, dy = 8) => { ctx.fillStyle = col; ctx.fillText(text, X(x) + 14, Y(y) + dy); };
+    // Et legeme i virkelig størrelse (når det er stort nok på kartet).
+    const shape = (o, fill, stroke) => {
+      o.updateWorld();
+      ctx.beginPath();
+      o.wv.forEach((q, i) => (i ? ctx.lineTo(X(q.x), Y(q.y)) : ctx.moveTo(X(q.x), Y(q.y))));
+      ctx.closePath();
+      ctx.fillStyle = fill; ctx.fill();
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+    };
     // Stasjonen og den trygge sonen rundt den.
     ctx.strokeStyle = 'rgba(149,196,106,0.35)'; ctx.setLineDash([4, 6]);
     ctx.beginPath(); ctx.arc(X(sys.station.x), Y(sys.station.y), 600 * k, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = '#95c46a'; ctx.fillRect(X(sys.station.x) - 8, Y(sys.station.y) - 8, 16, 16);
+    if (130 * k > 16) for (const o of sys.station.bodies || []) shape(o, 'rgba(149,196,106,0.35)', '#95c46a');
+    else { ctx.fillStyle = '#95c46a'; ctx.fillRect(X(sys.station.x) - 8, Y(sys.station.y) - 8, 16, 16); }
     tag(sys.station.x, sys.station.y, sys.station.name, '#95c46a');
     for (const g of RF.gatesOf(sys)) {
       ctx.strokeStyle = '#6cc4e0'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(X(g.x), Y(g.y), g.key === 'gate2' ? 12 : 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(X(g.x), Y(g.y), Math.max(g.key === 'gate2' ? 12 : 8, g.R * k), 0, Math.PI * 2); ctx.stroke();
       tag(g.x, g.y, g.name || 'Gate', '#6cc4e0');
     }
     for (const n of sys.npcs || []) {
       if (!n.active) continue;
       ctx.fillStyle = n.T.hostile ? '#e2553d' : n.owner ? '#9dffb0' : '#e6dfcd';
-      ctx.beginPath(); ctx.arc(X(n.body.x), Y(n.body.y), n.T.hostile ? 6 : 4, 0, Math.PI * 2); ctx.fill();
+      if (n.body.radius * k > 8) shape(n.body, ctx.fillStyle);
+      else { ctx.beginPath(); ctx.arc(X(n.body.x), Y(n.body.y), n.T.hostile ? 6 : 4, 0, Math.PI * 2); ctx.fill(); }
       if (n.T.hostile) tag(n.body.x, n.body.y, n.T.name, '#e2553d');
     }
-    // Skipet: hvit pil.
-    ctx.save(); ctx.translate(X(sb.x), Y(sb.y)); ctx.rotate(sb.a);
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, 9); ctx.lineTo(-8, -9); ctx.closePath(); ctx.fill();
-    ctx.restore();
-    tag(sb.x, sb.y + 20, 'You', '#ffffff');
+    // Skipet: omrisset når det er stort nok, ellers en hvit pil.
+    if (sb.radius * k > 14) shape(sb, 'rgba(255,255,255,0.8)', '#ffffff');
+    else {
+      ctx.save(); ctx.translate(X(sb.x), Y(sb.y)); ctx.rotate(sb.a);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, 9); ctx.lineTo(-8, -9); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    tag(sb.x, sb.y, 'You', '#ffffff', Math.max(28, sb.radius * k + 24));
     // Målestokk.
+    const bar = [5000, 2000, 1000, 500, 200, 100, 50, 20, 10].find((m) => m * k <= W * 0.3) || 10;
     ctx.strokeStyle = '#e6dfcd'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(30, H - 30); ctx.lineTo(30 + 1000 * k, H - 30); ctx.stroke();
-    ctx.fillStyle = '#e6dfcd'; ctx.fillText('1 km', 30, H - 40);
+    ctx.beginPath(); ctx.moveTo(30, H - 30); ctx.lineTo(30 + bar * k, H - 30); ctx.stroke();
+    ctx.fillStyle = '#e6dfcd'; ctx.textAlign = 'left';
+    ctx.fillText(bar >= 1000 ? bar / 1000 + ' km' : bar + ' m', 30, H - 40);
+    ctx.textAlign = 'right';
+    ctx.fillText('×' + (z < 10 ? z.toFixed(1) : Math.round(z)), W - 24, H - 30);
+    ctx.textAlign = 'left';
   }
 
   // ---------- Stasjonen ----------
