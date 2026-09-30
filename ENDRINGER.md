@@ -45,6 +45,33 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.17.4 · Tydeligere knapper i verkstedet
+
+**Ønske:** «Må vell stå fyll opp tanken ikke fix fuel, eller noe som er
+bedre passende»
+
+**Hva som er gjort:**
+
+- `js/ui.js`: hver rad i verkstedet (Repairs) har sitt eget ord i stedet
+  for «Fix»:
+
+  | Rad | Knapp | Når det ikke er noe å gjøre |
+  | --- | --- | --- |
+  | Damaged modules | Repair · pris | No damage |
+  | Lost modules | Rebuild · pris | None lost |
+  | Fuel | Refuel · pris | Tank full |
+  | Rockets | Restock · pris | Full, eller No launcher uten rakettkaster |
+
+  Knappen nederst heter «Service all» (før «Fix everything»).
+- `js/news.js`, `index.html`: nyhet og versjon v0.17.4.
+
+**Testet** (Playwright):
+
+- Startskipet med 40 % drivstoff viser «Refuel · 1,620 cr», «No damage»,
+  «None lost», «No launcher» og «Service all (1,620 cr)».
+- Refuel fyller så mye pengene rekker.
+- Ingen feil i konsollen.
+
 ## 2026-09-30: v0.17.3 · Ingen flimring når en asteroide deles
 
 **Ønske:** «Fortsatt noen flinring når man deler en asteroide i to deler»

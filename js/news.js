@@ -10,6 +10,12 @@
 
   RF.NEWS = [
     {
+      v: 'v0.17.4', date: '2026-09-30', title: 'Clearer repair buttons',
+      items: [
+        'The Repairs tab now says what each button does: Repair, Rebuild, Refuel and Restock, and Service all for everything at once.',
+      ],
+    },
+    {
       v: 'v0.17.3', date: '2026-09-30', title: 'No flicker when a rock splits',
       items: [
         'When your cut goes through a rock, the beam now reaches smoothly into the gap instead of flickering between short and long.',

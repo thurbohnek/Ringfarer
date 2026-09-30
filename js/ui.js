@@ -687,18 +687,19 @@
 
   function repairTab() {
     const c = repairCosts();
-    const row = (label, val, cost, act) => `<tr><td>${label}</td><td class="num">${val}</td>
-      <td class="acts"><button class="btn sm" data-act="${act}" ${cost <= 0 || game.credits < 1 ? 'disabled' : ''}>${cost > 0 ? 'Fix · ' + kr(cost) : 'OK'}</button></td></tr>`;
+    // verb = hva knappen gjør, done = hva den viser når det ikke er noe å gjøre.
+    const row = (label, val, cost, act, verb, done = 'OK') => `<tr><td>${label}</td><td class="num">${val}</td>
+      <td class="acts"><button class="btn sm" data-act="${act}" ${cost <= 0 || game.credits < 1 ? 'disabled' : ''}>${cost > 0 ? verb + ' · ' + kr(cost) : done}</button></td></tr>`;
     const lostList = c.lost.length ? `<p class="muted small">Lost modules: ${c.lost.map((m) => esc(RF.MODULES[m.t].name)).join(', ')}</p>` : '';
     return `<div class="table-wrap"><table><tbody>
-      ${row('Damaged modules', c.dmg, c.rep, 'rep-hull')}
-      ${row('Lost modules (rebuild from blueprint)', c.lost.length, c.rebuild, 'rep-lost')}
-      ${row('Fuel', Math.round((game.ship.s.fuel / (game.ship.stats.fuelCap || 1)) * 100) + ' %', c.fuel, 'rep-fuel')}
-      ${row('Rockets', game.ship.s.ammo + ' / ' + game.ship.stats.rocketCap, c.ammo, 'rep-ammo')}
+      ${row('Damaged modules', c.dmg, c.rep, 'rep-hull', 'Repair', 'No damage')}
+      ${row('Lost modules (rebuild from blueprint)', c.lost.length, c.rebuild, 'rep-lost', 'Rebuild', 'None lost')}
+      ${row('Fuel', Math.round((game.ship.s.fuel / (game.ship.stats.fuelCap || 1)) * 100) + ' %', c.fuel, 'rep-fuel', 'Refuel', 'Tank full')}
+      ${row('Rockets', game.ship.s.ammo + ' / ' + game.ship.stats.rocketCap, c.ammo, 'rep-ammo', 'Restock', game.ship.stats.rocketCap ? 'Full' : 'No launcher')}
       </tbody></table></div>
       ${lostList}
       <p class="muted small">The blueprint is the ship as it was when you last left a station or changed equipment.</p>
-      <div class="row"><button class="btn" data-act="rep-all" ${c.rep + c.rebuild + c.fuel + c.ammo <= 0 ? 'disabled' : ''}>Fix everything (${kr(c.rep + c.rebuild + c.fuel + c.ammo)})</button></div>`;
+      <div class="row"><button class="btn" data-act="rep-all" ${c.rep + c.rebuild + c.fuel + c.ammo <= 0 ? 'disabled' : ''}>Service all (${kr(c.rep + c.rebuild + c.fuel + c.ammo)})</button></div>`;
   }
 
   // ---------- Utstyr ----------
