@@ -159,6 +159,10 @@
     b.shiftOrigin(cx, cy);
     if (b.craters) for (const c of b.craters) { c.x -= cx; c.y -= cy; }
     const ws = RF.game && RF.game.sys && RF.game.sys.world;
+    // Punkter som er festet til steinen (autopiloten og låst sikte) flyttes med.
+    const gm = RF.game;
+    if (gm && gm.ship && gm.ship.nav && gm.ship.nav.body === b && gm.ship.nav.l) { gm.ship.nav.l.x -= cx; gm.ship.nav.l.y -= cy; }
+    if (gm && gm.aimLock && gm.aimLock.body === b) { gm.aimLock.l.x -= cx; gm.aimLock.l.y -= cy; }
     if (ws) for (const r of ws.ropes) {
       if (r.B === b) { r.lb.x -= cx; r.lb.y -= cy; }
       if (r.A === b) { r.la.x -= cx; r.la.y -= cy; }

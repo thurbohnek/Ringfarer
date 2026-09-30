@@ -248,6 +248,7 @@
         ctx.stroke();
       }
     }
+    if (!ship.docked && !game.dead && RF.Scan) RF.Scan.drawHud(ctx, R, game);
     if (!ship.docked) {
       edgeMarker(ctx, game, R, game.sys.station.x, game.sys.station.y, game.sys.station.name, C.ok);
       // Har man panorert bort fra skipet, viser en pil hvor det er.
@@ -294,7 +295,12 @@
     ctx.fillText(spd.toFixed(1) + ' m/s', 16, top + 53);
     ctx.font = F.label;
     ctx.fillStyle = ship.fa ? C.gate : C.amber;
-    ctx.fillText('ASSIST ' + ['OFF', 'ROT', 'FULL'][ship.fa], 84, top + 53);
+    const assist = 'ASSIST ' + ['OFF', 'ROT', 'FULL'][ship.fa];
+    ctx.fillText(assist, 84, top + 53);
+    if (ship.nav && ship.nav.hold) {
+      ctx.fillStyle = C.ok;
+      ctx.fillText('HOLD', 84 + ctx.measureText(assist).width + 8, top + 53);
+    }
     const active = game.missions.filter((m) => m.status === 'aktiv').length;
     if (active) {
       ctx.fillStyle = C.muted;

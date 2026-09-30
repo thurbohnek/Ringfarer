@@ -407,6 +407,7 @@
 
       // 4. Selvlysende.
       this.worldTransform(ctx, game, this.dpr);
+      if (RF.Scan) RF.Scan.drawWorld(ctx, game, this.px);
       for (const g of RF.gatesOf(sys)) this.drawGateGlow(g, game.time, vis);
       // Skipet foran horisonten tegnes oppå den, så det ser ut som det glir inn.
       const inGate = shipLive && this.gateClip(ctx, game, ship.body);

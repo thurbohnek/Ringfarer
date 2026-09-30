@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.16.0', date: '2026-09-30', title: 'Scanner, values and hold position',
+      items: [
+        'Press N (or SCAN) to send out a scanner pulse. Rocks with minerals get a colored ring and a label with what they are worth.',
+        'Point at a rock or a loose piece to see what it holds and roughly what it is worth. It also tells you if you need a stronger laser.',
+        'Press B to hold position next to an asteroid. The ship follows the rock while you cut. A/D turns the ship, B again or thrusting releases it.',
+        'New module: Deep scanner, which reaches 2 km instead of 700 m.',
+      ],
+    },
+    {
       v: 'v0.15.0', date: '2026-09-30', title: 'The laser is a cutting beam',
       items: [
         'The mining laser now cuts a thin groove instead of knocking out chunks. Hold it on a line and it slices through the rock.',

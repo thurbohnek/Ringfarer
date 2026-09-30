@@ -66,6 +66,10 @@
 - Rett over lenkene til spillet (som står helt sist) skal hvert svar ha en
   markert kopi av brukerens siste melding (sitatblokk med overskriften
   «Siste melding fra deg»), så brukeren ser hva forrige forespørsel var.
+- Planen i `PLAN.md` vises i hvert svar som en meny som kan foldes ut og inn
+  (`<details>` med `<summary>`), rett over statuslinjen. Nummerert etter
+  prioritet. Ferdige punkter strykes over (`~~tekst~~`) både i menyen og i
+  `PLAN.md`, med versjonen de kom i. Nye forslag legges til nederst.
 - Nederst i hvert svar (rett over sitatet og lenkene) skal det stå en tydelig
   statuslinje for versjonene: 🟢 for versjonen som er pushet og publisert,
   og 🔴 for en versjon som ligger i koden, men ikke er pushet ennå (med

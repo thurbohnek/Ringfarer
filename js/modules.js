@@ -72,6 +72,8 @@
       desc: 'Lights up 110 meters ahead.' },
     light2: { name: 'Floodlight', cat: 'Tools', mass: 700, hp: 40, cost: 900, mount: true, light: 200, unlock: 1,
       desc: 'Lights up 200 meters ahead.' },
+    scanner: { name: 'Deep scanner', cat: 'Tools', mass: 350, hp: 35, cost: 2800, scan: 2000, unlock: 1,
+      desc: 'Scanner pulse reaches 2 km instead of 700 m. Press N to scan for minerals.' },
     navcomp: { name: 'Navigation computer', cat: 'Tools', mass: 400, hp: 40, cost: 3500, nav: true, unlock: 2,
       desc: 'Lets the autopilot plot a course around asteroids, stations and ships on the way to the target.' },
     // Store moduler (size = hvor mange ruter de tar på hver led). De fyller
@@ -408,7 +410,7 @@
     const st = {
       thrust: 0, thrusters: [], rcs: 0, rcsList: [], fuelCap: 0, hold: 0, shieldMax: 0, proc: 800, yield: 1,
       lasers: [], drills: [], guns: [], rockets: [], anchors: [], tractors: [], lights: [], bays: 0, hpMax: 0, hp: 0, blocked: [],
-      pax: 0, cryo: 0, life: 6, locks: 0, power: 0, bayS: 0, hangars: 0, clamps: 0, bayPer: 1,
+      pax: 0, cryo: 0, life: 6, locks: 0, power: 0, bayS: 0, hangars: 0, clamps: 0, bayPer: 1, scanRange: 700,
     };
     for (const m of layout) {
       const D = RF.MODULES[m.t];
@@ -435,6 +437,7 @@
       if (m.t === 'hangar') st.hangars++;
       if (m.t === 'droneclamp') { m.cdir = RF.clampDir(layout, m); if (m.cdir >= 0) st.clamps++; }
       if (D.nav) st.navcomp = true;
+      if (D.scan && !blocked) st.scanRange = Math.max(st.scanRange, D.scan);
       if (D.pax) st.pax += D.pax;
       if (D.cryo) st.cryo += D.cryo;
       if (D.life) st.life += D.life;

@@ -242,6 +242,8 @@
       ${k(['C', 'V'], 'Winch in / pay out cable')}
       ${k(['F'], 'Tractor beam on/off')}
       ${k(['K'], 'Launch / recall drones')}
+      ${k(['N'], 'Scan for minerals (hover a rock to see what it holds)')}
+      ${k(['B'], 'Hold position next to the asteroid (steer with A/D, B again to release)')}
       ${k(['L'], 'Work lights on/off')}
       ${k(['Z'], 'Flight assist')}
       ${k(['T', 'G'], 'Dock / dial the gate')}

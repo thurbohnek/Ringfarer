@@ -43,6 +43,63 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-09-30: v0.16.0 · Skanner, verdi på biter og hold posisjon
+
+**Ønske:** «Bra. Ta for deg 1-3. Så kan du lage listen i en meny som jeg kan
+ekspandere inn og ut og etter hver punkt kan du markere hva som er gjort med
+en strek over teksten.»
+
+Punkt 1–3 i planen: skanner for mineraler, verdi på løse biter og malm, og
+hold posisjon ved en stein.
+
+**Hva som er gjort:**
+
+- Ny fil `js/scan.js` (`RF.Scan`):
+  - `composition`: hva en stein eller bit består av (masse per materiale) og
+    hva mineralene er verdt, med salgsprisen i systemet og skipets utbytte.
+    Gråstein har ingen verdi.
+  - Skannerpuls (tasten N, knappen SCAN på mobil): en ring brer seg ut
+    (700 m, 2 km med dypskanner). Steiner den når, blir skannet og viser i
+    45 sekunder en farget, stiplet ring og en merkelapp med det mest
+    verdifulle mineralet og samlet verdi. Maks 8 merkelapper på skjermen,
+    de mest verdifulle først. Melding til slutt, for eksempel «Scan: 34
+    rocks with minerals, about 3.5M cr». 3 sekunder mellom hver puls.
+  - Merkelapp når musen er over en stein eller bit, eller når siktet er låst
+    på den (mobil): masse, mineraler med prosent og verdi, og samlet verdi.
+    Uskannede asteroider sier «Scan (N) to see minerals». Løse biter og malm
+    vises alltid.
+  - Merkelappene sier fra når mineralet trenger en sterkere laser, for
+    eksempel «needs laser T2».
+- `js/modules.js`, `js/shipdraw.js`: ny modul Deep scanner (2 km
+  rekkevidde, 2 800 cr), med egen tegning. `scanRange` i skipsdataene.
+- `js/game.js`:
+  - Hold posisjon (tasten B, knappen HOLD POSITION i menyen på mobil). Skipet
+    legger seg der det er og følger steinen man peker på, ellers den
+    nærmeste. Den følger også når steinen driver og snur seg, og holder
+    samme vinkel til steinen.
+  - Under hold snur A/D (eller styrespaken) skipet uten å slippe. W, S, Q, E
+    eller B igjen slipper («Hold released»).
+  - `game.pickBody` kan brukes av andre filer.
+- `js/voxel.js`: når en stein bygges på nytt og tyngdepunktet flyttes,
+  flyttes også punktet autopiloten holder og et låst sikte. Før kunne de
+  hoppe når man skar i steinen.
+- `js/hud.js`: «HOLD» i panelet øverst til venstre, og merkelappene fra
+  skanneren.
+- `js/render.js`: pulsringen og ringene rundt skannede steiner.
+- `js/ui.js`: N og B i hjelpen. `index.html`: `scan.js`, knappene SCAN og
+  HOLD POSITION, og versjon v0.16.0. `js/news.js`: nyhet.
+- `PLAN.md`: den prioriterte listen, med punkt 1–3 strøket over.
+  `CLAUDE.md`: planen vises som en meny som kan foldes ut i hvert svar.
+
+**Testet** (Playwright, startskipet):
+
+- Skann: 34–43 steiner med mineraler innen 700 m, med ringer og merkelapper.
+- Musen over en stein: «Asteroid · 910 t, Ice 11 % · 3,075 cr».
+- Hold ved en stein som ble dyttet (3,6 m/s) og snurret, mens laseren skar i
+  den i 12 sekunder: skipet holdt seg innenfor 0,1–1,8 m av punktet og
+  samme vinkel til steinen. W slapp.
+- Dronene og gruvetesten virker som før. Ingen feil i konsollen.
+
 ## 2026-09-30: v0.15.0 · Laseren er en skjærestråle, og mineralene synes
 
 **Ønske:** «Ønsker egentlig at laseren fungerer mere som en slags kutte stråle.

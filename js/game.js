@@ -365,6 +365,7 @@
   // Trykker man på en stein (eller et annet legeme), låses siktet til det
   // punktet på steinen og følger den mens den driver og snurrer. På mobil blir
   // siktet stående der man sist trykket, også etter at fingeren er løftet.
+  game.pickBody = (x, y) => pickBody(x, y);
   function pickBody(x, y) {
     const tol = 14 / game.cam.zoom;
     let best = null, bd = Infinity;
@@ -465,6 +466,32 @@
       game.aimWorld = wp;
     } else game.aim = game.aimWorld || ship.body.toWorld(ship.noseX + 80, 0);
   }
+
+  // Hold posisjon: skipet ligger stille der det er. Er det en stein i
+  // nærheten, følger skipet steinen (også når den driver eller snur seg), så
+  // man kan skjære i ro. A/D snur skipet, W/S/Q/E eller B igjen slipper.
+  game.toggleHold = () => {
+    const ship = game.ship, b = ship.body;
+    if (ship.docked || game.dead) return;
+    if (ship.nav && ship.nav.hold) {
+      ship.nav = null;
+      game.msg('Hold released', RF.HUD_COLORS.amber);
+      Audio.blip(500, 0.05, 'sine', 0.06);
+      return;
+    }
+    // Steinen man peker på eller har låst siktet på, ellers den nærmeste.
+    const hv = RF.Scan.hoverBody(game);
+    let near = null, nd = 150;
+    if (hv && hv.kind === 'rock' && hv.radius >= 4 && G.len(hv.x - b.x, hv.y - b.y) - hv.radius - b.radius < 250) near = hv;
+    else for (const o of game.sys.world.bodies) {
+      if (o.kind !== 'rock' || o.dead || o.radius < 4) continue;
+      const d = G.len(o.x - b.x, o.y - b.y) - o.radius - b.radius;
+      if (d < nd) { nd = d; near = o; }
+    }
+    ship.nav = { x: b.x, y: b.y, body: near, l: near ? near.toLocal(b.x, b.y) : null, arrived: true, hold: true, heading: b.a, headRel: near ? b.a - near.a : 0 };
+    game.msg(near ? 'Holding position at the asteroid. B to release' : 'Holding position. B to release', RF.HUD_COLORS.ok);
+    Audio.blip(760, 0.06, 'sine', 0.07);
+  };
 
   // Autopilot: fly til et punkt og stopp der. Ligger punktet like ved en
   // stein, følger målet steinen mens den driver.
@@ -623,9 +650,12 @@
     const near = navc && N.clear != null && N.clear < 20;
     // Nær en hindring snur skipet bare sakte (tuppen av skroget maks 2,5 m/s).
     const hx = rvx + (dx / dl) * 3, hy = rvy + (dy / dl) * 3;
-    const aim = d > 30 && !N.arrived && !N.rotate ? Math.atan2(hy, hx) : N.heading != null ? N.heading : null;
-    const maxW = near ? Math.max(0.1, 2.5 / R) : null;
-    return Object.assign({}, inp, { accel: { x: ax, y: ay }, aim, aimThrust: 0, maxW });
+    let aim = d > 30 && !N.arrived && !N.rotate ? Math.atan2(hy, hx) : N.heading != null ? N.heading : null;
+    if (N.hold) aim = N.body ? N.body.a + N.headRel : N.heading;
+    const maxW = near || N.hold ? Math.max(0.1, 2.5 / R) : null;
+    const out = Object.assign({}, inp, { accel: { x: ax, y: ay }, aim, aimThrust: 0, maxW });
+    if (N.hold) out.turn = 0;
+    return out;
   }
 
   // --- Gruvedrift ---
@@ -1226,6 +1256,8 @@
     }
     if (Input.hit('KeyX')) RF.Weapons.fireHarpoon(ship, game);
     if (Input.hit('KeyK')) game.launchDrones();
+    if (Input.hit('KeyN')) RF.Scan.pulse(game);
+    if (Input.hit('KeyB')) game.toggleHold();
     const tools = { Digit1: 'laser', Digit2: 'kanon', Digit3: 'rakett', Digit4: 'anker' };
     for (const k in tools) if (Input.hit(k)) game.selectTool(tools[k]);
     if (Input.hit('ToolNext')) game.selectTool(RF.TOOLS[(RF.TOOLS.indexOf(ship.tool) + 1) % RF.TOOLS.length]);
@@ -1255,16 +1287,30 @@
     const ship = game.ship;
     let inp = RF.UI.isOpen() || game.dead || ship.docked ? { thrust: 0, turn: 0, strafe: 0, laser: false } : Input.state();
     // Autopiloten flyr til målet til man styrer selv.
+    // Hold posisjon: A/D (eller styrespaken) snur skipet uten å slippe.
+    const N0 = ship.nav;
+    if (N0 && N0.hold && !ship.docked && !game.dead) {
+      if (inp.turn) {
+        const k = inp.turn * dt * 0.6;
+        if (N0.body) N0.headRel += k; else N0.heading += k;
+        inp = Object.assign({}, inp, { turn: 0 });
+      }
+      if (inp.aim != null) {
+        if (N0.body) N0.headRel = inp.aim - N0.body.a; else N0.heading = inp.aim;
+        inp = Object.assign({}, inp, { aim: null });
+      }
+    }
     if (ship.nav && !ship.docked && !game.dead) {
       if (inp.thrust || inp.turn || inp.strafe || inp.brake || inp.aim != null) {
+        game.msg(ship.nav.hold ? 'Hold released' : 'Autopilot off', RF.HUD_COLORS.amber);
         ship.nav = null;
-        game.msg('Autopilot off', RF.HUD_COLORS.amber);
       } else if (!RF.UI.isOpen()) inp = navInput(inp);
     }
     if (!ship.docked && !game.dead) updateFlight(dt, inp);
     else if (ship.docked) ship.updateShield(dt);
     for (const n of game.sys.npcs.slice()) n.update(dt, game);
     RF.Weapons.update(dt, game);
+    RF.Scan.update(dt, game);
     updateGate(dt);
     game.sys.world.step(dt);
   }

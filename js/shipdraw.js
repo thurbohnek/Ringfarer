@@ -334,6 +334,14 @@
       for (let i = 0; i < 4; i++) { ctx.fillStyle = '#5a2a10'; ctx.fillRect(-0.55 + i * 0.3, -0.45, 0.16, 0.9); }
       label(ctx, -0.75, 0.65);
     },
+    scanner(ctx, exp) {
+      block(ctx, exp, 'light');
+      circle(ctx, 0, 0, 0.8, '#2a2c30');
+      circle(ctx, 0, 0, 0.64, '#1b2a2a', '#16181a');
+      ctx.strokeStyle = '#78e6d2'; ctx.lineWidth = 0.06;
+      for (const r of [0.22, 0.4, 0.56]) { ctx.beginPath(); ctx.arc(0, 0, r, -0.9, 0.9); ctx.stroke(); }
+      circle(ctx, 0, 0, 0.1, '#78e6d2');
+    },
     navcomp(ctx, exp) {
       block(ctx, exp, 'light');
       circle(ctx, 0, 0, 0.78, '#2a2c30');
@@ -722,6 +730,16 @@
           ctx.fillStyle = g; ctx.fill();
           ctx.strokeStyle = 'rgba(25,22,18,0.7)'; ctx.lineWidth = 0.04; ctx.stroke();
         }
+        break;
+      }
+      case 'scanner': {
+        // Dypskanner: flat antenneskål med lysende ringer.
+        circle(ctx, 0.12, 0.14, 0.74, 'rgba(0,0,0,0.35)');
+        circle(ctx, 0, 0, 0.72, '#b9b3a4', '#1d1b17');
+        circle(ctx, 0, 0, 0.56, '#23302f', '#1d1b17');
+        ctx.strokeStyle = '#78e6d2'; ctx.lineWidth = 0.05;
+        for (const r of [0.2, 0.36, 0.5]) { ctx.beginPath(); ctx.arc(0, 0, r, -0.9, 0.9); ctx.stroke(); }
+        circle(ctx, 0, 0, 0.09, '#b8fff2');
         break;
       }
       case 'navcomp': {
