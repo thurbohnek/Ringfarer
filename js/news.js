@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.21.0', date: '2026-10-01', title: 'Stations that grow',
+      items: [
+        'Stations now have five levels. They grow from the trading, servicing and contracts you do there, and you can invest money directly in the new Station tab.',
+        'Each level gives better prices, cheaper repairs and fuel, and a bigger shield. The station gets habitat pods, a rotating ring, defense turrets and longer solar wings.',
+        'The Follow ship button is now a small button under the radar.',
+        'Space dust only streaks while the camera follows your ship, not while you pan around.',
+      ],
+    },
+    {
       v: 'v0.20.0', date: '2026-09-30', title: 'Station shields',
       items: [
         'Every station has a deflector shield. Rocks, comets, ore and wreckage heading for it are slowed and pushed away, and the shield flares where they hit.',

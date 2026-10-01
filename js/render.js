@@ -300,21 +300,15 @@
       while ((vw * vh) / (C * C) > 700) C *= 3;
       const x0 = Math.floor((cam.x - vw / 2) / C), x1 = Math.floor((cam.x + vw / 2) / C);
       const y0 = Math.floor((cam.y - vh / 2) / C), y1 = Math.floor((cam.y + vh / 2) / C);
-      // Stripene viser hvordan bildet beveger seg: kameraets fart, ikke
-      // skipets. Følger kameraet skipet, blir det det samme. Står kameraet
-      // stille, blir støvet bare prikker selv om skipet flyr.
-      // Rystelser (smell og kollisjoner) teller ikke med.
-      const cx = cam.bx != null ? cam.bx : cam.x, cy = cam.by != null ? cam.by : cam.y;
-      const now = performance.now() / 1000, Cv = this._camVel || (this._camVel = { x: cx, y: cy, t: now, vx: 0, vy: 0 });
-      const cdt = now - Cv.t;
-      if (cdt > 0.001) {
-        const k = Math.min(1, cdt * 8);
-        const ivx = cdt < 0.25 ? (cx - Cv.x) / cdt : 0, ivy = cdt < 0.25 ? (cy - Cv.y) / cdt : 0;
-        // Et hopp (ny plassering, portreise) gir ikke striper.
-        const jump = Math.hypot(ivx, ivy) > 400;
-        Cv.vx += ((jump ? 0 : ivx) - Cv.vx) * k; Cv.vy += ((jump ? 0 : ivy) - Cv.vy) * k;
-        Cv.x = cx; Cv.y = cy; Cv.t = now;
-      }
+      // Striper bare når kameraet følger skipet: da viser de skipets fart.
+      // Står kameraet fritt (også mens man panorerer), er støvet prikker.
+      const sb = game.ship && game.ship.body;
+      const follow = !game.camFree && sb && !game.ship.docked;
+      const tvx = follow ? sb.vx : 0, tvy = follow ? sb.vy : 0;
+      const now = performance.now() / 1000, Cv = this._camVel || (this._camVel = { t: now, vx: 0, vy: 0 });
+      const k = Math.min(1, Math.max(0, now - Cv.t) * 6);
+      Cv.t = now;
+      if (follow) { Cv.vx += (tvx - Cv.vx) * k; Cv.vy += (tvy - Cv.vy) * k; } else { Cv.vx = 0; Cv.vy = 0; }
       const vx = Cv.vx, vy = Cv.vy, sp = Math.hypot(vx, vy);
       const shutter = 0.07; // sekunder «eksponering» for stripene
       const px = 1 / z;
@@ -1118,7 +1112,7 @@
     }
 
     drawStation(st, game, vis) {
-      if (!vis(st.x, st.y, 130)) return;
+      if (!vis(st.x, st.y, 160)) return;
       const ctx = this.ctx, t = game.time;
       ctx.save();
       ctx.translate(st.x, st.y);
@@ -1152,6 +1146,8 @@
         ctx.strokeStyle = '#1a1814'; ctx.lineWidth = Math.max(0.4, px * 1.5);
         ctx.strokeRect(-40, y0, 80, 66);
       }
+      // Deler som kommer når stasjonen vokser (under navet).
+      RF.Stations.drawExtras(ctx, st, game, px, true);
       // Antennemast med parabol og lasteport for arbeidsskipene.
       ctx.fillStyle = '#4a463e';
       ctx.fillRect(-74, -4, 38, 8);
@@ -1218,13 +1214,14 @@
       dg.addColorStop(1, '#122a30');
       ctx.fillStyle = dg;
       ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+      RF.Stations.drawExtras(ctx, st, game, px, false);
       ctx.restore();
     }
 
     // Stasjonsskjoldet: en svak, blålig kant som nesten ikke synes, og glimt
     // der noe treffer. Nærforsvarslaserne tegnes som korte stråler.
     drawStationShield(st, game, vis) {
-      const S = RF.STATION_SHIELD, R = S.R;
+      const R = RF.Stations.shieldR(st);
       if (!vis(st.x, st.y, R + 20)) return;
       const ctx = this.ctx, t = game.time, fx = st.shieldFx;
       ctx.save();

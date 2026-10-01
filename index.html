@@ -76,10 +76,15 @@
   .card-head h2 { margin: 0; }
   .card.narrow { width: min(420px, 100%); }
   .card.map-card { width: min(1040px, 100%); }
-  .cam-follow { position: fixed; left: 50%; transform: translateX(-50%); bottom: 104px; z-index: 5; padding: 8px 16px; }
-  .cam-follow.touch { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 230px); }
-  .cam-follow kbd { font-size: 11px; opacity: 0.7; margin-left: 6px; }
-  .cam-follow.touch kbd { display: none; }
+  .st-level .lvl-bar { height: 10px; background: #0c0b09; border: 1px solid rgba(0,0,0,0.6); margin: 6px 0 8px; }
+  .st-level .lvl-bar i { display: block; height: 100%; background: linear-gradient(90deg, #6cc4e0, #95c46a); }
+  .st-level .perks { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+  .st-level .perks li { padding: 8px 10px; border: 1px solid rgba(0,0,0,0.5); background: rgba(0,0,0,0.2); opacity: 0.6; }
+  .st-level .perks li.done { opacity: 1; border-color: rgba(149,196,106,0.6); }
+  .st-level .row { flex-wrap: wrap; gap: 8px; }
+  .btn.cam-follow { position: fixed; right: 12px; top: 100px; z-index: 5; padding: 4px 9px; font-size: 11px; letter-spacing: 0.08em; min-height: 0; line-height: 1.4; }
+  .btn.cam-follow kbd { font-size: 10px; opacity: 0.7; margin-left: 4px; }
+  .btn.cam-follow.touch kbd { display: none; }
   .vol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .vol-row .btn { min-width: 52px; }
   .map-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
@@ -437,17 +442,17 @@
   </div>
 </div>
 
-<button id="cam-follow" class="btn primary cam-follow" hidden onclick="RF.game.followShip()">◎ Follow ship <kbd>O</kbd></button>
+<button id="cam-follow" class="btn primary cam-follow" hidden onclick="RF.game.followShip()" title="Camera follows the ship again">◎ Ship <kbd>O</kbd></button>
 
 <div id="panel" hidden></div>
 
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.20.0 · 2026-09-30';
+  window.RF_VERSION = 'v0.21.0 · 2026-10-01';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
-    var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'missions', 'input', 'audio',
+    var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'stations', 'missions', 'input', 'audio',
       'render', 'sky', 'shipdraw', 'weapons', 'hud', 'ui', 'game'];
     var i = 0;
     (function next() {

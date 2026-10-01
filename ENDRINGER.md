@@ -45,6 +45,61 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-10-01: v0.21.0 · Stasjoner som vokser, mindre kameraknapp og striper bare når kameraet følger skipet
+
+**Ønske:** «Follow ship tar for mye plass. Når man panorer så blir det
+striper som om at man drar raskt. Den effekten skal bare komme når man er på
+follow ship eller når kameraet følger objekter som beveger seg i rommet.
+Romstasjonen trenger oppgradering. Så kanskje nr35»
+
+**Hva som er gjort:**
+
+- **Knappen for å følge skipet** (`index.html`): en liten knapp «◎ Ship O»
+  rett under radaren øverst til høyre, i stedet for den store knappen
+  nederst på midten. Vises fortsatt bare når kameraet står fritt.
+- **Støvstriper** (`js/render.js`, `drawDust`): stripene vises bare når
+  kameraet følger skipet, og viser da skipets fart. Når man panorerer eller
+  kameraet står fritt, er støvet prikker med en gang.
+- **Stasjoner som vokser** (ny fil `js/stations.js`, punkt 35):
+  - Fem nivåer: Outpost, Station, Hub, Port og Citadel. Grensene er 20 000,
+    60 000, 150 000 og 350 000 cr.
+  - Stasjonen vokser av pengene du handler for der (salg og kjøp av varer,
+    reparasjon, drivstoff og raketter), av fullførte oppdrag og av penger du
+    investerer direkte.
+  - Hvert nivå over 1 gir:
+    - 2 % bedre priser, både når du selger og når du kjøper.
+    - 5 % billigere service.
+    - 30 m større skjold (fra 240 til 360 m).
+  - Nye deler på stasjonen, med kollisjon:
+    - **Nivå 2:** fire boligmoduler på skrå, med lysende vinduer og stag.
+    - **Nivå 3:** en roterende ring rundt navet.
+    - **Nivå 4:** forsvarstårn på modulene, som sikter mot det
+      nærforsvaret skyter på. Nærforsvaret skyter dobbelt så ofte.
+    - **Nivå 5:** forlengede solpaneler og et blinkende fyr.
+  - Delene står unna dokkingsarmen og lasteporten, så trafikken går som
+    før.
+  - Ny fane «Station» i stasjonsmenyen. Den viser nivå, en måler mot neste
+    nivå og hva hvert nivå gir, med knappene «Invest» (10 000 og 50 000 cr)
+    og «Fund next level».
+  - Melding og lyd når stasjonen går opp et nivå.
+  - Nivåene lagres med karrieren (`stationXP`).
+- `js/game.js`, `js/weapons.js`, `js/ui.js`: priser, skjoldradius,
+  nærforsvar, service, XP fra handel og oppdrag.
+- `PLAN.md`: punkt 35 er strøket over.
+- `js/news.js`, `index.html`: nyhet og versjon v0.21.0.
+
+**Testet** (Playwright):
+
+- Fire investeringer tok Midgard fra nivå 1 til 5. Kobber: salg 144 → 155
+  cr/t, kjøp 173 → 159 cr/t. Skjoldet 360 m. Riktig antall
+  kollisjonsdeler (13), også etter lagring og innlasting.
+- Bilde av stasjonen på nivå 5 med alle delene.
+- Støvstriper: med kameraet som følger skipet, 40 m/s. Mens man panorerer
+  og med fritt kamera, 0.
+- Den lille knappen ligger under radaren.
+- Fritt kamera, skjold, pirater, kart og droner virker som før. Ingen feil i
+  konsollen.
+
 ## 2026-09-30: v0.20.0 · Skjold rundt stasjonene
 
 **Ønske:** «Nr35. Stasjoner må ha en beskyttelse for objekter som kollidere

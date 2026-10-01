@@ -490,19 +490,21 @@
     verft: 'M3 13l4-6h10l4 6-4 5H7z M9 10h6 M8 13h8',
     droner: 'M8 12h8 M12 9v6 M5 6a2 2 0 1 0 0 .1 M19 6a2 2 0 1 0 0 .1 M5 18a2 2 0 1 0 0 .1 M19 18a2 2 0 1 0 0 .1 M7 8l3 3 M17 8l-3 3 M7 16l3-3 M17 16l-3-3',
     oppdrag: 'M7 4h10v16H7z M9 8h6 M9 12h6 M9 16h4',
+    stasjon: 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M5 5l3 3 M19 19l-3-3 M19 5l-3 3 M5 19l3-3',
   };
   const icon = (id) => `<svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="${ICONS[id]}"/></svg>`;
 
   function renderStation() {
     const ship = game.ship, s = ship.s, st = ship.docked;
     if (!st) return;
-    const tabs = [['marked', 'Market'], ['verksted', 'Repairs'], ['utstyr', 'Equipment'], ['verft', 'Shipyard'], ['droner', 'Drones'], ['oppdrag', 'Contracts']];
+    const tabs = [['marked', 'Market'], ['verksted', 'Repairs'], ['utstyr', 'Equipment'], ['verft', 'Shipyard'], ['droner', 'Drones'], ['oppdrag', 'Contracts'], ['stasjon', 'Station']];
     let body = '';
     if (tab === 'marked') body = marketTab(st);
     else if (tab === 'verksted') body = repairTab();
     else if (tab === 'utstyr') body = gearTab();
     else if (tab === 'verft') body = yardTab();
     else if (tab === 'droner') body = droneTab();
+    else if (tab === 'stasjon') body = stationTab(st);
     else body = missionsTab(st);
     const scroll = root.querySelector('.tab-body');
     const y = scroll ? scroll.scrollTop : 0;
@@ -684,6 +686,21 @@
     return (s.blueprint || []).filter((m) => !have.has(m.x + ',' + m.y));
   }
 
+  // Stasjonens nivå: fremgang, fordeler og investering.
+  function stationTab(st) {
+    const S = RF.Stations, L = S.level(st.id), pr = S.progress(st.id);
+    const rows = S.PERKS.map((p, i) => `<li class="${i < L ? 'done' : ''}"><b>Level ${i + 1} · ${S.NAMES[i]}</b><br><span class="muted small">${esc(p)}</span></li>`).join('');
+    const inv = [10000, 50000, pr.need].filter((v, i, a) => v > 0 && a.indexOf(v) === i)
+      .map((v) => `<button class="btn" data-act="invest" data-id="${v}" ${game.credits < v ? 'disabled' : ''}>${v === pr.need ? 'Fund next level' : 'Invest'} · ${kr(v)}</button>`).join('');
+    return `<div class="st-level">
+      <p class="eyebrow">Level ${L} of ${S.MAX} · ${S.NAMES[L - 1]}</p>
+      <div class="lvl-bar"><i style="width:${Math.round(pr.f * 100)}%"></i></div>
+      <p class="muted small">${L >= S.MAX ? 'Fully upgraded.' : `${kr(pr.need)} more to level ${L + 1}.`} The station grows from the trade you do here (selling, buying and contracts) and from money you invest.</p>
+      ${L < S.MAX ? `<div class="row">${inv}</div>` : ''}
+      <ul class="perks">${rows}</ul>
+    </div>`;
+  }
+
   function repairCosts() {
     const ship = game.ship, s = ship.s, st = ship.stats;
     let rep = 0, dmg = 0;
@@ -693,7 +710,8 @@
     // Drivstoff koster mindre per kilo jo større skipet er (kjøpes i bulk).
     const fuel = ((st.fuelCap - s.fuel) * 0.9) / (st.scale || 1) ** 2;
     const ammo = (st.rocketCap - s.ammo) * 120;
-    return { rep: Math.ceil(rep), dmg, lost, rebuild, fuel: Math.ceil(fuel), ammo };
+    const d = RF.Stations.serviceMul(ship.docked.id);
+    return { rep: Math.ceil(rep * d), dmg, lost, rebuild: Math.ceil(rebuild * d), fuel: Math.ceil(fuel * d), ammo: Math.ceil(ammo * d) };
   }
 
   function repairTab() {
@@ -1076,6 +1094,7 @@
         const amt = s.cargo[id];
         const got = amt * game.sellPrice(st.id, id);
         game.credits += got;
+        RF.Stations.gain(st.id, got);
         s.cargo[id] = 0;
         game.msg(`Sold ${tonn(amt)} of ${RF.PRODUCTS[id].name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
         after();
@@ -1085,13 +1104,24 @@
         let got = 0;
         for (const k in s.cargo) { got += s.cargo[k] * game.sellPrice(st.id, k); s.cargo[k] = 0; }
         game.credits += got;
+        RF.Stations.gain(st.id, got);
         game.msg(`Sold the whole cargo for ${kr(got)}`, RF.HUD_COLORS.ok);
         after();
         break;
       }
       case 'buy': {
         const p = game.buyPrice(st.id, id);
-        if (game.credits >= p && ship.holdFree() >= 1) { game.credits -= p; s.cargo[id] += 1; }
+        if (game.credits >= p && ship.holdFree() >= 1) { game.credits -= p; s.cargo[id] += 1; RF.Stations.gain(st.id, p); }
+        after();
+        break;
+      }
+      case 'invest': {
+        const v = +id;
+        if (game.credits >= v) {
+          game.credits -= v;
+          RF.Stations.gain(st.id, v);
+          game.msg(`Invested ${kr(v)} in ${st.name}`, RF.HUD_COLORS.ok);
+        }
         after();
         break;
       }
@@ -1164,34 +1194,36 @@
   function repair(what) {
     const ship = game.ship, s = ship.s, st = ship.stats;
     const items = what === 'all' ? ['hull', 'lost', 'fuel', 'ammo'] : [what];
+    const d = RF.Stations.serviceMul(ship.docked.id), c0 = game.credits;
     for (const it of items) {
       if (it === 'hull') {
         for (const m of s.layout) {
           const miss = RF.MODULES[m.t].hp - m.hp;
-          const pts = Math.min(miss, game.credits / 6);
-          m.hp += pts; game.credits -= pts * 6;
+          const pts = Math.min(miss, game.credits / (6 * d));
+          m.hp += pts; game.credits -= pts * 6 * d;
         }
       } else if (it === 'lost') {
         for (const m of missingModules()) {
-          const c = RF.MODULES[m.t].cost;
+          const c = RF.MODULES[m.t].cost * d;
           if (game.credits < c) break;
           game.credits -= c;
           s.layout.push({ t: m.t, x: m.x, y: m.y, hp: RF.MODULES[m.t].hp });
         }
         // Moduler som ikke henger sammen ennå (fordi pengene tok slutt) refunderes.
-        for (const m of RF.disconnected(s.layout)) { game.credits += RF.MODULES[m.t].cost; s.layout = s.layout.filter((x) => x !== m); }
+        for (const m of RF.disconnected(s.layout)) { game.credits += RF.MODULES[m.t].cost * d; s.layout = s.layout.filter((x) => x !== m); }
         ship.rebuild();
         const dp = RF.dockPoint(ship.docked);
         Object.assign(ship.body, { x: dp.x, y: dp.y, a: dp.a, vx: 0, vy: 0, w: 0 });
       } else if (it === 'fuel') {
-        const kg = Math.min(st.fuelCap - s.fuel, game.credits / 0.9);
-        s.fuel += kg; game.credits -= kg * 0.9;
+        const kg = Math.min(st.fuelCap - s.fuel, game.credits / (0.9 * d));
+        s.fuel += kg; game.credits -= kg * 0.9 * d;
       } else if (it === 'ammo') {
-        while (s.ammo < ship.stats.rocketCap && game.credits >= 120) { s.ammo++; game.credits -= 120; }
+        while (s.ammo < ship.stats.rocketCap && game.credits >= 120 * d) { s.ammo++; game.credits -= 120 * d; }
       }
     }
     ship.refreshStats();
     game.credits = Math.max(0, game.credits);
+    RF.Stations.gain(ship.docked.id, c0 - game.credits);
     RF.Audio.blip(440, 0.1, 'triangle', 0.1);
   }
 

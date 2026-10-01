@@ -76,6 +76,7 @@
       st.world.oneWay = (A, B) => (B.kind === 'ore' && heavy(A) ? 1 : A.kind === 'ore' && heavy(B) ? 2 : 0);
       RF.spawnNPCs(st);
       game.systems[id] = st;
+      RF.Stations.sync(st);
     }
     return game.systems[id];
   };
@@ -99,9 +100,13 @@
   game.sellPrice = (stationId, prod) => {
     const def = RF.stationById(stationId);
     const mod = (game.priceMod[stationId] && game.priceMod[stationId][prod]) || 1;
-    return Math.round(RF.PRODUCTS[prod].price * (def.station.prices[prod] || 1) * mod * tradeMul());
+    return Math.round(RF.PRODUCTS[prod].price * (def.station.prices[prod] || 1) * mod * tradeMul() * RF.Stations.priceMul(stationId));
   };
-  game.buyPrice = (stationId, prod) => Math.round((game.sellPrice(stationId, prod) * 1.2) / (tradeMul() * tradeMul()));
+  // Større stasjoner selger også billigere (prisfordelen virker begge veier).
+  game.buyPrice = (stationId, prod) => {
+    const k = tradeMul() * RF.Stations.priceMul(stationId);
+    return Math.round((game.sellPrice(stationId, prod) * 1.2) / (k * k));
+  };
   // Fraktskip med lasteracker på sidene handler litt bedre.
   const tradeMul = () => (game.ship && game.ship.stats && game.ship.stats.tradeMul) || 1;
 
@@ -127,6 +132,7 @@
     game.boards = {};
     game.systems = {};
     game.priceMod = {};
+    game.stationXP = {};
     game.lastStation = 'midgard';
     RF.Weapons.reset();
     // I testmodus starter man med et skip som har alt utstyret om bord.
@@ -161,7 +167,7 @@
         fuel: s.fuel, ammo: s.ammo, cargo: s.cargo, missionCargo: s.missionCargo, drones: s.drones,
       },
       missions: game.missions.filter((m) => m.status === 'aktiv'),
-      lastStation: game.lastStation, fa: game.ship.fa, test: game.testMode,
+      lastStation: game.lastStation, fa: game.ship.fa, test: game.testMode, stationXP: game.stationXP || {},
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) { /* lagring utilgjengelig */ }
   };
@@ -189,6 +195,7 @@
     for (const c of s.missionCargo || []) if (OLD[c.name]) c.name = OLD[c.name];
     RF.setMissionIdBase(game.missions.reduce((a, m) => Math.max(a, m.id), 0));
     game.lastStation = data.lastStation || 'midgard';
+    game.stationXP = data.stationXP || {};
     game.boards = {};
     game.systems = {};
     game.priceMod = {};
@@ -290,6 +297,7 @@
         m.status = 'fullført';
         ship.s.missionCargo = ship.s.missionCargo.filter((c) => c.missionId !== m.id);
         game.credits += m.reward;
+        RF.Stations.gain(st.id, m.reward);
         game.msg(`Delivered: ${m.goods} (+${m.reward} cr)`, RF.HUD_COLORS.ok);
         Audio.blip(660, 0.15, 'triangle', 0.12);
         Audio.blip(880, 0.2, 'triangle', 0.1);
@@ -564,7 +572,7 @@
   // Omkretsen til hindringen (hele stasjonen og porten regnes som én ting).
   function obstacleCircle(o) {
     const st = game.sys.station, gt = game.sys.gate;
-    if (o.kind === 'station') return { x: st.x, y: st.y, r: 125 };
+    if (o.kind === 'station') return { x: st.x, y: st.y, r: RF.Stations.level(st.id) >= 5 ? 150 : 125 };
     if (o.kind === 'gate') { const gg = o.gate || gt; return { x: gg.x, y: gg.y, r: gg.R + 6 }; }
     return { x: o.x, y: o.y, r: o.radius };
   }
@@ -842,6 +850,7 @@
   game.completeMission = (m, how) => {
     m.status = 'fullført';
     game.credits += m.reward;
+    if (game.ship.docked) RF.Stations.gain(game.ship.docked.id, m.reward);
     game.msg(`${how}: ${RF.missionTitle(m)} (+${m.reward} cr)`, RF.HUD_COLORS.ok);
     Audio.blip(660, 0.15, 'triangle', 0.12);
     Audio.blip(880, 0.2, 'triangle', 0.1);
@@ -1151,7 +1160,7 @@
   // Løs gråstein innenfor skjoldet brennes bort av nærforsvarslasere.
   RF.STATION_SHIELD = { R: 240, inner: 150 };
   function updateStationShield(dt) {
-    const st = game.sys.station, S = RF.STATION_SHIELD;
+    const st = game.sys.station, S = { R: RF.Stations.shieldR(st), inner: RF.STATION_SHIELD.inner };
     const fx = st.shieldFx || (st.shieldFx = { hits: [], zaps: [], zapT: 0 });
     fx.zapT -= dt;
     for (const o of game.sys.world.bodies) {
@@ -1161,7 +1170,7 @@
       const nx = dx / (G.len(dx, dy) || 1), ny = dy / (G.len(dx, dy) || 1);
       // Nærforsvar: små biter av gråstein brennes bort.
       if (RF.Vox.isJunk(o) && o.area < 200 && fx.zapT <= 0) {
-        fx.zapT = 0.25;
+        fx.zapT = RF.Stations.zapCd(st);
         fx.zaps.push({ x: o.x, y: o.y, t: game.time });
         o.dead = true;
         game.particles.burst(o.x, o.y, 10, { type: 'smoke', sMin: 1, sMax: 3 + o.radius * 0.4, color: RF.MATERIALS[o.mat].light, zMin: 0.6, zMax: 1.4, grow: 2, lMin: 0.8, lMax: 1.8, vx: o.vx, vy: o.vy });

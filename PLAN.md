@@ -38,5 +38,5 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 32. Opplæring de første minuttene.
 33. Tidsakselerasjon på lange flyturer.
 34. Romvær: solstormer og tåker.
-35. Stasjoner som vokser når spilleren handler mye der.
+35. ~~Stasjoner som vokser når spilleren handler mye der.~~ (v0.21.0)
 36. ~~Skjold rundt stasjonene som beskytter mot steiner, kometer og skudd.~~ (v0.20.0)

@@ -188,7 +188,7 @@
         }
       }
       // Stasjonsskjoldet stopper skudd som kommer utenfra.
-      const st = game.sys.station, SR = RF.STATION_SHIELD ? RF.STATION_SHIELD.R : 0;
+      const st = game.sys.station, SR = RF.Stations ? RF.Stations.shieldR(st) : 0;
       if (SR && p.type !== 'harpoon') {
         const ds = G.len(p.x - st.x, p.y - st.y);
         if (p.outside == null) p.outside = ds > SR;
