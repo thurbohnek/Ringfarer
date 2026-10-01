@@ -331,6 +331,12 @@
       ctx.fillStyle = C.ok;
       ctx.fillText('CABLE ' + ship.anchor.rope.length.toFixed(0) + ' M', 16, top + 67);
     }
+    // Lasteluken: liten merkelapp rett under panelet.
+    if (ship.scoop && ship.scoop.on && !ship.docked) {
+      ctx.font = F.label;
+      ctx.fillStyle = ship.holdFree() - ship.procProduct() <= 0.02 ? C.amber : C.ok;
+      ctx.fillText(ship.holdFree() - ship.procProduct() <= 0.02 ? 'SCOOP OPEN · HOLD FULL' : 'SCOOP OPEN', 12, top + PH + 14);
+    }
     // Skadekart bare når noe er skadet.
     if (damaged) damageMap(ctx, ship, 8 + PW + 4, top + 6, 34, PH - 12);
 

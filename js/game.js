@@ -282,6 +282,7 @@
     ship.nav = null;
     game.followShip(true);
     ship.tractor.on = false;
+    if (ship.scoop) ship.scoop.on = false;
     const dp = parkPoint(st);
     Object.assign(ship.body, { x: dp.x, y: dp.y, a: dp.a, vx: 0, vy: 0, w: 0 });
     game.lastStation = st.id;
@@ -698,6 +699,14 @@
       const a = Math.atan2(h.ny, h.nx) + G.rand(-1, 1), sp = G.rand(0.8, 4);
       game.particles.add({ type: 'smoke', x: h.x, y: h.y, vx: t.vx + Math.cos(a) * sp, vy: t.vy + Math.sin(a) * sp, life: G.rand(1.5, 3.5), size: G.rand(0.4, 0.9), grow: G.rand(1.2, 2.2), color: RF.MATERIALS[t.mat].light });
     }
+  };
+
+  game.toggleScoop = () => {
+    const ship = game.ship, S = ship.scoop || (ship.scoop = { on: false, open: 0, caught: 0 });
+    S.on = !S.on;
+    Audio.thud(0.25, false);
+    Audio.blip(S.on ? 260 : 180, 0.18, 'triangle', 0.08);
+    game.msg(S.on ? 'Cargo scoop open. Fly slowly into the ore to catch it (U or F to close)' : 'Cargo scoop closed', S.on ? RF.HUD_COLORS.ok : RF.HUD_COLORS.gate);
   };
 
   game.tryIntake = (o) => {
@@ -1265,6 +1274,7 @@
     ship.updateLasers(fire && ship.tool === 'laser', dt, game);
     if (fire && ship.tool === 'kanon') RF.Weapons.fireGuns(ship, game);
     ship.updateTractor(dt, game);
+    ship.updateScoop(dt, game);
     ship.updateProcessing(dt, game);
     ship.updateDeflector(dt, game);
     updateDoors(dt);
@@ -1366,10 +1376,14 @@
       ship.lightOn = !ship.lightOn;
       Audio.blip(ship.lightOn ? 900 : 600, 0.04, 'square', 0.06);
     }
+    // F: traktorstrålen hvis skipet har en, ellers lasteluken foran.
     if (Input.hit('KeyF')) {
-      ship.tractor.on = !ship.tractor.on;
-      Audio.blip(ship.tractor.on ? 300 : 200, 0.08, 'sine', 0.1);
+      if (ship.stats.tractors.length) {
+        ship.tractor.on = !ship.tractor.on;
+        Audio.blip(ship.tractor.on ? 300 : 200, 0.08, 'sine', 0.1);
+      } else game.toggleScoop();
     }
+    if (Input.hit('KeyU')) game.toggleScoop();
     if (Input.hit('Equal') || Input.hit('NumpadAdd')) game.cam.zoom = Math.min(10, game.cam.zoom * 1.25);
     if (Input.hit('Minus') || Input.hit('NumpadSubtract')) game.cam.zoom = Math.max(0.25, game.cam.zoom / 1.25);
     const act = Input.hit('Interact') || Input.hit('Enter');

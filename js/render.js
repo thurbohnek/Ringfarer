@@ -404,6 +404,7 @@
         // Delen av skipet som har gått gjennom en åpen port, synes ikke.
         const clip = this.gateClip(ctx, game, ship.body);
         this.drawModular(ship, game.time);
+        this.drawScoop(ship, game.time);
         this.drawClamped(ship, game);
         if (clip) ctx.restore();
       }
@@ -1091,6 +1092,43 @@
       ctx.fillStyle = '#6f685a';
       ctx.beginPath(); ctx.arc(b.x, b.y, 0.7, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#1b1a17'; ctx.lineWidth = 0.2; ctx.stroke();
+    }
+
+    // Lasteluken foran på skipet: to luker som svinger ut og danner en trakt.
+    // Åpen: mørk åpning og svake ledelinjer som viser hvor man fanger malm.
+    drawScoop(ship, time) {
+      const S = ship.scoop;
+      if (!S || S.open <= 0.01 || ship.docked) return;
+      const ctx = this.ctx, b = ship.body, o = S.open, nx = ship.noseX, half = Math.max(1.6, RF.CELL * 1.1);
+      ctx.save();
+      ctx.translate(b.x, b.y); ctx.rotate(b.a); if (b.s !== 1) ctx.scale(b.s, b.s);
+      // Åpningen.
+      ctx.fillStyle = `rgba(10,12,14,${0.85 * o})`;
+      ctx.beginPath(); ctx.ellipse(nx - 0.2, 0, 0.6 + 0.4 * o, half * o, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = `rgba(120,255,210,${0.5 * o})`; ctx.lineWidth = 0.08;
+      ctx.stroke();
+      // To luker som svinger ut.
+      for (const s of [-1, 1]) {
+        ctx.save();
+        ctx.translate(nx - 0.4, s * half * 0.95);
+        ctx.rotate(s * (0.2 + o * 0.9));
+        const L = half * 1.25;
+        ctx.fillStyle = '#7d776a';
+        ctx.beginPath(); ctx.moveTo(0, -s * 0.15); ctx.lineTo(L, -s * 0.05); ctx.lineTo(L, s * 0.55); ctx.lineTo(0, s * 0.75); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#1d1b17'; ctx.lineWidth = 0.08; ctx.stroke();
+        ctx.fillStyle = '#b88a2a';
+        for (let x = 0.3; x < L - 0.2; x += 0.6) ctx.fillRect(x, s > 0 ? 0.05 : -0.2, 0.25, 0.15);
+        ctx.restore();
+      }
+      // Ledelinjer forover (blinker svakt) når luken er helt åpen.
+      if (o > 0.8) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = `rgba(120,255,210,${0.12 + 0.06 * Math.sin(time * 4)})`;
+        ctx.lineWidth = 0.12; ctx.setLineDash([0.6, 0.8]);
+        for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(nx + 0.5, s * half); ctx.lineTo(nx + 14, s * (half + 14 * 0.35)); ctx.stroke(); }
+        ctx.setLineDash([]);
+      }
+      ctx.restore();
     }
 
     drawTractor(ship, time) {

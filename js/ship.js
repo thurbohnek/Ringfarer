@@ -498,6 +498,41 @@
       }
     }
 
+    // Lasteluke foran: åpnes (F på skip uten traktorstråle) og fanger løse
+    // malmbiter som skipet kjører inn i. Litt sug trekker biter rett foran
+    // inn mot åpningen. Fungerer bare når farten mot biten er lav nok.
+    updateScoop(dt, game) {
+      const S = this.scoop || (this.scoop = { on: false, open: 0, caught: 0 });
+      S.open = G.clamp(S.open + (S.on && !this.docked ? dt * 2 : -dt * 2), 0, 1);
+      if (S.open < 0.8 || this.docked) return;
+      const b = this.body, nx = this.noseX, half = Math.max(1.6, RF.CELL * 1.1);
+      const mouth = b.toWorld(nx + 0.6, 0);
+      const full = this.holdFree() - this.procProduct() <= 0.02;
+      for (const o of game.sys.world.bodies) {
+        if (o.dead || o.ghost) continue;
+        const small = o.kind === 'ore' || (o.kind === 'wreck' && o.modules.length <= 2);
+        if (!small) continue;
+        const dx = o.x - mouth.x, dy = o.y - mouth.y;
+        if (dx * dx + dy * dy > 30 * 30 * b.s * b.s) continue;
+        const l = b.toLocal(o.x, o.y);
+        const ahead = l.x - nx, r = Math.sqrt(o.area || 1) * 0.5 / b.s;
+        const rv = b.pointVel(o.x, o.y), relx = o.vx - rv.x, rely = o.vy - rv.y;
+        // I åpningen: inn i lasten.
+        if (ahead > -1.2 && ahead < 1.6 + r && Math.abs(l.y) < half + r * 0.5) {
+          if (full) continue;
+          if (G.len(relx, rely) < 9) { o._tractorFrom = mouth; game.tryIntake(o); S.caught++; }
+          continue;
+        }
+        // Rett foran (innenfor en kjegle): svakt sug mot åpningen.
+        if (ahead > 0 && ahead < 25 && Math.abs(l.y) < half + ahead * 0.35 && !full) {
+          const d = G.len(dx, dy) || 1;
+          const k = 6 * dt;
+          o.vx += (-dx / d) * k + (rv.x - o.vx) * dt * 0.8;
+          o.vy += (-dy / d) * k + (rv.y - o.vy) * dt * 0.8;
+        }
+      }
+    }
+
     updateProcessing(dt, game) {
       if (!this.processing.length) return;
       const p = this.processing[0];
@@ -530,7 +565,8 @@
       const mods = this.s.layout;
       for (const o of game.sys.world.bodies) {
         if (o === b || o.dead || o.ghost || o.isStatic) continue;
-        if (!(o.kind === 'ore' ? !this.tractor.on : RF.isSmallRock(o))) continue;
+        const scooping = this.scoop && this.scoop.open > 0.5;
+        if (!(o.kind === 'ore' ? !this.tractor.on && !scooping : RF.isSmallRock(o))) continue;
         const cd = G.len(o.x - b.x, o.y - b.y);
         if (cd > b.radius + o.radius + reach + 25) continue;
         const l = b.toLocal(o.x, o.y);

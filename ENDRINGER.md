@@ -45,6 +45,46 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-10-01: v0.22.0 · Lasteluke foran som fanger malm
+
+**Ønske:** «Når man ikke har en stråle for å samle resurser må man ha en
+måte å samle resurser. Kanskje alle mining ship skal ha en slags luke man
+åpner og kjører mot mineralene for å fange de i cargoen.»
+
+**Hva som er gjort:**
+
+- **Luke på alle skip.** Alle skip har fått en lasteluke foran, ikke bare
+  gruveskipene. Da kan alle samle malm, også skip uten traktorstråle.
+- `js/ship.js`, ny `updateScoop`:
+  - **Fanger malm:** når luken er åpen, tas løse malmbiter og små vrakdeler
+    som kommer inn i åpningen foran nesen rett inn i lasten. Det skjer så
+    lenge farten mot biten er under 9 m/s og det er plass i lasterommet.
+  - **Sug:** biter rett foran, innenfor en kjegle på 25 m, trekkes svakt mot
+    åpningen og får omtrent samme fart som skipet.
+  - **Skjoldet:** dytter ikke malm bort mens luken er åpen.
+- `js/game.js`:
+  - Tasten U åpner og lukker luken. F gjør det samme på skip uten
+    traktorstråle, og slår ellers traktorstrålen av og på som før.
+  - Melding og lyd når luken åpnes og lukkes.
+  - Luken lukkes når man dokker.
+- `js/render.js`, ny `drawScoop`:
+  - To luker med varselstriper svinger ut og danner en trakt foran nesen.
+  - Åpningen er mørk med en grønn kant.
+  - Svake, blinkende ledelinjer viser hvor man fanger.
+- `js/hud.js`: «SCOOP OPEN» under panelet, og «HOLD FULL» når lasterommet
+  er fullt.
+- `js/ui.js`: knappen TRACTOR på mobil heter SCOOP på skip uten
+  traktorstråle. Nytt tips og taster i hjelpen.
+- `js/news.js`, `index.html`: nyhet og versjon v0.22.0.
+
+**Testet** (Playwright, startskipet uten traktorstråle):
+
+- Luken åpnes med F. Med korte gasstøt forover ble alle 6 kobberbitene
+  fanget, og 6,3 t kobber havnet i lasten.
+- Luken lukkes med F.
+- Traktorstrålen på testskipet virker som før.
+- Pirater og droner virker som før. Ingen feil i konsollen.
+
 ## 2026-10-01: v0.21.0 · Stasjoner som vokser, mindre kameraknapp og striper bare når kameraet følger skipet
 
 **Ønske:** «Follow ship tar for mye plass. Når man panorer så blir det

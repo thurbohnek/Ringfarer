@@ -97,7 +97,10 @@
         ctx.hidden = !act;
         const label = act === 'dock' ? 'DOCK' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : '';
         if (ctx.textContent !== label) ctx.textContent = label;
-        $('#tc-tractor').classList.toggle('on', sh.tractor.on);
+        const tb = $('#tc-tractor'), hasT = sh.stats.tractors.length > 0;
+        const tl = hasT ? 'TRACTOR' : 'SCOOP';
+        if (tb.textContent !== tl) tb.textContent = tl;
+        tb.classList.toggle('on', hasT ? sh.tractor.on : !!(sh.scoop && sh.scoop.on));
         $('#tc-light').classList.toggle('on', sh.lightOn);
         $('#tc-winch').hidden = !sh.anchor;
         $('#tc-winchout').hidden = !sh.anchor;
@@ -163,6 +166,7 @@
             <li><b>Raiders:</b> with valuable cargo far from a station, raiders and stinger drones may come for you. Their shots are red. Fight back with laser, cannon or rockets (bounty paid), send out guard drones, or run: they break off near the station. Some systems are more dangerous than others (see the star map, Tab).</li>
             <li><b>Zoom:</b> pinch with two fingers, or use the mouse wheel or + and −.</li>
             <li><b>Hardness:</b> every rock type has a hardness from 1 to 4. The laser must be at least that tier. Cannons and rockets break anything.</li>
+            <li><b>Cargo scoop:</b> every ship has a scoop hatch in the nose. Open it (U, or F on ships without a tractor beam) and fly slowly into loose ore: it is caught straight into the cargo hold. Ore just ahead is drawn gently toward the opening. Too fast (over about 9 m/s compared to the ore) and it bounces off.</li>
             <li><b>Station shield:</b> every station has a deflector shield about 240 m out. It slows and pushes away rocks, comets, ore and wreckage before they hit, and point-defense lasers burn away loose rubble. Ships and drones pass through, and shots from outside are stopped.</li>
             <li><b>Comets:</b> fast balls of ice with a glowing tail pointing away from the sun. Ice gives water. Pockets of frozen gas (pale green) become fuel straight into your tank, and what does not fit is stored as volatiles you can sell. Some comets hide a valuable core under the ice. Press B to match a comet's speed while you cut. Comets show on the star map (Tab).</li>
             <li><b>Ice crust:</b> some asteroids and comets have ice on the outside and a valuable mineral inside.</li>
@@ -294,7 +298,8 @@
       ${k(['Space'], 'Use the tool')}
       ${k(['X'], 'Fire / release harpoon')}
       ${k(['C', 'V'], 'Winch in / pay out cable')}
-      ${k(['F'], 'Tractor beam on/off')}
+      ${k(['F'], 'Tractor beam on/off (ships without a tractor: open/close the cargo scoop)')}
+      ${k(['U'], 'Open/close the cargo scoop in the nose')}
       ${k(['K'], 'Launch / recall drones')}
       ${k(['N'], 'Scan for minerals (hover a rock to see what it holds)')}
       ${k(['B'], 'Hold position next to the asteroid (steer with A/D, B again to release)')}

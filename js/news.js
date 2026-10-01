@@ -10,6 +10,14 @@
 
   RF.NEWS = [
     {
+      v: 'v0.22.0', date: '2026-10-01', title: 'Cargo scoop',
+      items: [
+        'Every ship has a cargo scoop in the nose. Press U (or F on ships without a tractor beam) to open it.',
+        'Fly slowly into loose ore and it is caught straight into the cargo hold. Ore just ahead is drawn gently toward the opening.',
+        'Too fast compared to the ore (about 9 m/s) and it bounces off. When the hold is full, the scoop stops catching.',
+      ],
+    },
+    {
       v: 'v0.21.0', date: '2026-10-01', title: 'Stations that grow',
       items: [
         'Stations now have five levels. They grow from the trading, servicing and contracts you do there, and you can invest money directly in the new Station tab.',
