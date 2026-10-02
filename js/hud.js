@@ -17,6 +17,8 @@
     num: '400 12px "Share Tech Mono", ui-monospace, Menlo, monospace',
   };
   RF.HUD_COLORS = C;
+  const iconCache = {};
+  const iconPath = (id, d) => iconCache[id] || (iconCache[id] = new Path2D(d));
 
   const fmtDist = (m) => (m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m');
 
@@ -119,7 +121,7 @@
     const s = R.toScreen(game.cam, wx, wy);
     const touch = game.touchUI;
     // Rammen må alltid ha skjermens midtpunkt godt innenfor.
-    const ml = 26, mr = touch ? 60 : 26, mt = 50, mb = touch ? Math.min(200, R.h * 0.3) : 80;
+    const ml = 26, mr = touch ? 60 : 26, mt = 84, mb = touch ? Math.min(200, R.h * 0.3) : 80;
     const inside = s.x > ml && s.x < R.w - mr && s.y > mt && s.y < R.h - mb;
     if (inside) return;
     const ship = from || game.ship.body;
@@ -340,23 +342,46 @@
     // Skadekart bare når noe er skadet.
     if (damaged) damageMap(ctx, ship, 8 + PW + 4, top + 6, 34, PH - 12);
 
-    // Verktøylinje nederst på PC. På mobil er verktøyene knapper.
+    // Verktøylinje nederst på PC: små ikonbrikker med tasten. Bare det valgte
+    // verktøyet viser navnet. Til høyre: samlestrålen eller lasteluken (F).
+    // På mobil er verktøyene knapper.
     if (!touch && !ship.docked) {
       const have = { laser: st.lasers.length, kanon: st.guns.length, rakett: st.rockets.length, anker: st.anchors.length };
-      const tw = 84, gap = 6, total = RF.TOOLS.length * tw + (RF.TOOLS.length - 1) * gap;
-      let x = w / 2 - total / 2;
-      const y = h - 32;
-      RF.TOOLS.forEach((t, i) => {
+      const ICON = { laser: 'laser', kanon: 'cannon', rakett: 'rocket', anker: 'hook' };
+      const chips = RF.TOOLS.map((t, i) => {
         const sel = ship.tool === t;
-        panel(ctx, x, y, tw, 24, sel ? 0.95 : 0.55);
-        ctx.font = F.label;
-        ctx.fillStyle = !have[t] ? '#5a554a' : sel ? C.amber : C.text;
-        let lbl = `${i + 1} ${RF.TOOL_NAMES[t].toUpperCase()}`;
-        if (t === 'rakett' && have[t]) lbl += ` ${s.ammo}`;
-        if (t === 'laser' && have[t]) lbl += ` T${st.maxTier}`;
-        ctx.fillText(lbl, x + 10, y + 16);
-        x += tw + gap;
+        let lbl = sel ? RF.TOOL_NAMES[t].toUpperCase() : '';
+        if (t === 'rakett' && have[t]) lbl += (lbl ? ' ' : '') + s.ammo;
+        if (t === 'laser' && have[t] && sel) lbl += ` T${st.maxTier}`;
+        return { key: String(i + 1), icon: ICON[t], lbl, sel, dim: !have[t] };
       });
+      const hasT = st.tractors.length > 0;
+      const colOn = hasT ? ship.tractor.on : !!(ship.scoop && ship.scoop.on);
+      chips.push({ gap: true });
+      chips.push({ key: 'F', icon: hasT ? 'collect' : 'scoop', lbl: colOn ? (hasT ? 'COLLECT' : 'SCOOP') : '', sel: colOn, dim: false, on: true });
+      ctx.font = F.label;
+      const H = 22;
+      for (const c of chips) c.w = c.gap ? 8 : 38 + (c.lbl ? ctx.measureText(c.lbl).width + 6 : 0);
+      const total = chips.reduce((a, c) => a + c.w + (c.gap ? 0 : 4), -4);
+      let x = w / 2 - total / 2;
+      const y = h - 30;
+      for (const c of chips) {
+        if (c.gap) { x += c.w; continue; }
+        panel(ctx, x, y, c.w, H, c.sel ? 0.95 : 0.5);
+        const col = c.dim ? '#5a554a' : c.sel ? (c.on ? C.ok : C.amber) : C.text;
+        ctx.fillStyle = C.muted;
+        ctx.font = '600 9px "Share Tech Mono", ui-monospace, monospace';
+        ctx.fillText(c.key, x + 5, y + 14);
+        const ic = RF.UI_ICONS && RF.UI_ICONS[c.icon];
+        if (ic) {
+          const P = iconPath(c.icon, ic);
+          ctx.save(); ctx.translate(x + 15, y + 3); ctx.scale(16 / 24, 16 / 24);
+          ctx.strokeStyle = col; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+          ctx.stroke(P); ctx.restore();
+        }
+        if (c.lbl) { ctx.font = F.label; ctx.fillStyle = col; ctx.fillText(c.lbl, x + 36, y + 15); }
+        x += c.w + 4;
+      }
     }
 
     // Radar: liten, forstørres ved trykk.
@@ -364,27 +389,30 @@
     radar(ctx, game, w - rr - 12, top + rr + 4, rr);
 
     // Handlingshint.
+    // På mobil uten tastenavnet (knappen over avtrekkeren gjør det samme).
     if (game.prompt) {
-      ctx.font = F.title;
-      const tw = ctx.measureText(game.prompt).width + 22;
-      const py = touch ? h - 190 : h - 66;
-      panel(ctx, w / 2 - tw / 2, py - 15, tw, 24, 0.9);
+      const txt = touch ? game.prompt.replace(/^\[[^\]]+\]\s*/, '') : game.prompt;
+      ctx.font = F.label;
+      const tw = ctx.measureText(txt).width + 18;
+      const py = touch ? h - 22 : h - 50;
+      panel(ctx, w / 2 - tw / 2, py - 13, tw, 20, 0.85);
       ctx.textAlign = 'center';
       ctx.fillStyle = C.amber;
-      ctx.fillText(game.prompt, w / 2, py + 2);
+      ctx.fillText(txt, w / 2, py + 1);
       ctx.textAlign = 'left';
     }
 
     // Meldinger øverst på midten, små og korte.
     ctx.textAlign = 'center';
-    ctx.font = F.title;
-    const my = touch ? top + 96 : top + 18;
+    ctx.font = touch ? F.label : F.title;
+    // På mobil midt mellom panelet og radaren, så de ikke går oppi dem.
+    const my = top + 18, mx = touch ? (196 + (w - 96)) / 2 : w / 2, lh = touch ? 14 : 17;
     game.messages.slice(-2).forEach((m, i) => {
       ctx.globalAlpha = Math.min(1, m.t) * 0.95;
       ctx.fillStyle = '#000';
-      ctx.fillText(m.text, w / 2 + 1, my + i * 17 + 1);
+      ctx.fillText(m.text, mx + 1, my + i * lh + 1);
       ctx.fillStyle = m.color || C.text;
-      ctx.fillText(m.text, w / 2, my + i * 17);
+      ctx.fillText(m.text, mx, my + i * lh);
     });
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';

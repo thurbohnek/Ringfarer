@@ -353,19 +353,30 @@
   #stick.thrust .knob { box-shadow: 0 0 18px rgba(233, 172, 72, 0.8); }
   .stick-hint { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 184px); font: 700 10px/1.35 var(--body); letter-spacing: 0.12em; color: rgba(230, 223, 205, 0.35); pointer-events: none; text-transform: uppercase; }
   #stick.active + .stick-hint { display: none; }
-  #touch .fire { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px); width: 92px; height: 92px; border-radius: 50%; font-size: 13px;
+  /* Runde ikonknapper med et kort navn under ikonet. */
+  #touch .ib { position: relative; width: 46px; height: 46px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    background: radial-gradient(circle at 35% 30%, rgba(80, 76, 66, 0.78), rgba(28, 26, 22, 0.78)); border: 1.5px solid rgba(0, 0, 0, 0.85); }
+  #touch .ib.sm { width: 40px; height: 40px; }
+  #touch .ib svg, #touch .tile svg, #touch .fire svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #touch .ib.sm svg { width: 17px; height: 17px; }
+  #touch .ib i, #touch .tile i { font: 700 7.5px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; font-style: normal; opacity: 0.85; }
+  #touch .ib.sm i { font-size: 7px; }
+  #touch .ib i { letter-spacing: 0.02em; max-width: 100%; overflow: hidden; }
+  #touch .fire i { font: 700 10px/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; font-style: normal; }
+  #touch .ib.on, #touch .tile.on { background: radial-gradient(circle at 35% 30%, rgba(240, 185, 85, 0.95), rgba(160, 100, 28, 0.95)); color: #1b1206; }
+  #touch .fire { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); width: 80px; height: 80px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px;
     background: radial-gradient(circle at 35% 30%, rgba(160, 70, 40, 0.85), rgba(70, 25, 12, 0.85)); }
+  #touch .fire svg { width: 26px; height: 26px; }
   #touch .fire.on { background: radial-gradient(circle, rgba(255, 190, 110, 0.95), rgba(200, 80, 30, 0.95)); color: #1b0a02; }
-  .tc-tools { position: absolute; right: calc(max(12px, env(safe-area-inset-right)) + 100px); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 52px); display: flex; flex-direction: column; gap: 4px; }
-  .tc-tools button { width: 64px; height: 26px; }
-  .tc-row { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); display: flex; gap: 4px; }
-  .tc-row button { width: 60px; height: 40px; }
-  .tc-row #tc-more { width: 44px; font-size: 20px; }
-  #touch .ctx { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 152px); width: 92px; height: 36px; color: var(--ok); border-color: var(--ok); }
-  .tc-winch { position: absolute; right: calc(max(12px, env(safe-area-inset-right)) + 100px); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 176px); display: flex; flex-direction: column; gap: 4px; }
-  .tc-winch button { width: 64px; height: 30px; }
-  #tc-drawer { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 48px); display: flex; flex-direction: column; gap: 6px; padding: 12px; pointer-events: auto; z-index: 6; }
-  #tc-drawer button { width: 170px; height: 40px; font-size: 13px; }
+  .tc-tools { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: max(14px, env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; gap: 5px; }
+  .tc-acts { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 88px); display: flex; flex-direction: column; gap: 6px; align-items: center; width: 80px; }
+  #touch .brake { position: absolute; left: calc(max(14px, env(safe-area-inset-left)) + 184px); bottom: max(18px, env(safe-area-inset-bottom)); width: 52px; height: 52px; }
+  #touch .ctx { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 186px); height: 30px; padding: 0 12px; border-radius: 15px; font-size: 11px; color: var(--ok); border-color: var(--ok); }
+  .tc-winch { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 136px); bottom: max(14px, env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; gap: 5px; }
+  #tc-drawer { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 92px); display: grid; grid-template-columns: repeat(4, 58px); gap: 6px; padding: 8px; pointer-events: auto; z-index: 6; }
+  #touch .tile { width: 58px; height: 52px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  #touch .tc-acts .ib { width: 46px; height: 46px; }
   @media (max-height: 520px) {
     #stick { width: 150px; height: 150px; }
     #stick .base { width: 130px; height: 130px; margin: -65px 0 0 -65px; }
@@ -413,32 +424,33 @@
 
 <div id="touch" hidden>
   <div id="stick"><div class="base"></div><div class="knob"></div></div>
+  <button class="ib brake" data-hold="retro" data-icon="brake" data-label="Brake"></button>
   <button id="tc-ctx" class="ctx" data-tap="Interact" hidden></button>
-  <div class="tc-winch">
-    <button id="tc-winch" data-hold="winch" hidden>WINCH IN</button>
-    <button id="tc-winchout" data-hold="winchOut" hidden>PAY OUT</button>
+  <div class="tc-acts">
+    <button class="ib" data-tap="KeyN" id="tc-scan" data-icon="scan" data-label="Scan"></button>
+    <button class="ib" data-tap="KeyF" id="tc-tractor" data-icon="collect" data-label="Collect"></button>
+    <button class="ib" id="tc-more" aria-label="More" data-icon="more" data-label="More"></button>
   </div>
   <div class="tc-tools">
-    <button data-tap="Digit1" data-tool="laser">LASER</button>
-    <button data-tap="Digit2" data-tool="kanon">CANNON</button>
-    <button data-tap="Digit3" data-tool="rakett">ROCKET</button>
-    <button data-tap="Digit4" data-tool="anker">HARPOON</button>
+    <button class="ib sm" data-tap="Digit1" data-tool="laser" data-icon="laser" data-label="Laser"></button>
+    <button class="ib sm" data-tap="Digit2" data-tool="kanon" data-icon="cannon" data-label="Cannon"></button>
+    <button class="ib sm" data-tap="Digit3" data-tool="rakett" data-icon="rocket" data-label="Rocket"></button>
+    <button class="ib sm" data-tap="Digit4" data-tool="anker" data-icon="hook" data-label="Hook"></button>
   </div>
-  <button id="tc-fire" class="fire" data-hold="fire" data-tap="Fire">LASER</button>
-  <div class="tc-row">
-    <button data-hold="retro">BRAKE</button>
-    <button data-tap="KeyF" id="tc-tractor">TRACTOR</button>
-    <button data-tap="KeyN" id="tc-scan">SCAN</button>
-    <button id="tc-more" aria-label="More">⋯</button>
+  <div class="tc-winch">
+    <button class="ib sm" id="tc-winch" data-hold="winch" data-icon="winchIn" data-label="Winch" hidden></button>
+    <button class="ib sm" id="tc-winchout" data-hold="winchOut" data-icon="winchOut" data-label="Pay out" hidden></button>
   </div>
+  <button id="tc-fire" class="fire" data-hold="fire" data-tap="Fire"></button>
   <div id="tc-drawer" class="plate" hidden>
-    <button data-tap="KeyL" id="tc-light">LIGHTS</button>
-    <button data-tap="KeyZ">FLIGHT ASSIST</button>
-    <button data-tap="KeyK">DRONES OUT/IN</button>
-    <button data-tap="Tab">STAR MAP</button>
-    <button data-tap="KeyB">HOLD POSITION</button>
-    <button data-tap="Recenter">FOLLOW SHIP</button>
-    <button data-tap="Escape">PAUSE</button>
+    <button class="tile" data-tap="KeyL" id="tc-light" data-icon="light" data-label="Lights"></button>
+    <button class="tile" data-tap="KeyZ" data-icon="assist" data-label="Assist"></button>
+    <button class="tile" data-tap="KeyK" data-icon="drones" data-label="Drones"></button>
+    <button class="tile" data-tap="Tab" data-icon="map" data-label="Map"></button>
+    <button class="tile" data-tap="KeyB" data-icon="hold" data-label="Hold"></button>
+    <button class="tile" data-tap="KeyU" data-icon="scoop" data-label="Scoop"></button>
+    <button class="tile" data-tap="Recenter" data-icon="follow" data-label="Follow"></button>
+    <button class="tile" data-tap="Escape" data-icon="pause" data-label="Pause"></button>
   </div>
 </div>
 
@@ -449,7 +461,7 @@
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.22.0 · 2026-10-01';
+  window.RF_VERSION = 'v0.23.0 · 2026-10-02';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
     var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'stations', 'missions', 'input', 'audio',

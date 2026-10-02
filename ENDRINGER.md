@@ -45,6 +45,64 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-10-02: v0.23.0 · Samlestråle, ryddigere knapper og skjerm
+
+**Ønske:** «Kan du endre på traktor strålen... Og kanskje et annet ord for
+traktor? Er ord som forklarer mer hva det er. Knappene og i spillet trenger
+en oppgradering. Tar for mye plass og er rotete.»
+
+**Hva som er gjort:**
+
+- **Nytt navn:** «Tractor beam» heter nå **Collector beam**, og den store
+  heter **Heavy collector beam** (`js/modules.js`).
+  - Ny beskrivelse: «Pulls loose ore and salvage in front of the ship into
+    the intake».
+  - Navnet er også endret i klassebonusen, skipsbeskrivelsen og hjelpen
+    (`js/classes.js`, `js/ui.js`).
+- **Ny samlestråle** (`js/render.js`, `drawTractor`):
+  - En svak lyskjegle forover fra hver mottaker viser hvor langt og hvor
+    bredt strålen når.
+  - Mottakeren gløder og pulserer.
+  - Hver bit som trekkes inn, får en buet, glødende strøm med små
+    lyspartikler som renner inn mot mottakeren. Strømmene bøyer litt hver
+    sin vei, så de ikke ligger oppå hverandre.
+  - En svak ring rundt biten som holdes.
+  - Erstatter de stiplede strekene.
+- `js/ship.js`: mottakerne lagres (`tractor.intakes`) så kjeglen kan
+  tegnes.
+- **Knapper på mobil** (`index.html`, `js/ui.js`), alle med egne ikoner:
+  - Runde ikonknapper med et kort navn under, i stedet for store
+    tekstknapper.
+  - Avtrekkeren er mindre (80 px), med ikon og navn på verktøyet. Den viser
+    også antall raketter og «Release» for kroken.
+  - Verktøyene er fire små runde knapper i en søyle ved siden av
+    avtrekkeren.
+  - Over avtrekkeren ligger Scan, Collect (eller Scoop på skip uten
+    samlestråle) og More.
+  - Brake er en rund knapp ved siden av styrespaken.
+  - More-menyen er et lite rutenett med 8 ikonfliser: Lights, Assist,
+    Drones, Map, Hold, Scoop, Follow og Pause. Før var det en lang liste
+    som dekket halve skjermen.
+  - Dock-knappen og vinsjknappene er mindre.
+- **Skjermen** (`js/hud.js`):
+  - På PC er verktøylinjen nederst små ikonbrikker med tasten. Bare det
+    valgte verktøyet viser navnet. Til høyre står en brikke for
+    samlestrålen eller lasteluken (F), som lyser grønt når den er på.
+  - Hintet («Dock at …») har mindre skrift. På mobil står det nederst
+    uten tastenavnet, i stedet for midt på skipet.
+  - Meldingene på mobil står mellom panelet og radaren, med mindre skrift.
+  - Pilene i skjermkanten holder seg under panelet øverst.
+  - Ikonene gjenbrukes på lerretet (`RF.UI_ICONS`).
+- `js/news.js`, `index.html`: nyhet og versjon v0.23.0.
+
+**Testet** (Playwright):
+
+- Bilder på PC (1280 × 760) og mobil (844 × 390) med samlestrålen i
+  bruk.
+- Trykk på Collect, Rocket og Scan, og Lights og Map i More-menyen: alle
+  virker.
+- Lasteluken, dronene og piratene virker som før. Ingen feil i konsollen.
+
 ## 2026-10-01: v0.22.0 · Lasteluke foran som fanger malm
 
 **Ønske:** «Når man ikke har en stråle for å samle resurser må man ha en

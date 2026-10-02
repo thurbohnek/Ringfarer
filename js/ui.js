@@ -25,6 +25,36 @@
     'M12 3 A9 9 0 1 1 11.9 3 M12 8 V16', 'M4 6 H20 L4 18 H20', 'M6 4 V20 M6 12 L18 4 M6 12 L18 20',
     'M12 3 L20 12 L12 21 L4 12 Z M12 9 V15',
   ];
+  // Ikoner til knappene (enkle streker i en 24×24-rute).
+  const UI_ICONS = {
+    laser: 'M3 12h11 M16 8l2-2 M16 16l2 2 M17 12h4 M14 12l2-1v2z',
+    cannon: 'M3 12h9 M12 8.5h4.5a3.5 3.5 0 0 1 0 7H12z M6 9v6',
+    rocket: 'M5 19l3-3 M14 4c3 0 6 3 6 6l-8 8-6-6z M9 15l-3-1 M10 16l1 3 M15 9h.01',
+    hook: 'M5 19L16 8 M16 8l-1.5-4 M16 8l4 1.5 M8 16a3 3 0 0 0 4 0',
+    brake: 'M5 8l4 4-4 4 M19 8l-4 4 4 4',
+    collect: 'M6 4v8a6 6 0 0 0 12 0V4 M6 8h4 M14 8h4',
+    scoop: 'M3 7l5 5h8l5-5 M8 12v6h8v-6 M12 3v5',
+    scan: 'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0 M12 12l5.5-5.5 M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
+    more: 'M6 12h.01 M12 12h.01 M18 12h.01',
+    light: 'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z',
+    assist: 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0',
+    drones: 'M8 12h8 M12 9v6 M5 6a2 2 0 1 0 0 .1 M19 6a2 2 0 1 0 0 .1 M5 18a2 2 0 1 0 0 .1 M19 18a2 2 0 1 0 0 .1 M7 8l3 3 M17 8l-3 3 M7 16l3-3 M17 16l-3-3',
+    map: 'M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14 M15 6v14',
+    hold: 'M12 4v16 M8 8h8 M5 14a7 7 0 0 0 14 0',
+    follow: 'M12 12m-7 0a7 7 0 1 0 14 0a7 7 0 1 0-14 0 M12 2v4 M12 18v4 M2 12h4 M18 12h4',
+    pause: 'M9 5v14 M15 5v14',
+    winchIn: 'M12 19V5 M7 10l5-5 5 5',
+    winchOut: 'M12 5v14 M7 14l5 5 5-5',
+  };
+  RF.UI_ICONS = UI_ICONS;
+  const svgIcon = (id) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${UI_ICONS[id]}"/></svg>`;
+  const iconBtn = (el, id, label) => {
+    el.dataset.cur = id + '|' + label;
+    el.innerHTML = svgIcon(id) + `<i>${esc(label)}</i>`;
+    el.setAttribute('aria-label', label);
+  };
+  const TOOL_ICON = { laser: 'laser', kanon: 'cannon', rakett: 'rocket', anker: 'hook' };
+
   const glyph = (i) => `<svg viewBox="0 0 24 24" class="glyph" aria-hidden="true"><path d="${GLYPHS[i]}"/></svg>`;
 
   function show(name, html) {
@@ -74,6 +104,7 @@
       try {
         document.documentElement.style.setProperty('--noise', `url(${brushedSteel().toDataURL()})`);
       } catch (_) { /* uten tekstur går også fint */ }
+      touchRoot.querySelectorAll('[data-icon]').forEach((el) => iconBtn(el, el.dataset.icon, el.dataset.label || ''));
       RF.Input.bindTouch(touchRoot);
       RF.Input.bindStick($('#stick'), $('#stick .base'), $('#stick .knob'));
       $('#tc-more').addEventListener('pointerdown', (e) => { e.preventDefault(); $('#tc-drawer').hidden = !$('#tc-drawer').hidden; });
@@ -97,16 +128,18 @@
         ctx.hidden = !act;
         const label = act === 'dock' ? 'DOCK' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : '';
         if (ctx.textContent !== label) ctx.textContent = label;
+        // Samlestråle hvis skipet har en, ellers lasteluken.
         const tb = $('#tc-tractor'), hasT = sh.stats.tractors.length > 0;
-        const tl = hasT ? 'TRACTOR' : 'SCOOP';
-        if (tb.textContent !== tl) tb.textContent = tl;
+        const want = hasT ? 'collect|Collect' : 'scoop|Scoop';
+        if (tb.dataset.cur !== want) iconBtn(tb, ...want.split('|'));
         tb.classList.toggle('on', hasT ? sh.tractor.on : !!(sh.scoop && sh.scoop.on));
         $('#tc-light').classList.toggle('on', sh.lightOn);
         $('#tc-winch').hidden = !sh.anchor;
         $('#tc-winchout').hidden = !sh.anchor;
         const fire = $('#tc-fire');
-        const fl = RF.TOOL_NAMES[sh.tool].toUpperCase() + (sh.tool === 'rakett' ? ' ' + sh.s.ammo : '') + (sh.tool === 'anker' && (sh.anchor || sh.harpoon) ? ' RELEASE' : '');
-        if (fire.textContent !== fl) fire.textContent = fl;
+        const fl = (sh.tool === 'anker' && (sh.anchor || sh.harpoon) ? 'Release' : RF.TOOL_NAMES[sh.tool]) + (sh.tool === 'rakett' ? ' ' + sh.s.ammo : '');
+        const fk = TOOL_ICON[sh.tool] + '|' + fl;
+        if (fire.dataset.cur !== fk) iconBtn(fire, TOOL_ICON[sh.tool], fl);
         document.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('on', b.dataset.tool === sh.tool));
       }
       touchRoot.hidden = !game.touchUI || game.state !== 'play' || UI.isOpen();
@@ -166,12 +199,12 @@
             <li><b>Raiders:</b> with valuable cargo far from a station, raiders and stinger drones may come for you. Their shots are red. Fight back with laser, cannon or rockets (bounty paid), send out guard drones, or run: they break off near the station. Some systems are more dangerous than others (see the star map, Tab).</li>
             <li><b>Zoom:</b> pinch with two fingers, or use the mouse wheel or + and −.</li>
             <li><b>Hardness:</b> every rock type has a hardness from 1 to 4. The laser must be at least that tier. Cannons and rockets break anything.</li>
-            <li><b>Cargo scoop:</b> every ship has a scoop hatch in the nose. Open it (U, or F on ships without a tractor beam) and fly slowly into loose ore: it is caught straight into the cargo hold. Ore just ahead is drawn gently toward the opening. Too fast (over about 9 m/s compared to the ore) and it bounces off.</li>
+            <li><b>Cargo scoop:</b> every ship has a scoop hatch in the nose. Open it (U, or F on ships without a collector beam) and fly slowly into loose ore: it is caught straight into the cargo hold. Ore just ahead is drawn gently toward the opening. Too fast (over about 9 m/s compared to the ore) and it bounces off.</li>
             <li><b>Station shield:</b> every station has a deflector shield about 240 m out. It slows and pushes away rocks, comets, ore and wreckage before they hit, and point-defense lasers burn away loose rubble. Ships and drones pass through, and shots from outside are stopped.</li>
             <li><b>Comets:</b> fast balls of ice with a glowing tail pointing away from the sun. Ice gives water. Pockets of frozen gas (pale green) become fuel straight into your tank, and what does not fit is stored as volatiles you can sell. Some comets hide a valuable core under the ice. Press B to match a comet's speed while you cut. Comets show on the star map (Tab).</li>
             <li><b>Ice crust:</b> some asteroids and comets have ice on the outside and a valuable mineral inside.</li>
             <li><b>Harpoon:</b> fires a hook on a cable that sticks to whatever it hits. Winch in to land, or thrust and tow the comet wherever you like.</li>
-            <li><b>Damage:</b> modules that get hit take damage and can break off. Lose the cockpit and the ship is lost. Salvage can be pulled in with the tractor and sold as scrap.</li>
+            <li><b>Damage:</b> modules that get hit take damage and can break off. Lose the cockpit and the ship is lost. Salvage can be pulled in with the collector beam and sold as scrap.</li>
             <li><b>Equipment:</b> at a station you buy lasers, drill heads, cannons, rockets, harpoons, lights, cargo space and more. It is fitted automatically where there is room on the hull and shows on the ship. Need more room? Buy a bigger ship at the shipyard.</li>
             <li><b>Drones:</b> drones come in three sizes. Small ones live in drone bays, medium ones in hangar decks and large ones on docking clamps outside the hull. Press K to launch them: the doors open and they fly out. Press K again to call them home, and they fly back and dock. Mining and collector drones bring ore, repair drones fix the ship, guard drones burn rocks heading for you, cargo drones sell goods at the station and shuttles fly passengers and crew to the station or to other ships.</li>
             <li><b>Passengers:</b> fit passenger cabins or habitat modules (and life support for more than a handful) and take passenger contracts. Passengers leave when you dock at their station, or a shuttle drone can fly them over. Crew changes out to freighters need a shuttle drone.</li>
@@ -298,7 +331,7 @@
       ${k(['Space'], 'Use the tool')}
       ${k(['X'], 'Fire / release harpoon')}
       ${k(['C', 'V'], 'Winch in / pay out cable')}
-      ${k(['F'], 'Tractor beam on/off (ships without a tractor: open/close the cargo scoop)')}
+      ${k(['F'], 'Collector beam on/off (ships without one: open/close the cargo scoop)')}
       ${k(['U'], 'Open/close the cargo scoop in the nose')}
       ${k(['K'], 'Launch / recall drones')}
       ${k(['N'], 'Scan for minerals (hover a rock to see what it holds)')}

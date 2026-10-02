@@ -461,6 +461,7 @@
         return;
       }
       const intakes = st.tractors.map((t) => { const mp = this.mountOf(t.m); return b.toWorld(mp.lx + Math.cos(mp.a) * 2.2, mp.ly + Math.sin(mp.a) * 2.2); });
+      T.intakes = intakes;
       const fwd = b.dirWorld(1, 0);
       const range = 150 * Math.sqrt(b.s);
       const cands = [];

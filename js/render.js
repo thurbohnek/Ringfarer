@@ -1131,22 +1131,55 @@
       ctx.restore();
     }
 
+    // Samlestrålen: en svak lyskjegle forover fra hver mottaker viser hvor langt
+    // og hvor bredt den når. Hver bit den trekker i får en glødende, buet
+    // strøm av små lyspartikler som renner inn mot mottakeren, og en ring rundt seg.
     drawTractor(ship, time) {
-      const ctx = this.ctx;
+      const ctx = this.ctx, b = ship.body, T = ship.tractor;
+      const range = 150 * Math.sqrt(b.s), half = Math.acos(0.6);
+      ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      for (const o of ship.tractor.targets) {
-        const ip = o._tractorFrom || ship.body;
-        const gr = ctx.createLinearGradient(ip.x, ip.y, o.x, o.y);
-        gr.addColorStop(0, 'rgba(120,255,210,0.5)');
-        gr.addColorStop(1, 'rgba(120,255,210,0.05)');
-        ctx.strokeStyle = gr;
-        ctx.lineWidth = Math.max(0.8, Math.sqrt(o.area) * 1.2);
-        ctx.setLineDash([1.2, 1.4]);
-        ctx.lineDashOffset = -time * 10;
-        ctx.beginPath(); ctx.moveTo(ip.x, ip.y); ctx.lineTo(o.x, o.y); ctx.stroke();
+      for (const ip of T.intakes || []) {
+        const g = ctx.createRadialGradient(ip.x, ip.y, 2, ip.x, ip.y, range);
+        g.addColorStop(0, 'rgba(110,240,210,0.07)');
+        g.addColorStop(0.6, 'rgba(110,240,210,0.022)');
+        g.addColorStop(1, 'rgba(110,240,210,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(ip.x, ip.y); ctx.arc(ip.x, ip.y, range, b.a - half, b.a + half); ctx.closePath(); ctx.fill();
+        // Mottakeren gløder.
+        const pulse = 0.5 + 0.5 * Math.sin(time * 6);
+        const ig = ctx.createRadialGradient(ip.x, ip.y, 0, ip.x, ip.y, 3 + pulse);
+        ig.addColorStop(0, 'rgba(180,255,235,0.7)'); ig.addColorStop(1, 'rgba(110,240,210,0)');
+        ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(ip.x, ip.y, 3 + pulse, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.setLineDash([]);
-      ctx.globalCompositeOperation = 'source-over';
+      for (const o of T.targets) {
+        const ip = o._tractorFrom || b;
+        const dx = ip.x - o.x, dy = ip.y - o.y, d = Math.hypot(dx, dy) || 1;
+        // Buen bøyer litt til siden, så flere strømmer ikke ligger oppå hverandre.
+        const bend = Math.sin(o.x * 0.37 + o.y * 0.21) * d * 0.12;
+        const cx = (ip.x + o.x) / 2 - (dy / d) * bend, cy = (ip.y + o.y) / 2 + (dx / d) * bend;
+        const w = Math.max(0.6, Math.sqrt(o.area) * 0.9);
+        const gr = ctx.createLinearGradient(o.x, o.y, ip.x, ip.y);
+        gr.addColorStop(0, 'rgba(110,240,210,0.05)');
+        gr.addColorStop(1, 'rgba(150,255,225,0.28)');
+        ctx.strokeStyle = gr; ctx.lineWidth = w * 1.6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.quadraticCurveTo(cx, cy, ip.x, ip.y); ctx.stroke();
+        // Lyspartikler som renner inn langs buen.
+        const n = Math.max(3, Math.min(10, Math.round(d / 6)));
+        ctx.fillStyle = 'rgba(190,255,240,0.85)';
+        for (let i = 0; i < n; i++) {
+          const t = ((i / n) + time * 0.9) % 1, u = 1 - t;
+          const px = u * u * o.x + 2 * u * t * cx + t * t * ip.x, py = u * u * o.y + 2 * u * t * cy + t * t * ip.y;
+          const r = Math.max(0.25, w * 0.35) * (0.5 + t);
+          ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+        }
+        // Ring rundt biten som holdes.
+        const rr = Math.sqrt(o.area || 1) * 0.75 + 0.8;
+        ctx.strokeStyle = `rgba(150,255,225,${0.25 + 0.15 * Math.sin(time * 5 + o.x)})`;
+        ctx.lineWidth = Math.max(0.2, this.px * 1.5);
+        ctx.beginPath(); ctx.arc(o.x, o.y, rr, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
     }
 
     drawStation(st, game, vis) {

@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.23.0', date: '2026-10-02', title: 'Collector beam and tidier controls',
+      items: [
+        'The tractor beam is now the Collector beam. A faint cone shows its reach, and glowing streams of light flow from each chunk into the intake.',
+        'Touch controls are small round icon buttons: tools next to the trigger, Scan, Collect and More above it, and Brake next to the stick. The More menu is a compact grid.',
+        'On PC the toolbar is a row of small icon chips with their keys, plus the collector or scoop on F.',
+        'Hints and messages take less space and no longer cover the ship or the panels.',
+      ],
+    },
+    {
       v: 'v0.22.0', date: '2026-10-01', title: 'Cargo scoop',
       items: [
         'Every ship has a cargo scoop in the nose. Press U (or F on ships without a tractor beam) to open it.',

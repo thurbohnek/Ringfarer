@@ -38,7 +38,7 @@
     },
     min: {
       name: 'Mining', color: '#e8a54a', pal: PAL.civ,
-      bonus: '+25 % laser and drill power, +25 % processing speed, +25 % tractor pull',
+      bonus: '+25 % laser and drill power, +25 % processing speed, +25 % collector beam pull',
       apply(st) { st.laserMul *= 1.25; st.proc *= 1.25; st.tractorMul *= 1.25; },
     },
     dro: {
@@ -87,7 +87,7 @@
       sym([[0, 'thruster2', 'thruster2', 'thruster2', 'thruster2'], [1, 'fuel', 'fuel', 'fuel', 'fuel'], [2, 'reactor', 'fuel', 'fuel', 'rcs'], [3, 'reactor', 'frame'], [4, 'frame'], [5, 'frame'],
         [6, 'lifesup', 'hab', 'hab', 'cryo', 'cryo'], [7, 'hab', 'hab', 'hab', 'cryo', 'airlock'], [8, 'lifesup', 'hab', 'hab', 'cryo', 'cryo'], [9, 'lifesup', 'hangar', 'hab', 'cryo', 'cryo'], [10, 'hab', 'hangar', 'hab', 'cryo', 'airlock'],
         [11, 'lifesup', 'hab', 'hab', 'cryo', 'cryo'], [12, 'lifesup', 'hab', 'hab', 'cryo', 'cryo'], [13, 'hab', 'hab', 'hab', 'cryo', 'airlock'], [14, 'shield', 'shield', 'armor', 'armor', 'rcs'], [15, 'cockpit', 'armor', 'light2']])],
-    ['dart', 'frt', 1, 'Dart F-1', 'Courier', 5000, 'Fast little parcel ship with a tractor intake.',
+    ['dart', 'frt', 1, 'Dart F-1', 'Courier', 5000, 'Fast little parcel ship with a collector beam.',
       sym([[0, 'thruster', 'thruster'], [1, 'fuel', 'rcs'], [2, 'cargo', 'cargo'], [3, 'cockpit', 'frame'], [4, 'tractor']])],
     ['oxcart', 'frt', 2, 'Oxcart F-2', 'Hauler', 8000, 'Slow, cheap and roomy. Ore runs and cargo jobs.',
       sym([[0, 'thruster', 'thruster'], [1, 'fuel', 'fuel'], [2, 'cargo2', 'cargo2'], [3, 'cargo2', 'cargo2', 'rcs'], [4, 'cockpit', 'cargo'], [5, 'tractor']])],
