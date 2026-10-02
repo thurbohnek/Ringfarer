@@ -407,7 +407,9 @@
         t.hitX = hit.x; t.hitY = hit.y;
         // Mineralet der strålen treffer avgjør om laseren biter.
         // Runde klumper (uten rutenett) varmes opp og knuses.
+        game._myBeam = true;
         const tooHard = RF.Vox.beam(t, hit, d, L.power, L.tier, dt, game);
+        game._myBeam = false;
         if (tooHard) hardMat = tooHard; else bit = true;
       }
       // Varsle bare når ingen av laserne biter.

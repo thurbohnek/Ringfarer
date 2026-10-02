@@ -1183,7 +1183,7 @@
         fx.zaps.push({ x: o.x, y: o.y, t: game.time });
         o.dead = true;
         game.particles.burst(o.x, o.y, 10, { type: 'smoke', sMin: 1, sMax: 3 + o.radius * 0.4, color: RF.MATERIALS[o.mat].light, zMin: 0.6, zMax: 1.4, grow: 2, lMin: 0.8, lMax: 1.8, vx: o.vx, vy: o.vy });
-        if (Audio.near(o.x, o.y, 700) > 0.05) Audio.blip(1500, 0.05, 'sine', 0.05 * Audio.near(o.x, o.y, 700));
+        if (Audio.near(o.x, o.y, 700) > 0.05) Audio.blip(900, 0.05, 'sine', 0.03 * Audio.near(o.x, o.y, 700));
         continue;
       }
       const vr = o.vx * nx + o.vy * ny; // fart ut fra stasjonen (negativ = på vei inn)
@@ -1502,7 +1502,7 @@
       const idle = ship.docked || game.dead, fx = ship.fx;
       Audio.update(idle ? 0 : Math.max(fx.main, fx.retro * 0.6),
         ship.laser.on && !game.dead, ship.tractor.on && !ship.docked && !game.dead, !!ship.laser.hit,
-        idle ? 0 : Math.min(1, (fx.left + fx.right) * 0.6 + (fx.rotL + fx.rotR) * 0.5));
+        idle || ship.nav ? 0 : Math.min(1, (fx.left + fx.right) * 0.6 + (fx.rotL + fx.rotR) * 0.3));
       const cut = game._cut && game.time - game._cut.t < 0.12 && !game.dead;
       Audio.updateCut(cut, cut ? game._cut.hard : 1, cut && game._cut.mineral);
     }

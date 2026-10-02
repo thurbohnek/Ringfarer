@@ -45,6 +45,52 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-10-02: v0.23.1 · Bort med susingen, og ingen overlapp på høykant
+
+**Ønske:** «Noen knapper overlapper hverandre nederst. En veldig
+irriterende suselyd ofte. Høy lyd som jeg ikke vet hvor Kommer fra.»
+Skjermbildet var fra en telefon på høykant.
+
+**Hva som var galt:**
+
+- **Susingen:**
+  - Sidedysene ga en lys susing (båndfiltrert hvit støy rundt 1 800 Hz).
+    Stabiliseringen og autopiloten fyrer dem nesten hele tiden. Målt: lyden
+    var på i 43 % av tiden mens autopiloten fløy.
+  - Skjærelyden (lyst sus og knitring rundt 2 200 og 5 200 Hz) ble også
+    startet når droner og andre skip skar, ikke bare ditt eget skip.
+- **Knappene:** på høykant traff bremseknappen verktøyknappene. Hintet
+  nederst («Dial the capital gate») lå under bremseknappen. Navnene på
+  pilene i skjermkanten ble skrevet oppå hverandre.
+
+**Hva som er gjort:**
+
+- `js/audio.js`:
+  - **Sidedysene:** et dempet, dypt pust (brun støy under 520 Hz). Lyden
+    høres bare ved tydelige dysestøt, og den er svakere.
+  - **Skjærelyden:** mørkere (rundt 800–1 400 Hz) og svakere.
+- `js/game.js`:
+  - Sidedysene er stille mens autopiloten flyr.
+  - Pipet fra nærforsvaret på stasjonen er lavere og svakere.
+- `js/voxel.js`, `js/ship.js`: skjærelyden spilles bare når ditt eget skip
+  skjærer.
+- `index.html`: på høykant ligger bremseknappen over styrespaken, og
+  More-menyen er litt smalere.
+- `js/hud.js`:
+  - På høykant står meldinger og hint under panelet øverst, og pilene i
+    kanten holder seg under dem.
+  - Navn på piler som ville havnet oppå hverandre, flyttes ned en linje.
+- `js/news.js`, `index.html`: nyhet og versjon v0.23.1.
+
+**Testet** (Playwright):
+
+- **Sidedyselyd under autopilot:** før på 43 % av tiden, nå 0 %.
+- **Når du styrer selv:** dyp rumling, toppnivå 0,52.
+- **Høykant (410 × 760) og liggende (844 × 390) ved porten:** ingen
+  knapper overlapper. Hintet og pilene står ryddig under panelet.
+- **Resten virker som før:** knappene, pirater og kart. Ingen feil i
+  konsollen.
+
 ## 2026-10-02: v0.23.0 · Samlestråle, ryddigere knapper og skjerm
 
 **Ønske:** «Kan du endre på traktor strålen... Og kanskje et annet ord for

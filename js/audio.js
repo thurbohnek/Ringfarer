@@ -88,9 +88,10 @@
     humGain = gain(); hum.connect(humGain); humGain.connect(master); hum.start();
 
     // Sidedyser: korte, lyse pust.
-    const rcsFilter = filt('bandpass', 1800, 0.9);
+    // Sidedysene: et dempet, dypt pust (ikke lys susing).
+    const rcsFilter = filt('lowpass', 520, 0.7);
     rcsGain = gain();
-    loopSrc(noiseBuf, 0.8).connect(rcsFilter); rcsFilter.connect(rcsGain); rcsGain.connect(master);
+    loopSrc(brownBuf, 1.6).connect(rcsFilter); rcsFilter.connect(rcsGain); rcsGain.connect(master);
 
     // Laser: to svakt forstemte toner med litt vibrato, mykt filtrert.
     const la = c.createOscillator(); la.type = 'triangle'; la.frequency.value = 220;
@@ -110,10 +111,10 @@
     t1.start(); t2.start();
 
     // Skjærestrålen: sus (båndfiltrert støy) og svak knitring oppå.
-    cutFilter = filt('bandpass', 2200, 1.2);
+    cutFilter = filt('bandpass', 1100, 0.9);
     cutGain = gain();
     loopSrc(noiseBuf).connect(cutFilter); cutFilter.connect(cutGain); cutGain.connect(master);
-    const hp = filt('highpass', 5200);
+    const hp = filt('bandpass', 2600, 1.5);
     cutHiss = gain();
     loopSrc(noiseBuf, 0.37).connect(hp); hp.connect(cutHiss); cutHiss.connect(master);
   };
@@ -140,7 +141,10 @@
     engFilter.frequency.setTargetAtTime(90 + e * 260, t, 0.15);
     humGain.gain.setTargetAtTime(e * 0.12, t, 0.15);
     hum.frequency.setTargetAtTime(38 + e * 22, t, 0.2);
-    rcsGain.gain.setTargetAtTime(Math.min(1, rcs) * 0.05, t, 0.03);
+    // Bare tydelige dysestøt høres. Små justeringer fra stabiliseringen og
+    // autopiloten er stille.
+    const rq = Math.max(0, Math.min(1, rcs) - 0.35) / 0.65;
+    rcsGain.gain.setTargetAtTime(rq * 0.06, t, 0.12);
     laserGain.gain.setTargetAtTime(laser ? (laserHit ? 0.05 : 0.035) : 0, t, 0.05);
     laserFilter.frequency.setTargetAtTime(laserHit ? 1900 : 1200, t, 0.08);
     tractorGain.gain.setTargetAtTime(tractor ? 0.06 : 0, t, 0.15);
@@ -160,9 +164,9 @@
     if (t - cutT < 0.07) return;
     cutT = t;
     const flutter = 0.8 + Math.random() * 0.4;
-    cutGain.gain.setTargetAtTime(0.1 * flutter, t, 0.06);
-    cutFilter.frequency.setTargetAtTime(1500 + hard * 500 + (mineral ? 800 : 0) + Math.random() * 250, t, 0.08);
-    cutHiss.gain.setTargetAtTime((mineral ? 0.05 : 0.02) * (Math.random() < 0.25 ? 1.8 : 1), t, 0.04);
+    cutGain.gain.setTargetAtTime(0.07 * flutter, t, 0.08);
+    cutFilter.frequency.setTargetAtTime(800 + hard * 220 + (mineral ? 300 : 0) + Math.random() * 120, t, 0.1);
+    cutHiss.gain.setTargetAtTime((mineral ? 0.025 : 0.01) * (Math.random() < 0.25 ? 1.6 : 1), t, 0.06);
   };
 
   // Dunk: støy gjennom et filter, og en lav tone under når det er kraftig.

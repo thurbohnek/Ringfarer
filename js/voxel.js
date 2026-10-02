@@ -760,7 +760,8 @@
     }
     t.heat = Math.min(1, (t.heat || 0) + dt * 3);
     // Til lyden: skjærer strålen nå, og i hva.
-    if (game && t.world === game.sys.world) game._cut = { t: game.time, hard, mineral: !RF.MATERIALS[mat].stone };
+    // Skjærelyden: bare når ditt eget skip skjærer (ikke droner og andre skip).
+    if (game && game._myBeam && t.world === game.sys.world) game._cut = { t: game.time, hard, mineral: !RF.MATERIALS[mat].stone };
     t._cutT = (t._cutT || 0) + dt;
     t._cutDirty = t._cutDirty || crossed || removed;
     // Bygg omriss og kollisjon på nytt av og til mens det skjæres.

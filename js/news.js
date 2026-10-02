@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.23.1', date: '2026-10-02', title: 'Quieter, and tidy in portrait',
+      items: [
+        'The constant hissing is gone. Small thruster corrections and the autopilot are now silent, and thrusters you fire yourself make a soft, low rumble.',
+        'The cutting sound is softer and only plays for your own ship, not for drones and other ships.',
+        'With the phone held upright, no buttons overlap: Brake sits above the stick and hints and messages appear under the top panel.',
+        'Markers at the screen edge no longer write their names on top of each other.',
+      ],
+    },
+    {
       v: 'v0.23.0', date: '2026-10-02', title: 'Collector beam and tidier controls',
       items: [
         'The tractor beam is now the Collector beam. A faint cone shows its reach, and glowing streams of light flow from each chunk into the intake.',

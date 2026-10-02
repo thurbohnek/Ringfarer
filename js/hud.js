@@ -121,7 +121,8 @@
     const s = R.toScreen(game.cam, wx, wy);
     const touch = game.touchUI;
     // Rammen må alltid ha skjermens midtpunkt godt innenfor.
-    const ml = 26, mr = touch ? 60 : 26, mt = 84, mb = touch ? Math.min(200, R.h * 0.3) : 80;
+    const portrait = touch && R.h > R.w;
+    const ml = 26, mr = touch ? 60 : 26, mt = portrait ? 150 : 84, mb = touch ? Math.min(200, R.h * 0.3) : 80;
     const inside = s.x > ml && s.x < R.w - mr && s.y > mt && s.y < R.h - mb;
     if (inside) return;
     const ship = from || game.ship.body;
@@ -143,7 +144,14 @@
     ctx.font = F.label;
     ctx.textAlign = Math.cos(a) > 0.3 ? 'right' : Math.cos(a) < -0.3 ? 'left' : 'center';
     const tx = ex - Math.cos(a) * 12, ty = ey - Math.sin(a) * 12;
-    ctx.fillText(label.toUpperCase() + ' ' + fmtDist(dist), tx, ty + 4 + textDy);
+    // Navn som ville havnet oppå hverandre, flyttes ned en linje.
+    const text = label.toUpperCase() + ' ' + fmtDist(dist), tw = ctx.measureText(text).width;
+    const al = ctx.textAlign, lx = al === 'right' ? tx - tw : al === 'center' ? tx - tw / 2 : tx;
+    let y = ty + 4 + textDy;
+    const used = game._mk || (game._mk = []);
+    for (let k = 0; k < 4 && used.some((u) => lx < u.x + u.w && lx + tw > u.x && Math.abs(y - u.y) < 12); k++) y += 13;
+    used.push({ x: lx, y, w: tw });
+    ctx.fillText(text, tx, y);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
@@ -256,6 +264,7 @@
         ctx.stroke();
       }
     }
+    game._mk = [];
     if (!ship.docked && !game.dead && RF.Scan) RF.Scan.drawHud(ctx, R, game);
     if (!ship.docked) {
       edgeMarker(ctx, game, R, game.sys.station.x, game.sys.station.y, game.sys.station.name, C.ok);
@@ -394,7 +403,7 @@
       const txt = touch ? game.prompt.replace(/^\[[^\]]+\]\s*/, '') : game.prompt;
       ctx.font = F.label;
       const tw = ctx.measureText(txt).width + 18;
-      const py = touch ? h - 22 : h - 50;
+      const py = touch ? (h > w ? top + 128 : h - 22) : h - 50;
       panel(ctx, w / 2 - tw / 2, py - 13, tw, 20, 0.85);
       ctx.textAlign = 'center';
       ctx.fillStyle = C.amber;
@@ -406,7 +415,9 @@
     ctx.textAlign = 'center';
     ctx.font = touch ? F.label : F.title;
     // På mobil midt mellom panelet og radaren, så de ikke går oppi dem.
-    const my = top + 18, mx = touch ? (196 + (w - 96)) / 2 : w / 2, lh = touch ? 14 : 17;
+    // På høykant under panelet.
+    const port = touch && h > w;
+    const my = port ? top + 86 : top + 18, mx = port ? w / 2 : touch ? (196 + (w - 96)) / 2 : w / 2, lh = touch ? 14 : 17;
     game.messages.slice(-2).forEach((m, i) => {
       ctx.globalAlpha = Math.min(1, m.t) * 0.95;
       ctx.fillStyle = '#000';

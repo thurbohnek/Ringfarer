@@ -374,6 +374,12 @@
   #touch .brake { position: absolute; left: calc(max(14px, env(safe-area-inset-left)) + 184px); bottom: max(18px, env(safe-area-inset-bottom)); width: 52px; height: 52px; }
   #touch .ctx { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 186px); height: 30px; padding: 0 12px; border-radius: 15px; font-size: 11px; color: var(--ok); border-color: var(--ok); }
   .tc-winch { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 136px); bottom: max(14px, env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; gap: 5px; }
+  /* Telefon på høykant: bremsen over styrespaken, så den ikke treffer verktøyene. */
+  @media (orientation: portrait) {
+    #touch .brake { left: calc(max(14px, env(safe-area-inset-left)) + 62px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 190px); }
+    #tc-drawer { grid-template-columns: repeat(4, 54px); }
+    #touch .tile { width: 54px; }
+  }
   #tc-drawer { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 92px); display: grid; grid-template-columns: repeat(4, 58px); gap: 6px; padding: 8px; pointer-events: auto; z-index: 6; }
   #touch .tile { width: 58px; height: 52px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
   #touch .tc-acts .ib { width: 46px; height: 46px; }
@@ -461,7 +467,7 @@
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.23.0 · 2026-10-02';
+  window.RF_VERSION = 'v0.23.1 · 2026-10-02';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
     var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'stations', 'missions', 'input', 'audio',
