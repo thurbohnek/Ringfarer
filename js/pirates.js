@@ -60,6 +60,8 @@
       const n = new RF.NPC(type, sys);
       n.index = i;
       n.state = 'attack';
+      // Raidere i farlige systemer har med seg varmesøkende missiler.
+      n.missiles = type === 'raider' ? (P.danger(sys) >= 0.6 ? 2 : P.danger(sys) > 0.4 ? 1 : 0) : 0;
       n.timer = 0;
       const a = away + (i - 1) * 0.25;
       const x = x0 + Math.cos(a + Math.PI / 2) * i * 30, y = y0 + Math.sin(a + Math.PI / 2) * i * 30;

@@ -12,7 +12,7 @@
 
   RF.TOOLS = ['laser', 'kanon', 'rakett', 'anker'];
   RF.TURRET_ARC = 1.9; // hvor langt et tårn kan dreie hver vei fra retningen det peker ut (rad)
-  RF.TOOL_NAMES = { laser: 'Laser', kanon: 'Cannon', rakett: 'Rocket', anker: 'Harpoon' };
+  RF.TOOL_NAMES = { laser: 'Laser', kanon: 'Guns', rakett: 'Rocket', anker: 'Harpoon' };
 
   RF.emptyCargo = () => {
     const c = {};
@@ -29,6 +29,7 @@
       blueprint: layout.map((m) => ({ t: m.t, x: m.x, y: m.y })),
       fuel: 1e12, // fylles helt opp (Ship begrenser til tankene med målestokk)
       ammo: st.rocketCap,
+      flares: st.flareCap,
       cargo: RF.emptyCargo(),
       missionCargo: [],
       drones: [],
@@ -93,6 +94,7 @@
       this.refreshStats();
       s.fuel = Math.min(s.fuel, this.stats.fuelCap);
       s.ammo = Math.min(s.ammo || 0, this.stats.rocketCap);
+      s.flares = Math.min(s.flares == null ? this.stats.flareCap : s.flares, this.stats.flareCap);
       this.shield = Math.min(this.shield || 0, this.stats.shieldMax);
       this.noseX = L.reduce((a, m) => Math.max(a, m.lx), 0) + CELL / 2;
       if (this.anchor && !this.anchorModuleAlive()) this.anchor.lost = true;
@@ -309,7 +311,16 @@
         if (!D.mount || m.dir < 0) continue;
         const mp = this.mountOf(m);
         if (D.light || D.tractor || D.drill) { m.aimA = mp.a; m.inArc = true; continue; }
-        const want = Math.atan2(al.y - mp.ly, al.x - mp.lx);
+        // Nærforsvaret sikter selv (combat.js).
+        if (D.pd) continue;
+        let tl = al;
+        // Ildlederen sikter kanonene dit målet vil være når kula kommer fram.
+        if (D.gun && this.lead && this.stats.fireCtl) {
+          const t = this.lead, sp = D.gun.speed;
+          const tt = Math.min(3, G.len(t.x - b.x, t.y - b.y) / sp);
+          tl = b.toLocal(t.x + (t.vx - b.vx) * tt, t.y + (t.vy - b.vy) * tt);
+        }
+        const want = Math.atan2(tl.y - mp.ly, tl.x - mp.lx);
         const diff = G.wrapAngle(want - mp.a);
         m.inArc = Math.abs(diff) <= RF.TURRET_ARC;
         const target = mp.a + G.clamp(diff, -RF.TURRET_ARC, RF.TURRET_ARC);

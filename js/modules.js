@@ -61,7 +61,21 @@
       gun: { rate: 4, speed: 450, mass: 20 },
       desc: 'Fires heavy slugs. Breaks chunks off even hard rock.' },
     rocket: { name: 'Rocket launcher', cat: 'Weapons', mass: 1800, hp: 50, cost: 2200, mount: true, unlock: 1, ammo: 6,
-      desc: 'Explosive rockets that crack anything. 6 rockets, restocked at stations.' },
+      seek: { lock: 500, time: 0.9, turn: 2.2 },
+      desc: 'Heat-seeking rockets that crack anything. Hold the aim on a raider to lock on. 6 rockets, restocked at stations.' },
+    autocannon: { name: 'Autocannon', cat: 'Weapons', mass: 1200, hp: 50, cost: 900, mount: true, unlock: 0,
+      gun: { rate: 12, speed: 380, mass: 2.5, pow: 0.35, spread: 0.03, kind: 'auto' },
+      desc: 'Rotary gun. A stream of light rounds that shreds drones and raiders. Barely scratches rock.' },
+    railgun: { name: 'Rail cannon', cat: 'Weapons', mass: 3400, hp: 70, cost: 7500, mount: true, unlock: 2,
+      gun: { rate: 0.45, speed: 2400, mass: 40, pow: 3, dmg: 75, pierce: 3, kind: 'rail' },
+      desc: 'Magnetic rails throw a slug at 2.4 km/s. It goes straight through several targets. Charges between shots, faster with a reactor.' },
+    pdc: { name: 'Point defense turret', cat: 'Weapons', mass: 1100, hp: 45, cost: 2600, mount: true, unlock: 1,
+      pd: { range: 170, rate: 14 },
+      desc: 'Fires by itself at incoming missiles and stinger drones within 170 m. Works with any tool selected.' },
+    flares: { name: 'Flare launcher', cat: 'Weapons', mass: 500, hp: 40, cost: 1500, flares: 8, unlock: 1,
+      desc: 'Drops hot flares by itself when an enemy missile closes in, so its heat seeker goes for them instead. 8 flares, restocked at stations.' },
+    firectl: { name: 'Fire control computer', cat: 'Weapons', mass: 400, hp: 35, cost: 3200, firectl: true, unlock: 1,
+      desc: 'Turrets aim ahead of moving targets, and rockets lock on 40 % faster and from 40 % further away.' },
     anchor: { name: 'Harpoon launcher', cat: 'Tools', mass: 1300, hp: 60, cost: 1200, mount: true, unlock: 0,
       anchor: { range: 120, winch: 4 },
       desc: 'Fires a hook on a cable that sticks to whatever it hits. Tow comets or hold on.' },
@@ -98,7 +112,11 @@
       gun: { rate: 0.8, speed: 620, mass: 520 },
       desc: 'Takes 3×3 slots. The main gun of a battleship.' },
     rocket2: { name: 'Missile battery', cat: 'Weapons', mass: 6000, hp: 180, cost: 9000, mount: true, size: 2, ammo: 18, pow: 2, unlock: 2,
-      desc: 'Takes 2×2 slots. 18 heavy missiles with twice the blast.' },
+      seek: { lock: 800, time: 0.6, turn: 3 },
+      desc: 'Takes 2×2 slots. 18 heavy heat-seeking missiles with twice the blast and a better seeker.' },
+    railgun2: { name: 'Heavy rail cannon', cat: 'Weapons', mass: 12000, hp: 220, cost: 32000, mount: true, size: 2, unlock: 3,
+      gun: { rate: 0.3, speed: 3200, mass: 160, pow: 6, dmg: 200, pierce: 5, kind: 'rail' },
+      desc: 'Takes 2×2 slots. A capital-ship rail gun. Each shot splits rock and goes through whole formations.' },
     lance: { name: 'Lance', cat: 'Weapons', mass: 24000, hp: 500, cost: 60000, mount: true, size: 3, unlock: 3,
       laser: { power: 22, tier: 4, range: 460, color: '160,220,255' },
       desc: 'Takes 3×3 slots. A spinal beam weapon that burns through anything.' },
@@ -412,7 +430,7 @@
   RF.layoutStats = (layout) => {
     const st = {
       thrust: 0, thrusters: [], rcs: 0, rcsList: [], fuelCap: 0, hold: 0, shieldMax: 0, proc: 2500, yield: 1,
-      lasers: [], drills: [], guns: [], rockets: [], anchors: [], tractors: [], lights: [], bays: 0, hpMax: 0, hp: 0, blocked: [],
+      lasers: [], drills: [], guns: [], rockets: [], pds: [], flareCap: 0, anchors: [], tractors: [], lights: [], bays: 0, hpMax: 0, hp: 0, blocked: [],
       pax: 0, cryo: 0, life: 6, locks: 0, power: 0, bayS: 0, hangars: 0, clamps: 0, bayPer: 1, scanRange: 700,
     };
     for (const m of layout) {
@@ -432,7 +450,10 @@
       if (D.laser && !blocked) st.lasers.push({ m, ...D.laser, power: D.laser.power * eff });
       if (D.drill && !blocked) st.drills.push({ m, ...D.drill, power: D.drill.power * eff });
       if (D.gun && !blocked) st.guns.push({ m, ...D.gun });
-      if (D.ammo && !blocked) st.rockets.push({ m });
+      if (D.ammo && !blocked) st.rockets.push({ m, ...D.seek });
+      if (D.pd && !blocked) st.pds.push({ m, ...D.pd });
+      if (D.flares) st.flareCap += D.flares;
+      if (D.firectl) st.fireCtl = true;
       if (D.anchor && !blocked) st.anchors.push({ m, ...D.anchor });
       if (D.tractor && !blocked) st.tractors.push({ m, F: D.tractor * eff });
       if (D.light && !blocked) st.lights.push({ m, range: D.light });
@@ -451,6 +472,9 @@
     st.paxCap = Math.min(st.pax, st.life) + st.cryo;
     st.shieldMax += st.power * 40;
     st.rocketCap = st.rockets.reduce((a, r) => a + (RF.MODULES[r.m.t].ammo || 6), 0);
+    // Søkeren: beste rakettkaster bestemmer hvor langt og hvor fort den låser.
+    const sk = st.rockets.reduce((a, r) => (r.lock > a.lock ? r : a), { lock: 0, time: 1, turn: 2 });
+    st.seek = { lock: sk.lock * (st.fireCtl ? 1.4 : 1), time: sk.time * (st.fireCtl ? 0.6 : 1), turn: sk.turn };
     st.bays = st.bayS * st.bayPer + st.hangars * 2 + st.clamps;
     return st;
   };
@@ -458,7 +482,7 @@
   // --- Automatisk montering (butikken) ---
   // Finn beste ledige rute for en ny modul: inntil skipet, innenfor skroget,
   // uten å sperre eller snu verktøy og motorer som allerede sitter der.
-  const FWD_TOOLS = new Set(['laser', 'laser2', 'laser3', 'laser4', 'drill', 'cannon', 'light', 'light2']);
+  const FWD_TOOLS = new Set(['laser', 'laser2', 'laser3', 'laser4', 'drill', 'cannon', 'autocannon', 'railgun', 'light', 'light2']);
   RF.autoPlace = (layout, hull, t) => {
     const B = RF.hullBounds(hull), D = RF.MODULES[t];
     const occ = new Set(layout.map((m) => key(m.x, m.y)));
@@ -516,7 +540,7 @@
   // Testskipet: Fjellbryter med alt som er, pluss to borehoder og navigasjonsdatamaskin.
   RF.testLayout = () => {
     const L = RF.layoutFrom(RF.TEST_LAYOUT);
-    for (const t of ['drill', 'drill', 'navcomp', 'hangar', 'droneclamp', 'droneclamp']) {
+    for (const t of ['drill', 'drill', 'navcomp', 'hangar', 'droneclamp', 'droneclamp', 'autocannon', 'railgun', 'pdc', 'pdc', 'flares', 'firectl']) {
       const m = RF.autoPlace(L, 'fjell', t);
       if (m) L.push(m);
     }
@@ -525,7 +549,7 @@
 
   // Oppgradering på samme plass: neste utgave av samme størrelse.
   RF.UPGRADE = { laser: 'laser2', laser2: 'laser3', laser3: 'laser4', thruster: 'thruster2', armor: 'armor2', cargo: 'cargo2',
-    light: 'light2', anchor: 'anchor2', cannon2: null, dronebay: null };
+    light: 'light2', anchor: 'anchor2', cannon2: null, dronebay: null, autocannon: 'cannon', railgun: null };
 
   RF.layoutValue = (layout) => layout.reduce((s, m) => s + RF.MODULES[m.t].cost, 0);
 })();

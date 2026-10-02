@@ -135,6 +135,7 @@
     game.stationXP = {};
     game.lastStation = 'midgard';
     RF.Weapons.reset();
+    if (RF.Combat) RF.Combat.reset();
     // I testmodus starter man med et skip som har alt utstyret om bord.
     const st = test ? RF.newShipState('fjell', RF.testLayout()) : RF.newShipState('hopper');
     if (test) {
@@ -164,7 +165,7 @@
     const data = {
       v: 2, credits: game.credits, ship: {
         hull: s.hull, layout: s.layout.map((m) => ({ t: m.t, x: m.x, y: m.y, hp: m.hp })), blueprint: s.blueprint,
-        fuel: s.fuel, ammo: s.ammo, cargo: s.cargo, missionCargo: s.missionCargo, drones: s.drones,
+        fuel: s.fuel, ammo: s.ammo, flares: s.flares, cargo: s.cargo, missionCargo: s.missionCargo, drones: s.drones,
       },
       missions: game.missions.filter((m) => m.status === 'aktiv'),
       lastStation: game.lastStation, fa: game.ship.fa, test: game.testMode, stationXP: game.stationXP || {},
@@ -200,6 +201,7 @@
     game.systems = {};
     game.priceMod = {};
     RF.Weapons.reset();
+    if (RF.Combat) RF.Combat.reset();
     game.ship = new RF.Ship(s);
     game.ship.fa = data.fa != null ? data.fa : 1;
     spawnDocked(game.lastStation);
@@ -1036,6 +1038,7 @@
     ship.releaseAnchor(game);
     game.recallDronesNow();
     RF.Weapons.reset();
+    if (RF.Combat) RF.Combat.reset();
     const cs = Math.cos(g.a), sn = Math.sin(g.a);
     const vlx = b.vx * cs + b.vy * sn, vly = -b.vx * sn + b.vy * cs;
     const al = b.a - g.a;
@@ -1096,7 +1099,9 @@
     const st = RF.layoutStats(ns.layout);
     ns.fuel = 1e12; // fylt opp, se Ship.rebuild
     ns.ammo = st.rocketCap;
+    ns.flares = st.flareCap;
     RF.Weapons.reset();
+    if (RF.Combat) RF.Combat.reset();
     game.ship = new RF.Ship(ns);
     game.ship.fa = fa;
     RF.UI.closeAll();
@@ -1272,7 +1277,8 @@
     const fire = inp.fire || (Input.pointer.down && game.pointerMode === 'aim');
     ship.updateTurrets(game.aim, dt);
     ship.updateLasers(fire && ship.tool === 'laser', dt, game);
-    if (fire && ship.tool === 'kanon') RF.Weapons.fireGuns(ship, game);
+    RF.Weapons.updateGuns(ship, fire && ship.tool === 'kanon', dt, game);
+    RF.Combat.update(dt, game, Input.pointer.down && game.pointerMode === 'aim');
     ship.updateTractor(dt, game);
     ship.updateScoop(dt, game);
     ship.updateProcessing(dt, game);
@@ -1361,6 +1367,7 @@
       game.msg('Flight assist: ' + ['off (pure Newton)', 'damps rotation', 'full (also brakes speed)'][ship.fa], RF.HUD_COLORS.gate);
     }
     if (Input.hit('KeyX')) RF.Weapons.fireHarpoon(ship, game);
+    if (Input.hit('KeyJ')) RF.Combat.dropFlares(game, true);
     if (Input.hit('KeyK')) game.launchDrones();
     if (Input.hit('KeyN')) RF.Scan.pulse(game);
     if (Input.hit('KeyB')) game.toggleHold();

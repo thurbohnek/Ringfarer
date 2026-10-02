@@ -28,6 +28,12 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   skjærestråle. Si fra om borene også skal endres.
 - **Pirater:** styrken (skudd, skrog, dusør) og hvor ofte de kommer kan
   justeres etter testing. De følger ikke etter gjennom porten.
+- **Våpenbalansen** kan justeres etter testing. Det gjelder skade, takt,
+  hvor fort låsen går, hvor ofte nærforsvaret treffer et missil (16 % per
+  skudd), sjansen for at en fakkel lurer et missil (70 %), og hvor mange
+  missiler piratene har.
+- **Piratene har ikke fakler eller nærforsvar ennå.** Rakettene dine kan
+  derfor ikke lures. Det kan komme med tyngre piratskip senere.
 - **Skjærefarten** kan justeres etter testing. Startlaseren bruker omtrent
   25 sekunder gjennom en gråstein på 50 m.
 - **Laseren gir ikke lenger malm av gråstein** (kondritt, silikat, karbon).
@@ -44,6 +50,85 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   passasjerer de hadde med seg akkurat da, blir borte.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-10-02: v0.24.0 · Våpen og forsvar: varmesøkende raketter, maskinkanon, railkanon, nærforsvar og fakler
+
+**Ønske:** «Raketter må være varmesøkende når det kommer til motstandere.
+Våpensystemer for å kunne beskytte seg osv. Alt må fungere etter hva man har
+og hvilke oppgraderinger man har. Man må også kunne ha type maskingevær eller
+rail cannon osv. Du kan bære utforske dette og finne ut av det.»
+
+**Hva som er gjort:**
+
+- **Varmesøkende raketter** (`js/combat.js`, `js/weapons.js`):
+  - Hold siktet på en pirat med raketter valgt. Klammer snurrer rundt målet
+    og en tone piper fortere til klammene blir røde og det står LOCK.
+  - En låst rakett jager målet. Den styrer med skyvekraft (ingen vinger i
+    rommet) mot der målet vil være.
+  - Uten lås ser søkeren bare rett fram, så raketter mot steiner flyr rett
+    som før.
+  - På mobil: trykk og hold på piraten, så går raketten av når låsen er klar.
+  - Søkeren går etter varme: en pirat på full motor er lettere å treffe.
+- **Kanonene skyter hver i sin takt** (`js/weapons.js`). Verktøy 2 heter
+  nå «Guns» og fyrer alle kanonene skipet har:
+  - **Autocannon** (ny, maskinkanon): 12 lette skudd i sekundet med litt
+    spredning. Rask mot droner og raidere, svak mot stein.
+  - **Mass driver**: som før.
+  - **Rail cannon** og **Heavy rail cannon** (nye): lades mellom skuddene,
+    raskere med reaktor. Kula går i 2,4–3,2 km/s og gjennom flere mål. Den
+    etterlater en lysende strek, gir et kraftig rekyl og et elektrisk smell.
+- **Forsvar** (`js/combat.js`):
+  - **Point defense turret** (ny): skyter av seg selv på fiendtlige missiler
+    (en viss sjanse per skudd) og stikkerdroner innen 170 m. Den virker
+    uansett hvilket verktøy som er valgt.
+  - **Flare launcher** (ny): slipper tre glødende fakler når et fiendtlig
+    missil kommer innen 260 m. Med J kan man også slippe dem selv. Hver fakkel
+    har 70 % sjanse til å lure et missil. Har 8 ladninger, som fylles opp på
+    stasjonen.
+  - **Fire control computer** (ny): låser 40 % raskere og fra 40 % lenger
+    unna. Tårnene sikter dit målet vil være når kula kommer fram.
+- **Pirater med missiler** (`js/npc.js`, `js/pirates.js`):
+  - Raidere i Vanaheim og Muspelheim har 2 varmesøkende missiler.
+  - Midgard er fortsatt uten missiler.
+  - Når et missil skytes, kommer meldingen «Missile incoming!» og alarmen.
+    Missilet har en blinkende rød ring.
+- **Alt følger utstyret** (`js/modules.js`):
+  - Det beste rakettkasteret bestemmer søkeren. Missilbatteriet låser
+    lenger unna og svinger skarpere.
+  - Skadde eller sperrede moduler virker ikke, som før.
+  - Testskipet har fått alle de nye våpnene.
+- **Tegning** (`js/shipdraw.js`, `js/render.js`):
+  - Maskinkanonen har en snurrende klynge av løp.
+  - Railkanonen har to skinner med blått lys som fylles mens den lades.
+  - Nærforsvaret har en liten kuppel med to løp.
+  - Fakkelkasteret og ildlederen har egne tegninger.
+  - Faklene og missilene lyser.
+- **Lyd** (`js/audio.js`): `Audio.auto` (knatter) og `Audio.rail` (smell).
+- **Service og menyer** (`js/ui.js`):
+  - Raketter og fakler fylles opp i samme rad.
+  - Skipsoversikten viser hvilke våpen skipet har.
+  - Hjelpen forklarer våpen, lås og forsvar.
+  - J er lagt til i tastelisten.
+- `index.html`: `combat.js` lastes etter `weapons.js`, og versjonen er nå
+  v0.24.0.
+- `js/news.js`: nyhet.
+
+**Testet** i nettleseren med testskipet:
+
+- **Låsing:** etter 0,54 s med ildleder kom «Locked on Raider». Raketten
+  fulgte raideren fra 536 m og ned til 257 m.
+- **Kanonene:** de skjøt ned en raider og to stikkere på omtrent 4 sekunder.
+  Railkanonen ble ladet på nytt etter skuddet.
+- **Fiendtlige missiler:**
+  - Nærforsvaret skjøt ned ett missil.
+  - Faklene ble sluppet av seg selv (8 ble til 7), og missilene gikk etter
+    faklene.
+  - Skroget var helt etterpå.
+- **De gamle testene:**
+  - Knappene overlapper ikke, verken på høykant eller liggende.
+  - Trykk virker.
+  - Pirater, kartet og steiner i bevegelse virker.
+  - Ingen feil i konsollen.
 
 ## 2026-10-02: v0.23.1 · Bort med susingen, og ingen overlapp på høykant
 

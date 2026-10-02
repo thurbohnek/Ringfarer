@@ -783,6 +783,13 @@
           if (near) RF.Audio.gun(0.45 * RF.Audio.near(n.x, n.y, 700));
         }
       }
+      // Varmesøkende missil på middels avstand, med lang pause mellom hvert.
+      this.misCd = (this.misCd == null ? G.rand(4, 9) : this.misCd) - dt;
+      if (this.missiles > 0 && this.misCd <= 0 && dist > 120 && dist < 600 && Math.abs(G.wrapAngle(Math.atan2(dy, dx) - b.a)) < 0.7) {
+        this.missiles--;
+        this.misCd = G.rand(10, 16);
+        RF.Combat.enemyMissile(this, game);
+      }
     }
 
     // Piraten forsvinner (fløy vekk, eller ble skutt ned).

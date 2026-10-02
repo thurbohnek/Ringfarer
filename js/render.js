@@ -442,6 +442,7 @@
         this.drawBeams(ship);
       }
       RF.Weapons.draw(ctx, this.px);
+      if (RF.Combat) RF.Combat.drawWorld(ctx, game, this.px);
       this.drawParticles(game.particles, vis, 'glow');
     }
 
@@ -613,6 +614,7 @@
       if (ship && !game.dead) shipLights(ship);
       for (const n of sys.npcs || []) if (n.active) shipLights(n);
       for (const p of RF.Weapons.list) if (p.type === 'rocket') glow(p.x, p.y, 20, 0.6, '255,190,120');
+      for (const p of RF.Weapons.list) if (p.type === 'flare') glow(p.x, p.y, 30, 0.5 * Math.min(1, p.heat), '255,200,110');
 
       const st = sys.station;
       glow(st.x, st.y, 230, 0.25);

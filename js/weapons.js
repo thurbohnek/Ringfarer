@@ -6,9 +6,9 @@
   const G = RF.G;
   const CELL = RF.CELL;
 
-  const W = (RF.Weapons = { list: [] });
+  const W = (RF.Weapons = { list: [], traces: [], now: 0 });
 
-  W.reset = () => { W.list = []; };
+  W.reset = () => { W.list = []; W.traces = []; };
 
   // Tuppen av tårnet og retningen det sikter.
   function launchFrom(ship, m) {
@@ -22,36 +22,70 @@
     W.list.push(Object.assign({ type: 'shell', life: 2.6 }, p));
   };
 
-  // Kanon: hver massedriver skyter et tungt prosjektil. Rekylen dytter skipet.
-  W.fireGuns = (ship, game) => {
+  // Kanonene: hver har sin egen takt. Maskinkanonen spruter lette kuler,
+  // massedriveren tunge, og railkanonen lades opp mellom skuddene (raskere
+  // med reaktor) og skyter en kule som går gjennom flere mål. Rekylen dytter
+  // skipet.
+  W.updateGuns = (ship, fire, dt, game) => {
     const st = ship.stats;
-    if (!st.guns.length || ship.gunCd > 0) return;
-    ship.gunCd = 1 / (st.guns[0].rate * (st.gunRateMul || 1));
+    const snd = { auto: 0, slug: 0, rail: 0 };
     for (const g of st.guns) {
-      if (!g.m.onTarget) continue;
-      const { p, d, v } = launchFrom(ship, g.m);
+      const m = g.m;
+      m._cd = Math.max(0, (m._cd || 0) - dt);
+      const rate = g.rate * (st.gunRateMul || 1);
+      if (g.kind === 'rail') {
+        m._charge = Math.min(1, (m._charge || 0) + dt * rate * (1 + 0.35 * (st.power || 0)));
+        if (!fire || m._charge < 1 || !m.onTarget) continue;
+        m._charge = 0;
+      } else {
+        if (!fire || m._cd > 0 || !m.onTarget) continue;
+        m._cd = 1 / rate;
+      }
+      const { p, d: d0, v } = launchFrom(ship, m);
+      let d = d0;
+      if (g.spread) { const a = Math.atan2(d.y, d.x) + G.rand(-g.spread, g.spread); d = { x: Math.cos(a), y: Math.sin(a) }; }
       // Større kanoner og større skip skyter tyngre prosjektiler.
-      const mass = g.mass * (st.gunMul || 1), pow = (RF.MODULES[g.m.t].pow || 1) * Math.sqrt(st.gunMul || 1);
-      W.list.push({ type: 'shell', x: p.x, y: p.y, vx: v.x + d.x * g.speed, vy: v.y + d.y * g.speed, mass, pow, life: 1.2 + pow * 0.2, owner: ship.body });
+      const gm = st.gunMul || 1;
+      const mass = g.mass * gm, pow = (g.pow || RF.MODULES[m.t].pow || 1) * Math.sqrt(gm);
+      const sh = { type: 'shell', kind: g.kind, x: p.x, y: p.y, vx: v.x + d.x * g.speed, vy: v.y + d.y * g.speed, mass, pow, owner: ship.body,
+        life: g.kind === 'rail' ? 0.45 : g.kind === 'auto' ? 1.1 : 1.2 + pow * 0.2 };
+      if (g.dmg) sh.dmg = g.dmg * gm;
+      if (g.pierce) { sh.pierce = g.pierce; sh.skip = []; }
+      W.list.push(sh);
       ship.body.applyImpulse(-d.x * mass * g.speed, -d.y * mass * g.speed, p.x, p.y);
-      game.particles.burst(p.x, p.y, 6, { type: 'glow', dir: Math.atan2(d.y, d.x), spread: 0.4, sMin: 10, sMax: 40, color: '#ffd28a', zMin: 0.2, zMax: 0.4, lMin: 0.05, lMax: 0.15, vx: v.x, vy: v.y });
+      const ang = Math.atan2(d.y, d.x);
+      if (g.kind === 'rail') {
+        game.particles.burst(p.x, p.y, 16, { type: 'glow', dir: ang, spread: 0.25, sMin: 20, sMax: 80, color: '#9fe8ff', zMin: 0.2, zMax: 0.5, lMin: 0.05, lMax: 0.2, vx: v.x, vy: v.y });
+        game.shake = Math.min(1, game.shake + 0.25);
+        snd.rail++;
+      } else {
+        game.particles.burst(p.x, p.y, g.kind === 'auto' ? 2 : 6, { type: 'glow', dir: ang, spread: 0.4, sMin: 10, sMax: 40, color: '#ffd28a', zMin: 0.15, zMax: g.kind === 'auto' ? 0.25 : 0.4, lMin: 0.04, lMax: 0.12, vx: v.x, vy: v.y });
+        if (g.kind === 'auto') snd.auto++; else snd.slug++;
+      }
     }
-    RF.Audio.gun(0.8);
+    if (snd.slug) RF.Audio.gun(0.8);
+    if (snd.auto) RF.Audio.auto(Math.min(1, 0.6 + snd.auto * 0.2));
+    if (snd.rail) RF.Audio.rail(1);
   };
+  // Eldre navn (testene bruker det).
+  W.fireGuns = (ship, game) => W.updateGuns(ship, true, 0, game);
 
   W.fireRocket = (ship, game) => {
     const st = ship.stats;
     if (!st.rockets.length) { game.msg('The ship has no rocket launcher', RF.HUD_COLORS.amber); return; }
     if (ship.rocketCd > 0) return;
     if ((ship.s.ammo || 0) <= 0) { game.msg('Out of rockets. Restock at a station', RF.HUD_COLORS.amber); return; }
+    // Med lås flyr raketten mot målet uansett hvor tårnet peker.
+    const lock = RF.Combat && RF.Combat.locked(game) ? RF.Combat.lock.target : null;
+    const ready = lock ? st.rockets : st.rockets.filter((r) => r.m.onTarget);
+    if (!ready.length) { game.msg('Target is outside the rocket launcher arc', RF.HUD_COLORS.amber); return; }
     ship.rocketCd = 0.6;
     ship.s.ammo--;
-    const ready = st.rockets.filter((r) => r.m.onTarget);
-    if (!ready.length) { ship.s.ammo++; game.msg('Target is outside the rocket launcher arc', RF.HUD_COLORS.amber); return; }
     const L = ready[ship.s.ammo % ready.length];
     const { p, d, v } = launchFrom(ship, L.m);
     const pow = (RF.MODULES[L.m.t].pow || 1) * Math.sqrt(st.gunMul || 1);
-    W.list.push({ type: 'rocket', x: p.x, y: p.y, vx: v.x + d.x * 25, vy: v.y + d.y * 25, dx: d.x, dy: d.y, life: 7, owner: ship.body, arm: 0.25 * Math.sqrt(pow), pow });
+    W.list.push({ type: 'rocket', x: p.x, y: p.y, vx: v.x + d.x * 25, vy: v.y + d.y * 25, dx: d.x, dy: d.y, life: 8, owner: ship.body, arm: 0.25 * Math.sqrt(pow), pow,
+      seeker: true, target: lock ? lock.body : null, locked: !!lock, turn: L.turn || 2.2, burn: 6 });
     RF.Audio.rocket();
   };
 
@@ -70,6 +104,7 @@
     RF.Audio.blip(140, 0.12, 'square', 0.1);
   };
 
+  W.explode = (x, y, game, pow) => explode(x, y, game, pow);
   function explode(x, y, game, pow = 1) {
     const R = 22 * Math.sqrt(pow), sp = Math.min(3, Math.sqrt(pow));
     const ws = game.sys.world;
@@ -142,10 +177,10 @@
       RF.Vox.hitRubble(o, 0.9 * pow, 9, d, game, false);
       game.laserDust(hit);
     } else if (o.npc) {
-      if (o.npc.T.hostile) o.npc.burn(9 * pow, game, hit.x, hit.y);
-      else o.npc.takeImpact(6 * pow, hit.x, hit.y, game);
+      if (o.npc.T.hostile) o.npc.burn(p.dmg || 9 * pow, game, hit.x, hit.y);
+      else o.npc.takeImpact(p.dmg ? 20 : 6 * pow, hit.x, hit.y, game);
     } else if (o.ship) {
-      o.ship.takeImpact(0, hit.x, hit.y, game, 12 * pow);
+      o.ship.takeImpact(0, hit.x, hit.y, game, p.dmg || 12 * pow);
     }
   }
 
@@ -171,11 +206,23 @@
     for (const p of W.list) {
       if (p.dead) continue;
       p.life -= dt;
+      if (p.type === 'flare') {
+        // Fakler: glødende, varme biter som driver vekk og kjøles ned.
+        p.heat -= dt * 0.55;
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        if (Math.random() < 0.7) game.particles.add({ type: 'glow', x: p.x, y: p.y, vx: p.vx * 0.6 + G.rand(-3, 3), vy: p.vy * 0.6 + G.rand(-3, 3), life: 0.5, size: 1.2, color: '#ffcf70' });
+        if (p.life <= 0 || p.heat <= 0) p.dead = true;
+        continue;
+      }
       if (p.type === 'rocket') {
-        const sp = G.len(p.vx, p.vy);
-        if (sp < 140) { p.vx += p.dx * 60 * dt; p.vy += p.dy * 60 * dt; }
+        if (p.seeker && RF.Combat) RF.Combat.guide(p, dt, game);
+        else {
+          const sp = G.len(p.vx, p.vy);
+          if (sp < 140) { p.vx += p.dx * 60 * dt; p.vy += p.dy * 60 * dt; }
+        }
         p.arm -= dt;
-        if (Math.random() < 0.8) game.particles.add({ type: 'smoke', x: p.x, y: p.y, vx: -p.dx * 10 + G.rand(-2, 2), vy: -p.dy * 10 + G.rand(-2, 2), life: 1.2, size: 0.5, grow: 1.5, color: '#8a8478' });
+        if (p.fuse) { explode(p.x, p.y, game, p.pow); p.dead = true; continue; }
+        if (Math.random() < 0.8) game.particles.add({ type: 'smoke', x: p.x, y: p.y, vx: -p.dx * 10 + G.rand(-2, 2), vy: -p.dy * 10 + G.rand(-2, 2), life: 1.2, size: 0.5, grow: 1.5, color: p.hostile ? '#9a6a5a' : '#8a8478' });
       }
       if (p.type === 'harpoon') {
         const mp0 = p.ship.mountOf(p.mod);
@@ -204,7 +251,17 @@
       const step = sp * dt;
       if (step > 0) {
         // Kuler og raketter flyr forbi løse malmbiter (kroken kan fortsatt treffe dem).
-        const hit = ws.raycast(p.x, p.y, p.vx / sp, p.vy / sp, step, (o) => o !== p.owner && !o.ghost && (o.kind !== 'ore' || p.type === 'harpoon'));
+        const ux = p.vx / sp, uy = p.vy / sp;
+        const filt = (o) => o !== p.owner && !o.ghost && (o.kind !== 'ore' || p.type === 'harpoon') && !(p.skip && p.skip.includes(o));
+        let hit = ws.raycast(p.x, p.y, ux, uy, step, filt);
+        // Railkula går gjennom flere mål før den stopper.
+        while (hit && p.pierce > 0 && p.type === 'shell') {
+          hitShell(p, hit, game);
+          p.pierce--;
+          p.skip.push(hit.body);
+          hit = ws.raycast(p.x, p.y, ux, uy, step, filt);
+        }
+        if (p.kind === 'rail') W.traces.push({ x0: p.x, y0: p.y, x1: hit ? hit.x : p.x + p.vx * dt, y1: hit ? hit.y : p.y + p.vy * dt, t: game.time, w: Math.sqrt(p.pow) });
         if (hit) {
           if (p.type === 'shell') { hitShell(p, hit, game); p.dead = true; continue; }
           if (p.type === 'rocket') { if (p.arm <= 0 || hit.body.kind !== 'ship') { explode(hit.x, hit.y, game, p.pow); p.dead = true; continue; } }
@@ -219,23 +276,45 @@
       }
     }
     if (W.list.some((p) => p.dead)) W.list = W.list.filter((p) => !p.dead);
+    W.traces = W.traces.filter((t) => game.time - t.t < 0.5);
+    W.now = game.time;
   };
 
   W.draw = (ctx, px) => {
     ctx.globalCompositeOperation = 'lighter';
+    // Sporet etter railkula: en lysende strek som blekner.
+    for (const t of W.traces) {
+      const k = 1 - (W.now - t.t) / 0.5;
+      if (k <= 0) continue;
+      ctx.strokeStyle = `rgba(150,230,255,${0.5 * k})`;
+      ctx.lineWidth = Math.max(0.4, px * 5 * k) * t.w;
+      ctx.beginPath(); ctx.moveTo(t.x0, t.y0); ctx.lineTo(t.x1, t.y1); ctx.stroke();
+      ctx.strokeStyle = `rgba(235,250,255,${0.9 * k})`;
+      ctx.lineWidth = Math.max(0.15, px * 1.6) * t.w;
+      ctx.stroke();
+    }
     for (const p of W.list) {
-      if (p.type === 'shell') {
+      if (p.type === 'flare') {
+        const r = 1.6 + p.heat * 0.6;
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2);
+        g.addColorStop(0, 'rgba(255,250,220,1)'); g.addColorStop(0.3, 'rgba(255,200,90,0.8)'); g.addColorStop(1, 'rgba(255,120,40,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r * 2, 0, Math.PI * 2); ctx.fill();
+      } else if (p.type === 'shell' && p.kind === 'rail') {
+        ctx.fillStyle = 'rgba(230,250,255,1)';
+        ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.3, px * 2.5), 0, Math.PI * 2); ctx.fill();
+      } else if (p.type === 'shell') {
         // Piratkuler er røde og har lengre spor, så man ser dem komme.
-        const tr = p.color ? 0.045 : 0.02;
+        const tr = p.color ? 0.045 : p.kind === 'auto' || p.kind === 'pd' ? 0.03 : 0.02;
         ctx.strokeStyle = p.color ? `rgba(${p.color},0.95)` : 'rgba(255,220,150,0.9)';
-        ctx.lineWidth = Math.max(0.3, px * (p.color ? 2.6 : 2));
+        ctx.lineWidth = Math.max(0.2, px * (p.color ? 2.6 : p.kind === 'auto' || p.kind === 'pd' ? 1.3 : 2));
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * tr, p.y - p.vy * tr); ctx.stroke();
       } else if (p.type === 'rocket') {
         const a = Math.atan2(p.dy, p.dx);
         ctx.save();
         ctx.translate(p.x, p.y); ctx.rotate(a);
         ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = '#c9c4b6';
+        ctx.fillStyle = p.hostile ? '#8a5a4e' : '#c9c4b6';
         ctx.fillRect(-1.2, -0.3, 2.4, 0.6);
         ctx.fillStyle = '#c0392b';
         ctx.fillRect(0.8, -0.3, 0.5, 0.6);

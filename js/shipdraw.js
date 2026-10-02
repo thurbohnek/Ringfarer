@@ -742,6 +742,26 @@
         circle(ctx, 0, 0, 0.09, '#b8fff2');
         break;
       }
+      case 'flares': {
+        // Fakkelkaster: rad med små rør som peker ut.
+        rr(ctx, -0.8, -0.7, 1.6, 1.4, 0.18);
+        ctx.fillStyle = '#5a5650'; ctx.fill();
+        for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) {
+          circle(ctx, -0.5 + i * 0.33, -0.25 + j * 0.5, 0.13, '#1a1814');
+          circle(ctx, -0.5 + i * 0.33, -0.25 + j * 0.5, 0.06, '#d8a040');
+        }
+        break;
+      }
+      case 'firectl': {
+        // Ildleder: liten radarskål med rødt lys.
+        circle(ctx, 0.12, 0.14, 0.66, 'rgba(0,0,0,0.35)');
+        circle(ctx, 0, 0, 0.64, '#b9b3a4', '#1d1b17');
+        ctx.strokeStyle = '#1d1b17'; ctx.lineWidth = 0.06;
+        ctx.beginPath(); ctx.moveTo(-0.45, 0); ctx.lineTo(0.45, 0); ctx.moveTo(0, -0.45); ctx.lineTo(0, 0.45); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, 0.3, 0, Math.PI * 2); ctx.stroke();
+        circle(ctx, 0, 0, 0.1, '#ff5a46');
+        break;
+      }
       case 'navcomp': {
         // Navigasjonsdatamaskin: sensorskål og lysende panel.
         circle(ctx, 0.12, 0.14, 0.72, 'rgba(0,0,0,0.35)');
@@ -967,6 +987,35 @@
       housing(0.6, 'light');
       circle(ctx, 0.1, 0, 0.22, '#2a2d31');
       circle(ctx, 0.1, 0, 0.12, col);
+    } else if (D.pd) {
+      // Nærforsvar: liten kuppel med to tynne løp.
+      tube(-0.12, 0.13, 1.5); tube(0.12, 0.13, 1.5);
+      housing(0.5, 'mid');
+      circle(ctx, 0.12, 0, 0.18, '#26292d');
+      circle(ctx, 0.12, 0, 0.08, m.onTarget ? '#ff6a50' : '#7a4a40');
+    } else if (D.gun && D.gun.kind === 'auto') {
+      // Maskinkanon: en klynge løp som snurrer når den skyter.
+      const spin = (m._cd || 0) > 0 ? time * 30 : 0;
+      for (let i = 0; i < 3; i++) {
+        const y = Math.sin(spin + (i / 3) * Math.PI * 2) * 0.17;
+        tube(y, 0.12, 2.0, '#4a4f55');
+      }
+      ctx.fillStyle = '#1c1e21'; ctx.fillRect(1.6, -0.3, 0.22, 0.6);
+      housing(0.52, 'light');
+      circle(ctx, 0, 0, 0.16, '#2a2d31');
+    } else if (D.gun && D.gun.kind === 'rail') {
+      // Railkanon: to lange skinner med lys mellom som lades opp.
+      const q = G.clamp(m._charge || 0, 0, 1);
+      ctx.fillStyle = '#2a2d31'; ctx.fillRect(0, -0.34, 3.1, 0.68);
+      tube(-0.24, 0.16, 3.2, '#5a6068'); tube(0.24, 0.16, 3.2, '#5a6068');
+      ctx.fillStyle = `rgba(150,230,255,${0.15 + 0.75 * q})`;
+      ctx.fillRect(0.4, -0.12, 2.7 * q, 0.24);
+      for (let x = 0.5; x < 3.0; x += 0.5) { ctx.fillStyle = '#1a1c1f'; ctx.fillRect(x, -0.42, 0.12, 0.84); }
+      rr(ctx, -0.7, -0.62, 1.3, 1.24, 0.2);
+      ctx.fillStyle = '#8f959a'; ctx.fill();
+      bevel(ctx, -0.7, -0.62, 1.3, 1.24, 0.2, 1, 0.16);
+      circle(ctx, -0.1, 0, 0.22, '#1d2a30');
+      circle(ctx, -0.1, 0, 0.12, `rgba(150,230,255,${0.3 + 0.7 * q})`);
     } else if (D.gun) {
       tube(-0.26, 0.26, 2.3); tube(0.26, 0.26, 2.3);
       for (const y of [-0.26, 0.26]) { ctx.fillStyle = '#1c1e21'; ctx.fillRect(2.15, y - 0.19, 0.3, 0.38); }

@@ -227,6 +227,47 @@
     o.start(t); o.stop(t + 0.3);
   };
 
+  // Maskinkanon og nærforsvar: kort, tørt knatter.
+  A.auto = (v = 1) => {
+    if (!A.ctx || v < 0.03) return;
+    const c = A.ctx, t = c.currentTime;
+    const src = c.createBufferSource(); src.buffer = noiseBuf;
+    const f = filt('bandpass', 1300, 1.2);
+    const g = gain(); env(g, t, 0.16 * v, 0.045, 0.001);
+    src.connect(f); f.connect(g); g.connect(master);
+    src.start(t, Math.random()); src.stop(t + 0.08);
+    const o = c.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(240, t);
+    o.frequency.exponentialRampToValueAtTime(90, t + 0.05);
+    const og = gain(); env(og, t, 0.14 * v, 0.06, 0.001);
+    o.connect(og); og.connect(master);
+    o.start(t); o.stop(t + 0.09);
+  };
+
+  // Railkanon: et elektrisk smell som faller i tone, og et dypt slag.
+  A.rail = (v = 1) => {
+    if (!A.ctx) return;
+    const c = A.ctx, t = c.currentTime;
+    const o = c.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(1600, t);
+    o.frequency.exponentialRampToValueAtTime(90, t + 0.3);
+    const f = filt('lowpass', 2200, 0.8);
+    const g = gain(); env(g, t, 0.18 * v, 0.32, 0.002);
+    o.connect(f); f.connect(g); g.connect(master);
+    o.start(t); o.stop(t + 0.36);
+    const src = c.createBufferSource(); src.buffer = noiseBuf;
+    const nf = filt('bandpass', 2400, 0.9);
+    const ng = gain(); env(ng, t, 0.22 * v, 0.08, 0.001);
+    src.connect(nf); nf.connect(ng); ng.connect(master);
+    src.start(t, Math.random()); src.stop(t + 0.12);
+    const b = c.createOscillator(); b.type = 'sine';
+    b.frequency.setValueAtTime(90, t);
+    b.frequency.exponentialRampToValueAtTime(32, t + 0.35);
+    const bg = gain(); env(bg, t, 0.5 * v, 0.4, 0.002);
+    b.connect(bg); bg.connect(master);
+    b.start(t); b.stop(t + 0.45);
+  };
+
   // Rakett skytes ut: et sus som stiger.
   A.rocket = () => {
     if (!A.ctx) return;

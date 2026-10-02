@@ -40,3 +40,6 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 34. Romvær: solstormer og tåker.
 35. ~~Stasjoner som vokser når spilleren handler mye der.~~ (v0.21.0)
 36. ~~Skjold rundt stasjonene som beskytter mot steiner, kometer og skudd.~~ (v0.20.0)
+37. ~~Våpensystemer: varmesøkende raketter, maskinkanon, railkanon, nærforsvar og fakler.~~ (v0.24.0)
+38. Tyngre piratskip med egne fakler og nærforsvar, og piratbaser.
+39. Våpenvarme og strøm: våpen og skjold deler reaktoren, og man må velge hva som får kraft.

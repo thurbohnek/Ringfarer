@@ -10,6 +10,17 @@
 
   RF.NEWS = [
     {
+      v: 'v0.24.0', date: '2026-10-02', title: 'Weapons and defense',
+      items: [
+        'Rockets are heat-seeking. Keep the aim on a raider until the brackets turn red and say LOCK, then fire. On touch, press and hold the raider.',
+        'New guns: the Autocannon sprays light rounds, and the Rail cannon charges up and fires a slug that goes through several targets. Tool 2 (Guns) fires every gun you have.',
+        'Point defense turrets shoot down incoming missiles and stinger drones by themselves.',
+        'Flare launchers drop hot flares when a missile closes in (or press J).',
+        'A Fire control computer locks faster and makes turrets aim ahead of moving targets.',
+        'Watch out: raiders in Vanaheim and Muspelheim now carry heat-seeking missiles.',
+      ],
+    },
+    {
       v: 'v0.23.1', date: '2026-10-02', title: 'Quieter, and tidy in portrait',
       items: [
         'The constant hissing is gone. Small thruster corrections and the autopilot are now silent, and thrusters you fire yourself make a soft, low rumble.',

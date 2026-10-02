@@ -196,7 +196,9 @@
             <li><b>Cutting:</b> the mining laser is a cutting beam. Hold it on one line and it cuts deeper until it goes through. A piece only comes loose when your cuts go all the way around it, and it fits the hole it came from. Plain rock turns to vapor, minerals come out as ore. Some big asteroids already have a cave. Rockets blast big craters.</li>
             <li><b>Scanner:</b> press N (SCAN) to send out a pulse. Rocks with minerals get a colored ring and a label with their value. Point at a rock to see what it holds.</li>
             <li><b>Moving rocks:</b> some rocks race and spin through the field. Point at one to see how fast it moves compared to you. Press B to hold position: the ship matches its speed and stays put while you cut. A spinning rock turns in front of you like on a lathe.</li>
-            <li><b>Raiders:</b> with valuable cargo far from a station, raiders and stinger drones may come for you. Their shots are red. Fight back with laser, cannon or rockets (bounty paid), send out guard drones, or run: they break off near the station. Some systems are more dangerous than others (see the star map, Tab).</li>
+            <li><b>Raiders:</b> with valuable cargo far from a station, raiders and stinger drones may come for you. Their shots are red. Fight back with laser, guns or rockets (bounty paid), send out guard drones, or run: they break off near the station. Some systems are more dangerous than others (see the star map, Tab). Raiders in dangerous systems fire heat-seeking missiles.</li>
+            <li><b>Weapons:</b> what you can do depends on what is fitted. <i>Guns</i> (2) fires every gun at once: the autocannon sprays light rounds, the mass driver fires heavy slugs, and the rail cannon charges up and fires a slug that goes through several targets. <i>Rockets</i> (3) are heat-seeking: keep the aim on a raider until the brackets turn red and say LOCK, then fire. A fire control computer locks faster, from further away, and makes turrets aim ahead of moving targets.</li>
+            <li><b>Defense:</b> a point defense turret shoots down incoming missiles and stinger drones by itself. A flare launcher drops hot flares when a missile closes in (or press J), and the missile goes for the flares. The shield takes hits first.</li>
             <li><b>Zoom:</b> pinch with two fingers, or use the mouse wheel or + and −.</li>
             <li><b>Hardness:</b> every rock type has a hardness from 1 to 4. The laser must be at least that tier. Cannons and rockets break anything.</li>
             <li><b>Cargo scoop:</b> every ship has a scoop hatch in the nose. Open it (U, or F on ships without a collector beam) and fly slowly into loose ore: it is caught straight into the cargo hold. Ore just ahead is drawn gently toward the opening. Too fast (over about 9 m/s compared to the ore) and it bounces off.</li>
@@ -322,7 +324,7 @@
       ${k(['S'], 'Brake (stops along your heading of travel)')}
       ${k(['A', 'D'], 'Turn')}
       ${k(['Q', 'E'], 'Strafe')}
-      ${k(['1', '2', '3', '4'], 'Laser, cannon, rocket, harpoon')}
+      ${k(['1', '2', '3', '4'], 'Laser, guns, rocket, harpoon')}
       ${k(['Mouse'], 'Aim. Click empty space: move there. Click and hold a rock: fire')}
       ${k(['Hold', 'Drag'], 'On empty space: move there and face the drag direction')}
       ${k(['Ship', 'Drag'], 'Turn the ship in place')}
@@ -331,6 +333,7 @@
       ${k(['Space'], 'Use the tool')}
       ${k(['X'], 'Fire / release harpoon')}
       ${k(['C', 'V'], 'Winch in / pay out cable')}
+      ${k(['J'], 'Drop flares (also automatic when a missile closes in)')}
       ${k(['F'], 'Collector beam on/off (ships without one: open/close the cargo scoop)')}
       ${k(['U'], 'Open/close the cargo scoop in the nose')}
       ${k(['K'], 'Launch / recall drones')}
@@ -747,7 +750,7 @@
     const rebuild = lost.reduce((a, m) => a + RF.MODULES[m.t].cost, 0);
     // Drivstoff koster mindre per kilo jo større skipet er (kjøpes i bulk).
     const fuel = ((st.fuelCap - s.fuel) * 0.9) / (st.scale || 1) ** 2;
-    const ammo = (st.rocketCap - s.ammo) * 120;
+    const ammo = (st.rocketCap - s.ammo) * 120 + (st.flareCap - (s.flares || 0)) * 60;
     const d = RF.Stations.serviceMul(ship.docked.id);
     return { rep: Math.ceil(rep * d), dmg, lost, rebuild: Math.ceil(rebuild * d), fuel: Math.ceil(fuel * d), ammo: Math.ceil(ammo * d) };
   }
@@ -762,7 +765,7 @@
       ${row('Damaged modules', c.dmg, c.rep, 'rep-hull', 'Repair', 'No damage')}
       ${row('Lost modules (rebuild from blueprint)', c.lost.length, c.rebuild, 'rep-lost', 'Rebuild', 'None lost')}
       ${row('Fuel', Math.round((game.ship.s.fuel / (game.ship.stats.fuelCap || 1)) * 100) + ' %', c.fuel, 'rep-fuel', 'Refuel', 'Tank full')}
-      ${row('Rockets', game.ship.s.ammo + ' / ' + game.ship.stats.rocketCap, c.ammo, 'rep-ammo', 'Restock', game.ship.stats.rocketCap ? 'Full' : 'No launcher')}
+      ${row('Rockets and flares', game.ship.s.ammo + ' / ' + game.ship.stats.rocketCap + (game.ship.stats.flareCap ? ' · ' + (game.ship.s.flares || 0) + ' / ' + game.ship.stats.flareCap : ''), c.ammo, 'rep-ammo', 'Restock', game.ship.stats.rocketCap + game.ship.stats.flareCap ? 'Full' : 'No launcher')}
       </tbody></table></div>
       ${lostList}
       <p class="muted small">The blueprint is the ship as it was when you last left a station or changed equipment.</p>
@@ -819,7 +822,7 @@
             <dt>Cargo hold</dt><dd class="num">${st.hold} t</dd>
             <dt>Shield</dt><dd class="num">${st.shieldMax}</dd>
             <dt>Lasers / drills</dt><dd class="num">${st.lasers.length} / ${st.drills.length}</dd>
-            <dt>Weapons</dt><dd class="num">${st.guns.length} cannon, ${st.rockets.length} rocket</dd>
+            <dt>Weapons</dt><dd class="num">${st.guns.length} guns, ${st.rockets.length} rocket${st.pds.length ? ', ' + st.pds.length + ' point defense' : ''}${st.flareCap ? ', flares' : ''}${st.fireCtl ? ', fire control' : ''}</dd>
             <dt>Drone bays</dt><dd class="num">${st.bays}</dd>
             ${st.pax + st.cryo ? `<dt>Passengers</dt><dd class="num">${st.paxCap}${st.pax > st.life ? ' (needs life support)' : ''}</dd>` : ''}
             <dt>Class</dt><dd class="num">${esc(st.line.name)}</dd>
@@ -1257,6 +1260,7 @@
         s.fuel += kg; game.credits -= kg * 0.9 * d;
       } else if (it === 'ammo') {
         while (s.ammo < ship.stats.rocketCap && game.credits >= 120 * d) { s.ammo++; game.credits -= 120 * d; }
+        while ((s.flares || 0) < ship.stats.flareCap && game.credits >= 60 * d) { s.flares = (s.flares || 0) + 1; game.credits -= 60 * d; }
       }
     }
     ship.refreshStats();
