@@ -126,7 +126,7 @@
         const act = game.action;
         const ctx = $('#tc-ctx');
         ctx.hidden = !act;
-        const label = act === 'dock' ? 'DOCK' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : '';
+        const label = act === 'dock' ? 'DOCK' : act === 'land' ? 'LAND' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : '';
         if (ctx.textContent !== label) ctx.textContent = label;
         // Samlestråle hvis skipet har en, ellers lasteluken.
         const tb = $('#tc-tractor'), hasT = sh.stats.tractors.length > 0;
@@ -209,6 +209,7 @@
             <li><b>Damage:</b> modules that get hit take damage and can break off. Lose the cockpit and the ship is lost. Salvage can be pulled in with the collector beam and sold as scrap.</li>
             <li><b>Equipment:</b> at a station you buy lasers, drill heads, cannons, rockets, harpoons, lights, cargo space and more. It is fitted automatically where there is room on the hull and shows on the ship. Need more room? Buy a bigger ship at the shipyard.</li>
             <li><b>Drones:</b> drones come in three sizes. Small ones live in drone bays, medium ones in hangar decks and large ones on docking clamps outside the hull. Press K to launch them: the doors open and they fly out. Press K again to call them home, and they fly back and dock. Mining and collector drones bring ore, repair drones fix the ship, guard drones burn rocks heading for you, cargo drones sell goods at the station and shuttles fly passengers and crew to the station or to other ships.</li>
+            <li><b>Planets:</b> each system has a planet with a spaceport. Follow the purple marker to the descent corridor, fly slowly into the ring and press T (or the action button) to land. On the planet you can trade, refuel and take passenger and cargo contracts. Taking off again costs fuel: the stronger the gravity, the more.</li>
             <li><b>Passengers:</b> fit passenger cabins or habitat modules (and life support for more than a handful) and take passenger contracts. Passengers leave when you dock at their station, or a shuttle drone can fly them over. Crew changes out to freighters need a shuttle drone.</li>
           </ul>
           <div class="row"><button class="btn primary" data-act="${back}" data-autofocus>Back</button></div>
@@ -532,13 +533,19 @@
     droner: 'M8 12h8 M12 9v6 M5 6a2 2 0 1 0 0 .1 M19 6a2 2 0 1 0 0 .1 M5 18a2 2 0 1 0 0 .1 M19 18a2 2 0 1 0 0 .1 M7 8l3 3 M17 8l-3 3 M7 16l3-3 M17 16l-3-3',
     oppdrag: 'M7 4h10v16H7z M9 8h6 M9 12h6 M9 16h4',
     stasjon: 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M5 5l3 3 M19 19l-3-3 M19 5l-3 3 M5 19l3-3',
+    planet: 'M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z M2 15c4-1 16-5 20-7',
   };
   const icon = (id) => `<svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="${ICONS[id]}"/></svg>`;
 
   function renderStation() {
     const ship = game.ship, s = ship.s, st = ship.docked;
     if (!st) return;
-    const tabs = [['marked', 'Market'], ['verksted', 'Repairs'], ['utstyr', 'Equipment'], ['verft', 'Shipyard'], ['droner', 'Drones'], ['oppdrag', 'Contracts'], ['stasjon', 'Station']];
+    // På en planet: handel, service, oppdrag og planetfanen. Verft og
+    // utstyr finnes bare på stasjonene.
+    const port = !!st.isPort;
+    const tabs = port ? [['marked', 'Market'], ['verksted', 'Services'], ['oppdrag', 'Contracts'], ['planet', 'Planet']]
+      : [['marked', 'Market'], ['verksted', 'Repairs'], ['utstyr', 'Equipment'], ['verft', 'Shipyard'], ['droner', 'Drones'], ['oppdrag', 'Contracts'], ['stasjon', 'Station']];
+    if (!tabs.some((x) => x[0] === tab)) tab = 'marked';
     let body = '';
     if (tab === 'marked') body = marketTab(st);
     else if (tab === 'verksted') body = repairTab();
@@ -546,6 +553,7 @@
     else if (tab === 'verft') body = yardTab();
     else if (tab === 'droner') body = droneTab();
     else if (tab === 'stasjon') body = stationTab(st);
+    else if (tab === 'planet') body = planetTab(st);
     else body = missionsTab(st);
     const scroll = root.querySelector('.tab-body');
     const y = scroll ? scroll.scrollTop : 0;
@@ -555,7 +563,7 @@
       <div class="card plate station"><div class="hazard"></div>
         <header class="st-head">
           <div class="st-title">
-            <p class="eyebrow">Docked · ${esc(game.sys.def.name)} · ${esc(RF.HULLS[s.hull].name)}</p>
+            <p class="eyebrow">${port ? 'Landed · ' + esc(st.world) : 'Docked · ' + esc(game.sys.def.name)} · ${esc(RF.HULLS[s.hull].name)}</p>
             <h2>${esc(st.name)}</h2>
           </div>
           <div class="wallet"><span class="num">${Math.floor(game.credits).toLocaleString('en-US')}</span><span class="muted">credits${game.testMode ? ' · unlimited' : ''}</span>
@@ -573,7 +581,7 @@
           </nav>
           <div class="tab-body">${body}</div>
         </div>
-        <footer class="st-foot"><button class="btn primary" data-act="undock" data-autofocus>Undock</button></footer>
+        <footer class="st-foot"><button class="btn primary" data-act="undock" data-autofocus>${port ? `Take off · ${RF.Planets.takeoffPct(ship, st)} % fuel` : 'Undock'}</button></footer>
         ${toastHtml()}
       </div>`);
     const nb = root.querySelector('.tab-body');
@@ -728,6 +736,32 @@
   }
 
   // Stasjonens nivå: fremgang, fordeler og investering.
+  // Planetfanen: bilde, fakta, og hva som lønner seg å selge eller kjøpe her.
+  function planetTab(st) {
+    const pl = game.sys.def.planet, ship = game.ship;
+    const pr = st.prices || {};
+    const names = (f) => Object.keys(pr).filter((k) => f(pr[k]) && RF.PRODUCTS[k]).map((k) => esc(RF.PRODUCTS[k].name)).join(', ') || 'Nothing special';
+    const need = RF.Planets.takeoffPct(ship, st), have = Math.floor((ship.s.fuel / (ship.stats.fuelCap || 1)) * 100);
+    const pax = game.missions.filter((m) => m.status === 'aktiv' && m.type === 'pax' && (m.to === st.id || m.from === st.id)).length;
+    return `<div class="planet-tab" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+      <img src="${RF.Planets.portrait(st, pl)}" alt="" width="150" height="150" style="flex:none;border-radius:50%">
+      <div style="flex:1;min-width:220px">
+        <h3 style="margin:0 0 4px">${esc(st.world)}</h3>
+        <p class="small">${esc(st.blurb)}</p>
+        <dl class="stats">
+          <dt>World</dt><dd>${esc(st.kind)}</dd>
+          <dt>Surface gravity</dt><dd class="num">${st.g} g</dd>
+          <dt>Population</dt><dd class="num">${esc(st.pop)}</dd>
+          <dt>Take-off</dt><dd class="num">${need} % of a full tank${have < need ? ' · <span style="color:var(--danger,#e2553d)">refuel first (you have ' + have + ' %)</span>' : ''}</dd>
+          <dt>Pays well for</dt><dd>${names((v) => v >= 1.2)}</dd>
+          <dt>Cheap here</dt><dd>${names((v) => v <= 0.8)}</dd>
+          <dt>Your passenger contracts here</dt><dd class="num">${pax}</dd>
+        </dl>
+        <p class="small muted">Planets have many more travelers than the stations. Look under Contracts for passengers to the stations and the other worlds.</p>
+      </div>
+    </div>`;
+  }
+
   function stationTab(st) {
     const S = RF.Stations, L = S.level(st.id), pr = S.progress(st.id);
     const rows = S.PERKS.map((p, i) => `<li class="${i < L ? 'done' : ''}"><b>Level ${i + 1} · ${S.NAMES[i]}</b><br><span class="muted small">${esc(p)}</span></li>`).join('');

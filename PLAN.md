@@ -17,7 +17,7 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 11. Kostnader: drivstoff, reparasjon og havneavgift.
 12. Enkel flåte: 2–3 egne skip med ordrene «følg», «min» og «forsvar».
 13. Nasjoner som eier systemene, med egne priser, oppdrag og omdømme.
-14. Planeter med landing og persontransport.
+14. ~~Planeter med landing og persontransport.~~ (v0.25.0)
 15. Kjempeskipet: den flyvende byen som hovedsenter for flåten.
 16. ~~Skjul pilen «Your ship 0 m» når skipet synes på skjermen.~~ (v0.18.2)
 17. ~~Kart over systemene med porter, stasjoner og hva de kjøper.~~ (v0.17.0)
@@ -43,3 +43,4 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 37. ~~Våpensystemer: varmesøkende raketter, maskinkanon, railkanon, nærforsvar og fakler.~~ (v0.24.0)
 38. Tyngre piratskip med egne fakler og nærforsvar, og piratbaser.
 39. Våpenvarme og strøm: våpen og skjold deler reaktoren, og man må velge hva som får kraft.
+40. Styre selv det siste stykket ned til landingsplassen på planeten.

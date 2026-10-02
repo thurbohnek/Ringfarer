@@ -380,7 +380,8 @@
       const sunDir = sys.def.sky.starDir;
       this._sunDir = sunDir;
       const ship = game.ship;
-      const shipLive = ship && !game.dead;
+      // Står skipet på en planet, er det ikke i rommet.
+      const shipLive = ship && !game.dead && !(ship.docked && ship.docked.isPort);
 
       this.drawDust(game);
 
@@ -419,6 +420,7 @@
       for (const b of sys.world.bodies) if (b.comet && !b.dead) this.drawCometTail(b, game, vis);
       if (RF.Scan) RF.Scan.drawWorld(ctx, game, this.px);
       for (const g of RF.gatesOf(sys)) this.drawGateGlow(g, game.time, vis);
+      if (RF.Planets) RF.Planets.drawWorld(ctx, game, this.px);
       // Skipet foran horisonten tegnes oppå den, så det ser ut som det glir inn.
       const inGate = shipLive && this.gateClip(ctx, game, ship.body);
       if (inGate) { this.drawModular(ship, game.time); ctx.restore(); }

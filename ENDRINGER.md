@@ -32,6 +32,9 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   hvor fort låsen går, hvor ofte nærforsvaret treffer et missil (16 % per
   skudd), sjansen for at en fakkel lurer et missil (70 %), og hvor mange
   missiler piratene har.
+- **Planetene:** turen ned og opp er en egen sekvens. Man flyr ikke selv i
+  atmosfæren. Det er ingen piratangrep, skader eller landingsbein ennå. Ett
+  mulig neste steg er at man styrer selv det siste stykket ned.
 - **Piratene har ikke fakler eller nærforsvar ennå.** Rakettene dine kan
   derfor ikke lures. Det kan komme med tyngre piratskip senere.
 - **Skjærefarten** kan justeres etter testing. Startlaseren bruker omtrent
@@ -50,6 +53,74 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   passasjerer de hadde med seg akkurat da, blir borte.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-10-02: v0.25.0 · Planeter med landing og persontransport (plan 14)
+
+**Ønske:** «14» (punkt 14 i planen: planeter med landing og persontransport).
+
+**Hva som er gjort:**
+
+- **En romhavn på hver planet** (`js/world.js`):
+  - **Asgrund Skyport** i Midgard: havplanet med 2,4 milliarder folk, 0,92 g.
+    Betaler godt for metall, og vann er billig.
+  - **Vanir Cloud City** i Vanaheim: flytende plattformer i skyene på
+    gasskjempen, 1,15 g. Drivgass er billig, og vann og metall betaler godt.
+  - **Eldhjarta Colony** i Muspelheim: gruvekoloni under kupler på en
+    lavaverden, 0,62 g. Vann er svært verdifullt, og naquadah er billig.
+  - Havnene har egne priser og egne oppdragstavler.
+  - `RF.stationById` gir også havnene (id `p:<system>`), så handel, oppdrag
+    og passasjerer virker likt som på stasjonene.
+- **Nedstigningskorridoren** (`js/planets.js`, `js/render.js`, `js/hud.js`):
+  - En stiplet ring med piler og innflygingslys ligger 2,4 km fra stasjonen,
+    i retningen der planeten står på himmelen. Det er ryddet for stein rundt.
+  - Den er merket med et lilla merke i skjermkanten og en ruter på radaren.
+- **Landing** (`js/game.js`, `js/planets.js`):
+  - Fly inn i ringen under 20 m/s og trykk T, eller knappen LAND på mobil.
+  - Skipet setter fart mot planeten. Planeten vokser til den fyller
+    skjermen, og så kommer plasma rundt skipet, skyer som suser forbi, og til
+    slutt landingsplassen med lys og byen rundt.
+  - Høyde, fart og tyngdekraft vises øverst. Lyden er et brus som bygger seg
+    opp og dør ut (`Audio.reentry` i `js/audio.js`).
+  - Store skip går i bane, og skyttler tar folk ned.
+- **Avgang:**
+  - Knappen heter «Take off · N % fuel». Det koster drivstoff etter
+    tyngdekraften: 10–16 % av en full tank.
+  - Er det for lite drivstoff, sier spillet fra, og man kan fylle opp under
+    Services.
+  - Turen opp vises baklengs. Skipet kommer ut av korridoren på vei bort fra
+    planeten.
+- **Menyen i havna** (`js/ui.js`):
+  - Fanene er Market, Services, Contracts og Planet. Verft, utstyr og droner
+    finnes bare på stasjonene.
+  - Planetfanen viser et bilde av planeten, verdenstype, tyngdekraft,
+    folketall, drivstoff til avgang, hva som betaler godt, hva som er billig,
+    og passasjeroppdragene dine dit.
+- **Persontransport** (`js/missions.js`):
+  - Planetene har flere og større passasjergrupper, opptil 60.
+  - Stasjonene gir også oppdrag med passasjerer ned til planetene.
+  - Fraktoppdrag kan gå til havnene.
+  - Teksten sier «land» i stedet for «dock» når målet er en planet.
+- **Lagring:** lagrer man mens skipet står på en planet, starter man der
+  igjen.
+- **Hjelpen** har et eget avsnitt om planeter.
+- `index.html`: `planets.js` lastes, og versjonen er nå v0.25.0.
+- `js/news.js`: nyhet.
+
+**Testet** i nettleseren:
+
+- **Landing og avgang i Midgard:**
+  - Ringen er ryddet for stein. Teksten «Land at Asgrund Skyport» kom opp, og
+    «Slow down to land» over 20 m/s.
+  - Hele sekvensen ned til havna kjørte.
+  - Oppdragstavla fikk oppdrag til både stasjoner og planeter.
+  - Lagring og lasting på planeten virket.
+  - Avgangen kostet 13 % drivstoff, og skipet kom ut utenfor ringen.
+  - Med 5 % drivstoff kom meldingen «Take-off needs 14 % fuel».
+- **De andre systemene:** korridorene i Vanaheim og Muspelheim har ingen
+  stein innenfor 300 m.
+- **De gamle testene:** knappene (høykant og liggende), trykk og kamptesten
+  virker fortsatt.
+- **Konsollen:** ingen feil.
 
 ## 2026-10-02: v0.24.0 · Våpen og forsvar: varmesøkende raketter, maskinkanon, railkanon, nærforsvar og fakler
 

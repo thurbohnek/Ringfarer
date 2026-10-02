@@ -15,6 +15,7 @@
   const DIAL_RANGE = 450;
   const DOCK_RANGE = 22;
   const DOCK_SPEED = 3.5;
+  const LAND_SPEED = 20; // største fart inn i nedstigningskorridoren (m/s)
   const TOW_COST = 400;
 
   const game = {
@@ -169,6 +170,7 @@
       },
       missions: game.missions.filter((m) => m.status === 'aktiv'),
       lastStation: game.lastStation, fa: game.ship.fa, test: game.testMode, stationXP: game.stationXP || {},
+      landed: game.ship.docked && game.ship.docked.isPort ? game.ship.docked.id : null,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) { /* lagring utilgjengelig */ }
   };
@@ -205,6 +207,12 @@
     game.ship = new RF.Ship(s);
     game.ship.fa = data.fa != null ? data.fa : 1;
     spawnDocked(game.lastStation);
+    // Lagret mens skipet sto på en planet: start der.
+    if (data.landed && RF.stationById(data.landed)) {
+      game.ship.docked = null;
+      game.sys = game.getSystem(RF.stationById(data.landed).id);
+      if (game.sys.port) dock(true, game.sys.port);
+    }
     game.msg('Career loaded', RF.HUD_COLORS.gate);
   };
 
@@ -275,8 +283,9 @@
   }
 
   // --- Dokking ---
-  function dock(silent) {
-    const ship = game.ship, st = game.sys.station;
+  // place: stasjonen (standard) eller romhavnen på planeten.
+  function dock(silent, place) {
+    const ship = game.ship, st = place || game.sys.station, port = !!st.isPort;
     ship.releaseAnchor(game);
     game.recallDronesNow();
     removeShipFromWorld();
@@ -285,9 +294,10 @@
     game.followShip(true);
     ship.tractor.on = false;
     if (ship.scoop) ship.scoop.on = false;
-    const dp = parkPoint(st);
+    const dp = port ? { x: st.x, y: st.y, a: st.a } : parkPoint(st);
     Object.assign(ship.body, { x: dp.x, y: dp.y, a: dp.a, vx: 0, vy: 0, w: 0 });
-    game.lastStation = st.id;
+    // Forsikringen bygger nytt skip på siste stasjon (ikke på en planet).
+    if (!port) game.lastStation = st.id;
     refreshPrices(st.id);
     refreshBoard(st.id);
     // Passasjerer går av og på.
@@ -316,6 +326,7 @@
   game.undock = () => {
     const ship = game.ship, st = ship.docked;
     if (!st) return;
+    if (st.isPort) { game.takeOff(); return; }
     ship.docked = null;
     const dp = RF.dockPoint(st);
     const out = { x: Math.cos(st.a), y: Math.sin(st.a) };
@@ -328,6 +339,69 @@
     RF.UI.closeAll();
     game.save();
   };
+
+  // --- Landing på planeter ---
+  // Skipet flyr inn i nedstigningskorridoren og lander. Selve turen ned og
+  // opp gjennom atmosfæren vises av RF.Planets (planets.js).
+  game.landAt = (port) => {
+    const ship = game.ship;
+    if (ship.docked || game.landing) return;
+    ship.releaseAnchor(game);
+    game.recallDronesNow();
+    ship.nav = null;
+    game.followShip(true);
+    game.landing = { dir: 'down', t: 0, dur: 4.6, port };
+    RF.Planets.start(game.landing, game);
+  };
+
+  game.takeOff = () => {
+    const ship = game.ship, port = ship.docked;
+    if (!port || !port.isPort) return;
+    const need = RF.Planets.takeoffFuel(ship, port);
+    if (ship.s.fuel < need) {
+      game.msg(`Take-off needs ${Math.ceil((need / ship.stats.fuelCap) * 100)} % fuel. Refuel under Services`, RF.HUD_COLORS.amber);
+      RF.Audio.blip(200, 0.15, 'square', 0.08);
+      return;
+    }
+    ship.s.fuel -= need;
+    ship.docked = null;
+    ship.s.blueprint = ship.s.layout.map((m) => ({ t: m.t, x: m.x, y: m.y }));
+    RF.UI.closeAll();
+    const b = ship.body;
+    const off = port.R + 40 + b.radius;
+    Object.assign(b, { x: port.x - Math.cos(port.a) * off, y: port.y - Math.sin(port.a) * off, a: port.a + Math.PI, vx: 0, vy: 0, w: 0 });
+    game.cam.x = b.x; game.cam.y = b.y;
+    game.landing = { dir: 'up', t: 0, dur: 4, port };
+    RF.Planets.start(game.landing, game);
+    game.save();
+  };
+
+  function updateLanding(dt) {
+    const L = game.landing, ship = game.ship, b = ship.body;
+    L.t += dt;
+    if (L.dir === 'down') {
+      // Skipet setter fart mot planeten den første biten.
+      if (!ship.docked) {
+        const k = Math.min(1, L.t / 1.2);
+        b.vx += Math.cos(L.port.a) * 30 * k * dt; b.vy += Math.sin(L.port.a) * 30 * k * dt;
+        b.w *= 0.9;
+      }
+      if (L.t >= L.dur) {
+        game.landing = null;
+        dock(true, L.port);
+        game.msg(`Landed at ${L.port.name}`, RF.HUD_COLORS.ok);
+      }
+    } else if (L.t >= L.dur) {
+      game.landing = null;
+      enterSystem(game.sys.def.id);
+      // Ut av korridoren, bort fra planeten.
+      const out = L.port.a + Math.PI;
+      const off = L.port.R + 40 + b.radius;
+      b.x = L.port.x + Math.cos(out) * off; b.y = L.port.y + Math.sin(out) * off;
+      b.vx = Math.cos(out) * 8; b.vy = Math.sin(out) * 8; b.a = out; b.w = 0;
+      game.msg(`In orbit above ${L.port.world}`, RF.HUD_COLORS.gate);
+    }
+  }
 
   // --- Skade og støt ---
   function onImpact(c, J, vn0) {
@@ -1294,7 +1368,7 @@
     game.prompt = '';
     game.action = null;
     game.dockReady = false;
-    if (ship.docked || game.dead) return;
+    if (ship.docked || game.dead || game.landing) return;
     const dp = RF.dockPoint(sys.station);
     let dd = G.len(b.x - dp.x, b.y - dp.y);
     const spd = G.len(b.vx, b.vy);
@@ -1315,6 +1389,18 @@
     if (dd < 180) {
       game.prompt = 'Fly into the dashed ring at the end of the docking arm';
       return;
+    }
+    // Nedstigningskorridoren til planeten.
+    const pt = sys.port;
+    if (pt) {
+      const pd = G.len(b.x - pt.x, b.y - pt.y);
+      if (pd < pt.R + 30 + b.radius * 0.5) {
+        if (spd < LAND_SPEED) {
+          game.prompt = big ? `[T] Enter orbit at ${pt.world} (shuttles take you down)` : `[T] Land at ${pt.name}`;
+          game.action = 'land';
+        } else game.prompt = `Slow down to land (${spd.toFixed(1)} > ${LAND_SPEED} m/s)`;
+        return;
+      }
     }
     // Nærmeste port (vanlig eller kapitalport).
     let g = null, gd = Infinity;
@@ -1347,6 +1433,7 @@
       Audio.setMuted(!Audio.muted);
       game.msg(Audio.muted ? 'Sound off' : 'Sound on');
     }
+    if (game.landing) return;
     if (Input.hit('Escape') || Input.hit('KeyP')) {
       if (RF.UI.isOpen()) {
         if (!game.ship.docked && !game.dead) RF.UI.closeAll();
@@ -1395,6 +1482,7 @@
     if (Input.hit('Minus') || Input.hit('NumpadSubtract')) game.cam.zoom = Math.max(0.25, game.cam.zoom / 1.25);
     const act = Input.hit('Interact') || Input.hit('Enter');
     if ((Input.hit('KeyT') || act) && game.action === 'dock') dock();
+    else if ((Input.hit('KeyT') || act) && game.action === 'land') game.landAt(game.sys.port);
     else if ((Input.hit('KeyG') || act) && game.action === 'dial') RF.UI.openDial();
     else if ((Input.hit('KeyR') || act) && game.action === 'tow') towHome();
   }
@@ -1402,7 +1490,8 @@
   function update(dt) {
     game.time += dt;
     const ship = game.ship;
-    let inp = RF.UI.isOpen() || game.dead || ship.docked ? { thrust: 0, turn: 0, strafe: 0, laser: false } : Input.state();
+    let inp = RF.UI.isOpen() || game.dead || ship.docked || game.landing ? { thrust: 0, turn: 0, strafe: 0, laser: false } : Input.state();
+    if (game.landing) updateLanding(dt);
     // Autopiloten flyr til målet til man styrer selv.
     // Hold posisjon: A/D (eller styrespaken) snur skipet uten å slippe.
     const N0 = ship.nav;
@@ -1423,7 +1512,7 @@
         ship.nav = null;
       } else if (!RF.UI.isOpen()) inp = navInput(inp);
     }
-    if (!ship.docked && !game.dead) updateFlight(dt, inp);
+    if (!ship.docked && !game.dead && !game.landing) updateFlight(dt, inp);
     else if (ship.docked) ship.updateShield(dt);
     for (const n of game.sys.npcs.slice()) n.update(dt, game);
     RF.Weapons.update(dt, game);
@@ -1526,6 +1615,7 @@
     Input.endFrame();
     RF.renderer.draw(game, dt);
     if (!game.dead) RF.drawHUD(RF.renderer, game);
+    if (game.landing) RF.Planets.drawOverlay(RF.renderer, game);
     if (game.flash > 0) {
       const c = RF.renderer.ctx;
       c.setTransform(1, 0, 0, 1, 0, 0);
@@ -1537,6 +1627,7 @@
 
   game.start = (cont, test) => {
     Audio.start();
+    game.landing = null;
     if (cont) game.load(); else game.newCareer(test);
     game.state = 'play';
   };

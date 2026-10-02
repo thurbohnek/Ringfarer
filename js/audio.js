@@ -268,6 +268,32 @@
     b.start(t); b.stop(t + 0.45);
   };
 
+  // Gjennom atmosfæren: et brus som bygger seg opp og dør ut, med dyp rumling.
+  A.reentry = (dur = 4, up = false) => {
+    if (!A.ctx) return;
+    const c = A.ctx, t = c.currentTime;
+    const src = c.createBufferSource(); src.buffer = brownBuf; src.loop = true;
+    const f = filt('lowpass', 300, 0.7);
+    f.frequency.setValueAtTime(200, t);
+    f.frequency.linearRampToValueAtTime(1400, t + dur * 0.45);
+    f.frequency.linearRampToValueAtTime(250, t + dur);
+    const g = gain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(up ? 0.5 : 0.35, t + dur * (up ? 0.3 : 0.45));
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(master);
+    src.start(t, Math.random()); src.stop(t + dur + 0.1);
+    const o = c.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(48, t);
+    o.frequency.linearRampToValueAtTime(34, t + dur);
+    const og = gain();
+    og.gain.setValueAtTime(0, t);
+    og.gain.linearRampToValueAtTime(0.3, t + dur * 0.4);
+    og.gain.linearRampToValueAtTime(0.0001, t + dur);
+    o.connect(og); og.connect(master);
+    o.start(t); o.stop(t + dur + 0.1);
+  };
+
   // Rakett skytes ut: et sus som stiger.
   A.rocket = () => {
     if (!A.ctx) return;

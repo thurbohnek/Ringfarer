@@ -209,6 +209,13 @@
     for (const g of RF.gatesOf(game.sys)) {
       ctx.beginPath(); ctx.arc(x + (g.x - ship.x) * k, y + (g.y - ship.y) * k, g.key === 'gate2' ? 5.5 : 3.5, 0, Math.PI * 2); ctx.stroke();
     }
+    // Nedstigningskorridoren til planeten: en liten ruter.
+    const pt = game.sys.port;
+    if (pt) {
+      const px2 = x + (pt.x - ship.x) * k, py2 = y + (pt.y - ship.y) * k;
+      ctx.strokeStyle = RF.Planets.COLOR;
+      ctx.beginPath(); ctx.moveTo(px2, py2 - 4); ctx.lineTo(px2 + 4, py2); ctx.lineTo(px2, py2 + 4); ctx.lineTo(px2 - 4, py2); ctx.closePath(); ctx.stroke();
+    }
     ctx.save();
     ctx.translate(x, y); ctx.rotate(ship.a);
     ctx.fillStyle = '#fff';
@@ -271,6 +278,7 @@
       // Har man panorert bort fra skipet, viser en pil hvor det er.
       if (game.camFree) edgeMarker(ctx, game, R, b.x, b.y, 'Your ship', '#ffffff', game.cam, 16);
       for (const g of RF.gatesOf(game.sys)) edgeMarker(ctx, game, R, g.x, g.y, g.name || 'Gate', C.gate);
+      if (game.sys.port) edgeMarker(ctx, game, R, game.sys.port.x, game.sys.port.y, game.sys.port.world, RF.Planets.COLOR);
       for (const n of game.sys.npcs) {
         if (!n.T.hostile || !n.active || n.dead) continue;
         edgeMarker(ctx, game, R, n.body.x, n.body.y, n.T.name, C.danger);

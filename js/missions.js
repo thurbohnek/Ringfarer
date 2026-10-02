@@ -22,13 +22,23 @@
 
   // haulers: navnene på frakteskipene i systemet (til mannskapsbytte).
   RF.genMission = (fromId, haulers = []) => {
-    const others = RF.SYSTEMS.filter((s) => s.station.id !== fromId).map((s) => s.station.id);
-    const risky = (id) => (id === 'muspel' ? 1.45 : 1);
-    const r = Math.random();
+    const others = RF.placeIds().filter((id) => id !== fromId);
+    const risky = (id) => (id === 'muspel' || id === 'p:muspel' ? 1.45 : 1);
+    // Planetene har mange flere folk som skal reise, og dit går ofte passasjerer.
+    const port = RF.isPort(fromId);
+    let r = Math.random();
+    if (port) r *= 0.75;
+    if (r < 0.2 && !port && Math.random() < 0.5) {
+      // Passasjerer herfra ned til en planet (eller videre).
+      const to = G.pick(others.filter(RF.isPort));
+      const n = G.pick([2, 4, 6, 10, 16, 24]);
+      const reward = Math.round(((130 + n * 60) * risky(to)) / 10) * 10;
+      return { id: nextId++, type: 'pax', from: fromId, to, n, wait: n, aboard: 0, moved: 0, reward, status: 'tilbud' };
+    }
     if (r < 0.2) {
       // Passasjerer herfra til en annen stasjon.
       const to = G.pick(others);
-      const n = G.pick([2, 3, 4, 6, 8, 12, 20, 30, 40]);
+      const n = G.pick(port ? [4, 8, 12, 20, 30, 40, 60] : [2, 3, 4, 6, 8, 12, 20, 30, 40]);
       const reward = Math.round(((150 + n * 70) * risky(to)) / 10) * 10;
       return { id: nextId++, type: 'pax', from: fromId, to, n, wait: n, aboard: 0, moved: 0, reward, status: 'tilbud' };
     }
@@ -39,7 +49,7 @@
       const reward = Math.round(((260 + n * 95) * risky(from)) / 10) * 10;
       return { id: nextId++, type: 'pax', from, to: fromId, n, wait: n, aboard: 0, moved: 0, reward, status: 'tilbud', pickup: true };
     }
-    if (r < 0.36 && haulers.length) {
+    if (r < 0.36 && haulers.length && !port) {
       const n = G.randInt(2, 6);
       const reward = Math.round((350 + n * 110) / 10) * 10;
       return { id: nextId++, type: 'crew', from: fromId, to: fromId, ship: G.pick(haulers), n, wait: n, aboard: 0, moved: 0, reward, status: 'tilbud' };
@@ -75,18 +85,20 @@
   RF.missionDetail = (m) => {
     const to = RF.stationById(m.to);
     const where = `${to.station.name} (${to.name})`;
+    // Ved en romhavn lander man, ved en stasjon dokker man.
+    const arr = (id) => (RF.isPort(id) ? 'land' : 'dock');
     if (m.type === 'pax') {
       const from = RF.stationById(m.from);
       const state = m.status === 'aktiv' ? ` Waiting: ${m.wait} · aboard: ${m.aboard} · delivered: ${m.moved}.` : '';
       if (m.wait > 0 && m.from !== m.to && (m.pickup || m.status !== 'aktiv'))
-        return `They wait at ${from.station.name} (${from.name}). They board when you dock there, or a shuttle drone can fetch them. Then bring them to ${where}.${state}`;
-      return `They leave the ship when you dock at ${where}, or when a shuttle drone flies them over.${state}`;
+        return `They wait at ${from.station.name} (${from.name}). They board when you ${arr(m.from)} there${RF.isPort(m.from) ? '' : ', or a shuttle drone can fetch them'}. Then bring them to ${where}.${state}`;
+      return `They leave the ship when you ${arr(m.to)} at ${where}${RF.isPort(m.to) ? '' : ', or when a shuttle drone flies them over'}.${state}`;
     }
     if (m.type === 'crew') {
       return `The crew board now. The ${m.ship} flies around ${RF.stationById(m.from).name}. Only a crew shuttle drone can take them over: fly close and launch it.${m.status === 'aktiv' ? ` Aboard: ${m.aboard} · delivered: ${m.moved}.` : ''}`;
     }
     if (m.type === 'frakt') {
-      let s = `Loaded now, delivered automatically when you dock at ${where}.`;
+      let s = `Loaded now, delivered automatically when you ${arr(m.to)} at ${where}.`;
       if (m.fragile) s += ` Fragile cargo: a single impact above ${m.maxDv} m/s destroys it.`;
       return s;
     }

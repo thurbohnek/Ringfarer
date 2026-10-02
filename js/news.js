@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.25.0', date: '2026-10-02', title: 'Land on planets',
+      items: [
+        'Every system has a planet with a spaceport: Asgrund Skyport (ocean world), Vanir Cloud City (gas giant) and Eldhjarta Colony (lava world).',
+        'Follow the purple marker to the descent corridor, fly slowly into the ring and press T (or LAND) to go down through the atmosphere.',
+        'Planets have their own prices and many more passengers. Fly groups of up to 60 people between the worlds and the stations.',
+        'Taking off costs fuel. The stronger the gravity, the more.',
+      ],
+    },
+    {
       v: 'v0.24.0', date: '2026-10-02', title: 'Weapons and defense',
       items: [
         'Rockets are heat-seeking. Keep the aim on a raider until the brackets turn red and say LOCK, then fire. On touch, press and hold the raider.',

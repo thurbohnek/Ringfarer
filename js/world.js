@@ -96,6 +96,9 @@
       blurb: 'Home system. A calm asteroid belt with iron and nickel.',
       sky: { deep: '#020409', neb: ['#1c3358', '#3a2150', '#123a4a'], star: '#ffd9a0', starDir: -2.3 },
       planet: { type: 'ocean', color: '#3f6fa8', band: '#6aa0d8', atmo: '#8fc0ff', r: 0.55, x: 0.95, y: 1.0, ring: false },
+      port: { id: 'p:midgard', name: 'Asgrund Skyport', world: 'Asgrund', kind: 'Ocean world', g: 0.92, pop: '2.4 billion',
+        blurb: 'A blue ocean world with island cities. Millions travel between Asgrund and the stations, and its shipyards are hungry for metal.',
+        prices: { jern: 1.3, nikkel: 1.25, kobber: 1.3, titan: 1.2, gull: 1.35, vann: 0.5, silisium: 1.2, grafitt: 1.15 } },
       station: { id: 'midgard', name: 'Midgard Shipyard', x: 0, y: 0, a: 0,
         prices: { jern: 1.0, nikkel: 1.05, vann: 1.1, naquadah: 1.15, titan: 1.1, trinium: 1.2, skrap: 1.2, gass: 1.1 } },
       npcs: { drone: 3, hauler: 1 },
@@ -115,6 +118,9 @@
       blurb: 'Trading post. Comets of clean ice race through the system.',
       sky: { deep: '#020605', neb: ['#12433d', '#1e3a5c', '#0f2a2a'], star: '#cfe8ff', starDir: 0.7 },
       planet: { type: 'gas', color: '#a8844f', band: '#e3cfa5', atmo: '#f0dcb0', ringColor: '#cbb996', r: 0.3, x: 0.2, y: 0.24, ring: true },
+      port: { id: 'p:vanaheim', name: 'Vanir Cloud City', world: 'Vanir', kind: 'Gas giant', g: 1.15, pop: '3.1 million',
+        blurb: 'Floating platforms ride the winds high in the clouds of a ringed gas giant. They skim fuel gas from the clouds and need everything else.',
+        prices: { gass: 0.55, vann: 1.5, jern: 1.4, silisium: 1.35, kobber: 1.3, grafitt: 1.3, nikkel: 1.3 } },
       station: { id: 'vanaheim', name: 'Vanaheim Trading Post', x: 0, y: 0, a: Math.PI,
         prices: { jern: 1.25, nikkel: 1.2, vann: 0.7, naquadah: 1.0, kobber: 1.25, grafitt: 1.3, gull: 1.1, gass: 0.8 } },
       npcs: { drone: 1, hauler: 2 },
@@ -132,6 +138,9 @@
       blurb: 'Dangerous. A dense, fast-moving field, but rich in naquadah.',
       sky: { deep: '#070203', neb: ['#5a1a10', '#3a0f22', '#6a3a10'], star: '#ff9a5a', starDir: 1.9 },
       planet: { type: 'lava', color: '#6a3a2a', band: '#d8642a', atmo: '#ff9a5a', r: 0.34, x: 0.82, y: 0.18, ring: false },
+      port: { id: 'p:muspel', name: 'Eldhjarta Colony', world: 'Eldhjarta', kind: 'Lava world', g: 0.62, pop: '48 000',
+        blurb: 'A mining colony under domes on a world of lava seas. Water is worth more than gold here, and the ground is full of naquadah.',
+        prices: { vann: 3.2, gass: 1.9, naquadah: 0.8, gull: 0.9, titan: 0.95, jern: 1.4, nikkel: 1.3 } },
       station: { id: 'muspel', name: 'Surtr Drilling Station', x: 0, y: 0, a: -Math.PI / 2,
         prices: { jern: 1.3, nikkel: 1.35, vann: 2.6, naquadah: 0.9, silisium: 1.4, titan: 0.9, gass: 1.7 } },
       npcs: { drone: 2, hauler: 1 },
@@ -148,7 +157,19 @@
   ];
 
   RF.systemById = (id) => RF.SYSTEMS.find((s) => s.id === id);
-  RF.stationById = (id) => RF.SYSTEMS.find((s) => s.station.id === id);
+  // Romhavnene på planetene har id 'p:<system>'. De oppfører seg som
+  // stasjoner for handel og oppdrag, så stationById gir et objekt med samme
+  // form ({ id: system, name: system, station: havnen }).
+  RF.stationById = (id) => {
+    if (typeof id === 'string' && id.startsWith('p:')) {
+      const sys = RF.systemById(id.slice(2));
+      return sys && { id: sys.id, name: sys.name, station: sys.port, port: true, def: sys };
+    }
+    return RF.SYSTEMS.find((s) => s.station.id === id);
+  };
+  RF.isPort = (id) => typeof id === 'string' && id.startsWith('p:');
+  // Alle steder man kan handle og ta oppdrag: stasjonene og romhavnene.
+  RF.placeIds = () => RF.SYSTEMS.map((s) => s.station.id).concat(RF.SYSTEMS.filter((s) => s.port).map((s) => s.port.id));
 
   RF.GATE_R = 16;
 
@@ -335,10 +356,18 @@
       x: station.x + Math.cos(ga) * 3200, y: station.y + Math.sin(ga) * 3200, a: ga }, def.gate2);
     gate2.bodies = makeGateBodies(gate2);
     gate2.bodies.forEach((b) => world.add(b));
+    // Nedstigningskorridoren til planeten ligger i retningen der planeten
+    // står på himmelen, et stykke fra stasjonen.
+    let port = null;
+    if (def.port) {
+      const pl = def.planet, pa = Math.atan2(pl.y - 0.5, pl.x - 0.5);
+      port = Object.assign({}, def.port, { x: station.x + Math.cos(pa) * 2400, y: station.y + Math.sin(pa) * 2400, a: pa, isPort: true, R: 70 });
+    }
     // Hold stasjonen og portene fri for stein ved start.
     const avoid = [{ x: station.x, y: station.y, r: 260 }, { x: gate.x, y: gate.y, r: 140 }, { x: gate2.x, y: gate2.y, r: gate2.R + 400 }];
+    if (port) avoid.push({ x: port.x, y: port.y, r: 300 });
     for (const f of def.fields) spawnField(world, f, avoid);
-    const st = { def, world, station, gate, gate2, time: 0 };
+    const st = { def, world, station, gate, gate2, port, time: 0 };
     for (let i = 0; i < def.comets; i++) spawnComet(world, def, i < 2);
     st.respawnComet = (near) => spawnComet(world, def, near);
     return st;
