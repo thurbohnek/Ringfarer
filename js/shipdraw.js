@@ -947,7 +947,7 @@
     sx.globalCompositeOperation = 'source-in';
     sx.fillStyle = '#000';
     sx.fillRect(0, 0, cw, ch);
-    obj._art = { key, cv, sh, x0, y0, w: cw / ppm, h: ch / ppm, domes: [], lights: hull.lights };
+    obj._art = { key, cv, sh, ppm, x0, y0, w: cw / ppm, h: ch / ppm, domes: [], lights: hull.lights };
     return obj._art;
   }
 
@@ -1207,18 +1207,41 @@
     ctx.rotate(b.a);
     if (sc !== 1) ctx.scale(sc, sc);
     ctx.globalAlpha = 0.55 * (1 - sink);
-    ctx.drawImage(art.sh, art.x0, art.y0, art.w, art.h);
+    // Skjermpiksler per meter: skyggen er myk og klarer seg med lav oppløsning.
+    const need = ((this.dpr || 1) / (this.px || 1)) * sc;
+    ctx.drawImage(mip(art, 'sh', need * 0.35), art.x0, art.y0, art.w, art.h);
     ctx.restore();
     ctx.rotate(b.a);
     if (sc !== 1) ctx.scale(sc, sc);
     if (sink > 0) ctx.globalAlpha = 1 - 0.85 * sink;
-    ctx.drawImage(art.cv, art.x0, art.y0, art.w, art.h);
+    ctx.drawImage(mip(art, 'cv', need), art.x0, art.y0, art.w, art.h);
     if (sink > 0) ctx.globalAlpha = 1;
     drawDoors(ctx, L);
     for (const m of L) if (RF.MODULES[m.t].anchor) m.fired = !!((obj.anchor && obj.anchor.module === m) || (obj.harpoon && obj.harpoon.mod === m));
     for (const m of L) if (RF.MODULES[m.t].mount) tool(ctx, m, time);
     ctx.restore();
   };
+
+  // Ferdig nedskalerte utgaver av skipsbildet (halv, kvart, …). Å skalere
+  // et stort bilde kraftig ned hver ramme er tungt, så vi bruker den minste
+  // utgaven som fortsatt er skarp nok for zoomen.
+  function mip(art, which, need) {
+    const key = which + 'Mips';
+    const list = art[key] || (art[key] = [{ c: art[which], ppm: art.ppm || 24 }]);
+    let i = 0;
+    while (list[i].ppm / 2 >= need && list[i].c.width > 48) {
+      if (!list[i + 1]) {
+        const src = list[i].c, c = document.createElement('canvas');
+        c.width = Math.max(1, src.width >> 1); c.height = Math.max(1, src.height >> 1);
+        const x = c.getContext('2d');
+        x.imageSmoothingQuality = 'high';
+        x.drawImage(src, 0, 0, c.width, c.height);
+        list.push({ c, ppm: list[i].ppm / 2 });
+      }
+      i++;
+    }
+    return list[i].c;
+  }
 
   // Droner som sitter på dokkingklemmene utenpå skroget.
   const clampNpc = new WeakMap();

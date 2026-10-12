@@ -10,6 +10,16 @@
 
   RF.NEWS = [
     {
+      v: 'v0.26.0', date: '2026-10-12', title: 'Smoother, quieter, clearer',
+      items: [
+        'Much smoother: the ship is drawn far faster, and the game lowers its resolution by itself if your device struggles.',
+        'Calmer sound: no more stream of thuds and whooshes. Impacts are short knocks, and small engine corrections are silent.',
+        'More room to see: the camera starts further out, and the markers at the screen edge are smaller and stay clear of the buttons.',
+        'New careers get a step-by-step guide: leave the station, cut a rock, collect the ore and sell it. Turn it on or off in the pause menu.',
+        'Tidier menus: a short quick start in the help, a cleaner pause menu, and a compact station screen on phones held sideways.',
+      ],
+    },
+    {
       v: 'v0.25.0', date: '2026-10-02', title: 'Land on planets',
       items: [
         'Every system has a planet with a spaceport: Asgrund Skyport (ocean world), Vanir Cloud City (gas giant) and Eldhjarta Colony (lava world).',

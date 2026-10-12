@@ -12,13 +12,16 @@
 
   // --- Partikler ---
   class Particles {
-    constructor(max = 1000) { this.list = []; this.max = max; }
+    constructor(max = 700) { this.list = []; this.max = max; }
     add(p) {
       if (this.list.length >= this.max) this.list.shift();
       p.life = p.max = p.life || 1;
       this.list.push(p);
     }
     burst(x, y, n, o) {
+      // Er det allerede mange partikler, blir hver sky tynnere (ser nesten likt ut).
+      const L = this.list.length;
+      if (L > this.max * 0.4) n = Math.max(1, Math.round(n * (L > this.max * 0.7 ? 0.35 : 0.6)));
       for (let i = 0; i < n; i++) {
         const a = (o.dir != null ? o.dir + G.rand(-o.spread, o.spread) : Math.random() * 6.283);
         const sp = G.rand(o.sMin || 2, o.sMax || 10);
@@ -172,7 +175,8 @@
     }
 
     resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // qDpr: kvalitetsnivået senker oppløsningen når maskinen sliter.
+      const dpr = Math.min(window.devicePixelRatio || 1, 2, this.qDpr || 2);
       this.dpr = dpr;
       this.w = window.innerWidth;
       this.h = window.innerHeight;
@@ -181,7 +185,7 @@
       this.canvas.style.width = this.w + 'px';
       this.canvas.style.height = this.h + 'px';
       // Lyskartet trenger ikke full oppløsning, lys er mykt uansett.
-      this.ls = 0.4;
+      this.ls = this.qLow ? 0.28 : 0.4;
       this.light.width = Math.ceil(this.w * this.ls);
       this.light.height = Math.ceil(this.h * this.ls);
     }
@@ -906,6 +910,9 @@
       ctx.translate(b.x, b.y);
       ctx.rotate(b.a);
       ctx.drawImage(cache, V.cx0, V.cy0, V.cw, V.ch);
+      // Små på skjermen: bare bildet. Detaljene synes ikke likevel.
+      const sr = b.radius / this.px;
+      if (sr < 9) { ctx.restore(); return; }
       const la = sunDir - b.a, lx = Math.cos(la), ly = Math.sin(la);
       ctx.save();
       ctx.clip(V.path);
@@ -918,8 +925,9 @@
       ctx.fillStyle = sg;
       ctx.fillRect(-r, -r, r * 2, r * 2);
       // Kratre: mørke groper med lys kant på siden som vender bort fra sola.
-      for (const c of b.craters) {
-        if (RF.Vox.sample(V, c.x, c.y) < 0.5) continue;
+      // Hvilke som fortsatt finnes, sjekkes bare når steinen er endret.
+      if (b._crT !== V.cacheT) { b._crT = V.cacheT; b._crv = b.craters.filter((c) => RF.Vox.sample(V, c.x, c.y) >= 0.5); }
+      for (const c of sr > 26 ? b._crv : []) {
         ctx.save();
         ctx.translate(c.x, c.y);
         ctx.rotate(c.rot || 0);

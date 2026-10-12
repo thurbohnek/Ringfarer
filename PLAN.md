@@ -35,7 +35,7 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 29. Statistikkside (tonn utvunnet, penger tjent, distanse og annet).
 30. Bildemodus uten HUD.
 31. Innstillinger: grafikknivå, lydstyrke og taster.
-32. Opplæring de første minuttene.
+32. ~~Opplæring de første minuttene.~~ (v0.26.0)
 33. Tidsakselerasjon på lange flyturer.
 34. Romvær: solstormer og tåker.
 35. ~~Stasjoner som vokser når spilleren handler mye der.~~ (v0.21.0)

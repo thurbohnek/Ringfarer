@@ -229,7 +229,7 @@
     const nose = b.toWorld(n.noseX + 1, 0), d = b.dirWorld(1, 0);
     RF.Weapons.list.push({ type: 'rocket', hostile: true, x: nose.x, y: nose.y, vx: b.vx + d.x * 20, vy: b.vy + d.y * 20, dx: d.x, dy: d.y, life: 10, owner: b, arm: 0.4, pow: 0.6,
       seeker: true, target: game.ship.body, locked: true, turn: 1.9, burn: 7 });
-    if (game.sys === n.sys) RF.Audio.rocket();
+    if (game.sys === n.sys) RF.Audio.rocket(RF.Audio.near(b.x, b.y, 900));
   };
 
   // Lås-symbol rundt målet og røde ringer rundt fiendtlige missiler.

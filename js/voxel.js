@@ -778,7 +778,10 @@
       if (made.some((o) => o.vox) && game && t.world === game.sys.world) {
         const big = made.reduce((m, o) => Math.max(m, o.vox ? o.area : 0), 0);
         RF.Audio.crack(Math.min(1, big / 500));
-        game.msg('A piece has been cut loose', RF.HUD_COLORS.ok);
+        if (game._myBeam) {
+          game.msg('A piece has been cut loose', RF.HUD_COLORS.ok);
+          if (RF.Guide) RF.Guide.event(game, 'cut');
+        }
       }
     }
     // Mineral som er skåret bort, kommer ut som små malmbiter.

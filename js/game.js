@@ -53,10 +53,11 @@
 
   game.msg = (text, color) => {
     // Samme melding to ganger på rad forlenger bare den som vises.
-    const last = game.messages[game.messages.length - 1];
-    if (last && last.text === text && last.t > 0) { last.t = 3.5; return; }
+    // Samme melding som allerede vises, forlenger bare den.
+    const same = game.messages.find((m) => m.text === text && m.t > 0);
+    if (same) { same.t = 3.5; return; }
     game.messages.push({ text, color, t: 3.5 });
-    if (game.messages.length > 4) game.messages.shift();
+    if (game.messages.length > 3) game.messages.shift();
   };
 
   // --- Systemer ---
@@ -145,6 +146,8 @@
       st.drones = RF.fitDrones(st.layout, RF.applyClass(RF.layoutStats(st.layout), st.hull, st.layout), all).slots.map((x) => x.d);
     }
     game.ship = new RF.Ship(st);
+    // Veilederen er på for nye karrierer, av i testmodus (kan slås på i pausen).
+    if (test) game.guide = { on: false, step: 0, t: 0 }; else RF.Guide.start(game);
     spawnDocked('midgard');
     game.msg(test ? 'Test mode: fully equipped ship, everything unlocked and the money never runs out' : 'Welcome aboard the Skiff MK-I', RF.HUD_COLORS.gate);
     game.save();
@@ -171,6 +174,7 @@
       missions: game.missions.filter((m) => m.status === 'aktiv'),
       lastStation: game.lastStation, fa: game.ship.fa, test: game.testMode, stationXP: game.stationXP || {},
       landed: game.ship.docked && game.ship.docked.isPort ? game.ship.docked.id : null,
+      guide: game.guide ? { on: game.guide.on, step: game.guide.step } : null,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) { /* lagring utilgjengelig */ }
   };
@@ -198,6 +202,7 @@
     for (const c of s.missionCargo || []) if (OLD[c.name]) c.name = OLD[c.name];
     RF.setMissionIdBase(game.missions.reduce((a, m) => Math.max(a, m.id), 0));
     game.lastStation = data.lastStation || 'midgard';
+    game.guide = data.guide ? Object.assign({ t: 0 }, data.guide) : { on: false, step: 0, t: 0 };
     game.stationXP = data.stationXP || {};
     game.boards = {};
     game.systems = {};
@@ -255,10 +260,14 @@
     return Math.max(10, Math.min(R.w, R.h) / (r * 1.1));
   };
 
-  // Zoom slik at skipet fyller en fornuftig del av skjermen.
+  // Start-zoom: skipet godt synlig, men med god oversikt rundt det. Man
+  // skal se minst rundt 140 m opp og ned på PC (90 m på mobil), så man
+  // rekker å se steiner og andre skip før man er borti dem.
   game.fitZoom = () => {
-    const r = game.ship.body.radius;
-    game.cam.zoom = G.clamp((game.touchUI ? 42 : 64) / r, 0.03, 7);
+    const r = game.ship.body.radius, R = RF.renderer;
+    const byShip = (game.touchUI ? 30 : 40) / r;
+    const byView = (Math.min(R.w, R.h) / 2) / (game.touchUI ? 90 : 140);
+    game.cam.zoom = G.clamp(Math.min(byShip, byView), 0.03, 7);
   };
 
   function spawnDocked(stationId) {
@@ -441,7 +450,7 @@
         game.shake = Math.min(1, game.shake + dv / 10);
       }
       if (dmg > 0.5) game.msg(`Hull damage −${Math.ceil(dmg)} (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.danger);
-      else if (dv > 2 && ship.shield > 0) game.msg(`Shield absorbed the impact (${dv.toFixed(1)} m/s)`, RF.HUD_COLORS.gate);
+      else if (dv > 5 && ship.shield > 0) game.msg('Shield took the hit', RF.HUD_COLORS.gate);
       return;
     }
     // Stein mot stein: støv hvis det er nær nok til å se.
@@ -450,8 +459,9 @@
       const M = RF.MATERIALS[c.A.mat || c.B.mat || 'kondritt'];
       game.particles.burst(p.x, p.y, Math.min(20, Math.floor(rel * 2)),
         { type: 'smoke', sMin: 0.5, sMax: rel, color: M ? M.light : '#888', zMin: 0.5, zMax: 1.5, grow: 1.5, lMin: 0.6, lMax: 1.5 });
-      const d = G.len(p.x - sb.x, p.y - sb.y);
-      Audio.thud(Math.min(0.6, rel / 12) * Math.max(0, 1 - d / 500));
+      // Bare tydelige støt mellom større steiner nær skipet høres.
+      const d = G.len(p.x - sb.x, p.y - sb.y), big = Math.min(c.A.radius || 0, c.B.radius || 0);
+      if (rel > 3 && big > 3 && d < 350) Audio.thud(Math.min(0.5, rel / 14) * (1 - d / 350));
     }
   }
 
@@ -780,7 +790,6 @@
   game.toggleScoop = () => {
     const ship = game.ship, S = ship.scoop || (ship.scoop = { on: false, open: 0, caught: 0 });
     S.on = !S.on;
-    Audio.thud(0.25, false);
     Audio.blip(S.on ? 260 : 180, 0.18, 'triangle', 0.08);
     game.msg(S.on ? 'Cargo scoop open. Fly slowly into the ore to catch it (U or F to close)' : 'Cargo scoop closed', S.on ? RF.HUD_COLORS.ok : RF.HUD_COLORS.gate);
   };
@@ -1335,10 +1344,10 @@
       }
     }
     // Hold antallet løse malmbiter nede.
-    if (ore > 150) {
+    if (ore > 100) {
       const sb = game.ship.body;
       const list = ws.bodies.filter((b) => b.kind === 'ore').sort((a, c) => G.len(c.x - sb.x, c.y - sb.y) - G.len(a.x - sb.x, a.y - sb.y));
-      for (let i = 0; i < ore - 130; i++) list[i].dead = true;
+      for (let i = 0; i < ore - 85; i++) list[i].dead = true;
     }
   }
 
@@ -1518,6 +1527,7 @@
     RF.Weapons.update(dt, game);
     RF.Scan.update(dt, game);
     RF.Pirates.update(dt, game);
+    RF.Guide.update(dt, game);
     updateStationShield(dt);
     // Steiner i bane gjennom feltet trekkes svakt mot midten av det.
     for (const o of game.sys.world.bodies) {
@@ -1530,6 +1540,27 @@
     game.sys.world.step(dt);
   }
 
+  // Automatisk kvalitet: går bildene tregt over tid, senkes oppløsningen ett
+  // trinn (og lyskartet blir grovere). Går det lett lenge, heves den igjen.
+  const Q = { avg: 16, slow: 0, fast: 0, level: 0 };
+  const Q_DPR = [2, 1.5, 1.25, 1];
+  function adaptQuality(dt) {
+    if (!(dt > 0)) return;
+    Q.avg += (dt * 1000 - Q.avg) * 0.05;
+    if (Q.avg > 26) { Q.slow += dt; Q.fast = 0; } else if (Q.avg < 15) { Q.fast += dt; Q.slow = 0; } else { Q.slow = 0; Q.fast = 0; }
+    let L = Q.level;
+    if (Q.slow > 2 && L < 3) L++;
+    else if (Q.fast > 8 && L > 0) L--;
+    if (L !== Q.level) {
+      Q.level = L; Q.slow = Q.fast = 0;
+      const R = RF.renderer;
+      R.qDpr = Q_DPR[L]; R.qLow = L >= 2;
+      game.particles.max = L >= 2 ? 450 : 700;
+      R.resize();
+    }
+  }
+  game.quality = Q;
+
   let last = 0, acc = 0, frameN = 0;
   function frame(ts) {
     requestAnimationFrame(frame);
@@ -1541,7 +1572,12 @@
     handleKeys();
     if (!game.paused) {
       acc += dt;
-      while (acc >= STEP) { update(STEP); acc -= STEP; }
+      // Høyst fire fysikksteg per bilde. Ellers blir et tregt bilde fulgt av
+      // enda flere steg, og spillet hakker mer og mer (spillet går heller
+      // litt saktere en kort stund).
+      let n = 0;
+      while (acc >= STEP && n < 4) { update(STEP); acc -= STEP; n++; }
+      if (n >= 4) acc = 0;
       game.particles.update(dt);
       if (++frameN % 30 === 0) cleanupWorld();
       const ship = game.ship;
@@ -1613,6 +1649,7 @@
       }
     }
     Input.endFrame();
+    adaptQuality(dt);
     RF.renderer.draw(game, dt);
     if (!game.dead) RF.drawHUD(RF.renderer, game);
     if (game.landing) RF.Planets.drawOverlay(RF.renderer, game);

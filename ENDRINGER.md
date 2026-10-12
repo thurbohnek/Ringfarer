@@ -17,9 +17,12 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Hva som skal låses senere:** navigasjonsdatamaskinen (og annet med
   `unlock` over 0) skal bli en oppgradering senere i spillet. Nå er alt åpent
   til brukeren sier fra.
-- **Ytelse:** testnettleseren (uten grafikkort) går på rundt 20–25 bilder i
-  sekundet, og ned mot 12–15 midt i tung gruvedrift med mange malmbiter. På
-  en PC med grafikkort bør det gå mye bedre. Si fra hvis det fortsatt hakker.
+- **Ytelse:** testnettleseren (uten grafikkort) går nå på 27–29 bilder i
+  sekundet når man flyr, og rundt 17–20 i tung gruvedrift og kamp. Spillet
+  senker oppløsningen selv hvis det går tregt. Er ikke prøvd på en ekte
+  telefon. Si fra hvis det fortsatt hakker.
+- **Lydene er justert etter målinger, ikke hørt.** Si fra hvis noen lyd
+  fortsatt er rar.
 - **Løs gråstein smuldrer bort:** når det blir mer enn 28 biter, forsvinner de
   som er lengst unna. Grensen kan justeres.
 - **Kjempeasteroider tar tid å bore i.** En tunnel stor nok til skipet krever
@@ -53,6 +56,111 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   passasjerer de hadde med seg akkurat da, blir borte.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-10-12: v0.26.0 · Ryddigere, roligere og raskere
+
+**Ønske:** «Kan du fikse dette spillet. Gå over hva som bør gjøres og orden
+menyer hud osv. Mange rare lyder, dunke lyder og swush lyder som ikke
+stemmer. Veldig trangt på skjermen for å se og navigere forbedre spillet så
+det er lettere å skjønne og spille. Men behold konseptet og tema. Bruk ekstra
+tid på brukeropplevelsen og det visuelle. Legg til ting som gjør d bedre og ta
+bort unødvendige ting. Spillet lagger også når det er mye som skjer.»
+
+**Hva som ble funnet (målt i testnettleseren):**
+
+- **Lagg:**
+  - Å tegne skipet tok 20 av 28 ms per bilde. Skipsbildet (opptil 1 800
+    piksler) ble skalert ned og rotert to ganger hver ramme.
+  - Fysikken tok igjen tapt tid med opptil 6 steg per bilde, så trege
+    øyeblikk ble enda tregere.
+- **Dunk og sus:**
+  - «Dunk»-lyden hadde en lang støyhale (opptil 0,65 s), og den hørtes ut
+    som et sus.
+  - Den ble spilt hver gang steiner (også småbiter) støtte borti
+    hverandre: 23 ganger på 8 sekunder med gruvedrift.
+  - Motorlyden sveipet et filter opp og ned hver gang flyhjelpen eller
+    autopiloten ga et lite motorstøt.
+- **Trangt:**
+  - Kameraet startet så tett inn at man bare så rundt 200 m rundt skipet.
+  - Merkene i kanten havnet oppå hverandre og under knappene på mobil.
+  - Stasjonsmenyen liggende på mobil hadde «Undock» oppå tabellen.
+  - Tittelen ble brutt til «RINGFARE / R».
+
+**Hva som er gjort:**
+
+- **Ytelse:**
+  - `js/shipdraw.js`: skipsbildet lages i ferdig nedskalerte utgaver, og den
+    som passer zoomen brukes. Skyggen bruker en grov utgave. Tegnetiden for
+    skipet gikk fra 20 ms til 1–1,5 ms per bilde.
+  - `js/render.js`:
+    - Steiner som er små på skjermen, tegnes uten kratre og skygge.
+    - Hvilke kratre som finnes, sjekkes bare når steinen endres.
+    - Partikkeltaket er senket fra 1 000 til 700. Store skyer blir tynnere når
+      det allerede er mange partikler.
+  - `js/game.js`:
+    - Høyst 4 fysikksteg per bilde.
+    - Taket på løse malmbiter er senket fra 150 til 100.
+    - **Automatisk kvalitet:** går bildene tregt i to sekunder, senkes
+      oppløsningen ett trinn (2 → 1,5 → 1,25 → 1) og lyskartet blir
+      grovere. Går det lett i åtte sekunder, heves den igjen.
+- **Lyd** (`js/audio.js`, `js/game.js`, `js/combat.js`):
+  - Dunk er nå et kort, tørt slag i stedet for et sus.
+  - Hver lyd har en grense for hvor ofte den kan spilles: dunk, knekk, plopp,
+    eksplosjoner, raketter, kanoner og pip.
+  - Steiner mot steiner høres bare ved tydelige støt mellom større steiner,
+    innen 350 m.
+  - Motorlyden tones jevnt inn og ut, og små motorstøt er stille.
+  - Fiendtlige missiler langt unna er svakere.
+  - Klunken når lasteluken åpnes, er fjernet.
+- **Skjermen** (`js/hud.js`, `js/game.js`):
+  - Start-zoom med mer oversikt: minst 140 m opp og ned på PC og 90 m på
+    mobil.
+  - Merkene i kanten har mindre skrift. De holder seg unna panelet,
+    veilederen og knappene.
+  - Kapitalporten vises bare for store skip, eller når den er nær.
+  - Flyhjelpen heter «NO ASSIST», «ASSIST: SPIN» og «ASSIST: FULL».
+  - Like meldinger slås sammen, og det vises høyst tre om gangen.
+  - «Shield absorbed the impact (x m/s)» er byttet med en kort melding ved
+    store støt.
+  - Verktøy skipet ikke har, vises ikke lenger, verken i verktøylinja på PC
+    eller som knapper på mobil. «Cannon» heter «Guns».
+- **Ny veileder** (`js/guide.js`, plan 32):
+  - Nye karrierer får én oppgave om gangen i et lite kort under skippanelet:
+    ut av stasjonen, fly til steinene, skjær løs en bit, samle malmen, selg
+    den.
+  - En gul pil viser veien til asteroidefeltet.
+  - Knappen man skal trykke på, pulserer (COLLECT på mobil, F på PC).
+  - Stasjonsmenyen viser et kort tips.
+  - Veilederen kan slås av og på i pausemenyen. I testmodus er den av.
+- **Menyer** (`js/ui.js`, `index.html`):
+  - **Stasjonsmenyen på liggende mobil:** smale ikonfaner til venstre,
+    mindre topp, og ingen knapper oppå innholdet.
+  - **Hjelpen:**
+    - Den heter nå «How to play».
+    - Den har en hurtigstart i fem punkter (egne for mobil og PC).
+    - Emnene kan åpnes og lukkes, og tastelisten kan åpnes.
+  - **Pausemenyen** er delt i Settings og Testing:
+    - Lydstyrken ligger i én rad.
+    - Veilederen kan slås av og på.
+    - Touch-styringen viser «on» eller «off».
+  - **Tittelen** brytes ikke lenger.
+  - **Touch-knappene** er litt mindre når skjermen er lav.
+- `index.html`: `guide.js` lastes, og versjonen er nå v0.26.0.
+- `js/news.js`: nyhet.
+
+**Testet** i nettleseren:
+
+- **Tegnetid per bilde:** stille 28 → 7–15 ms, gruvedrift 35 → 15 ms (uten
+  skjermkort).
+- **Bildefrekvens:** flyging 22 → 27–29 bilder i sekundet, gruvedrift
+  15 → 20.
+- **Veilederen** gikk fra start til slutt i en ekte runde: ut av stasjonen,
+  bit skåret løs med startlaseren etter 6 sekunder, malm, dokking og salg.
+- **Skjermbilder:** PC, mobil liggende og mobil på høykant.
+- **De gamle testene:**
+  - Knappene overlapper ikke, verken på høykant eller liggende.
+  - Trykk, kamp (lås, kanoner, missiler) og landing på planet virker.
+  - Ingen feil i konsollen.
 
 ## 2026-10-02: v0.25.0 · Planeter med landing og persontransport (plan 14)
 

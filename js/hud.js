@@ -121,8 +121,11 @@
     const s = R.toScreen(game.cam, wx, wy);
     const touch = game.touchUI;
     // Rammen må alltid ha skjermens midtpunkt godt innenfor.
+    // På mobil holdes pilene unna knappene (nede, og langs høyre kant liggende).
     const portrait = touch && R.h > R.w;
-    const ml = 26, mr = touch ? 60 : 26, mt = portrait ? 150 : 84, mb = touch ? Math.min(200, R.h * 0.3) : 80;
+    // På høykant ligger panel, veileder og meldinger øverst: pilene under dem.
+    const hb = game._hudBottom || 80;
+    const ml = 22, mr = touch ? (portrait ? 24 : 120) : 26, mt = portrait ? Math.max(150, hb + 44) : touch ? 70 : 84, mb = touch ? (portrait ? Math.min(400, R.h * 0.46) : 110) : 80;
     const inside = s.x > ml && s.x < R.w - mr && s.y > mt && s.y < R.h - mb;
     if (inside) return;
     const ship = from || game.ship.body;
@@ -132,16 +135,18 @@
     const kx = dx > 0 ? (R.w - mr - cx) / dx : dx < 0 ? (ml - cx) / dx : Infinity;
     const ky = dy > 0 ? (R.h - mb - cy) / dy : dy < 0 ? (mt - cy) / dy : Infinity;
     const k = Math.min(kx, ky);
-    const ex = cx + dx * k, ey = cy + dy * k;
+    let ex = cx + dx * k, ey = cy + dy * k;
+    // Ikke oppå panelet og veilederen øverst til venstre: skyv pila nedover.
+    if (ex < (game._hudRight || 200) + 20 && ey < hb + 8) ey = hb + 14;
     const a = Math.atan2(dy, dx);
     ctx.fillStyle = color;
-    ctx.globalAlpha = 0.85;
+    ctx.globalAlpha = 0.8;
     ctx.save();
     ctx.translate(ex, ey);
     ctx.rotate(a);
     ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-3, -4.5); ctx.lineTo(-3, 4.5); ctx.closePath(); ctx.fill();
     ctx.restore();
-    ctx.font = F.label;
+    ctx.font = '600 10px "Saira Condensed", "Arial Narrow", ui-sans-serif, sans-serif';
     ctx.textAlign = Math.cos(a) > 0.3 ? 'right' : Math.cos(a) < -0.3 ? 'left' : 'center';
     const tx = ex - Math.cos(a) * 12, ty = ey - Math.sin(a) * 12;
     // Navn som ville havnet oppå hverandre, flyttes ned en linje.
@@ -149,7 +154,7 @@
     const al = ctx.textAlign, lx = al === 'right' ? tx - tw : al === 'center' ? tx - tw / 2 : tx;
     let y = ty + 4 + textDy;
     const used = game._mk || (game._mk = []);
-    for (let k = 0; k < 4 && used.some((u) => lx < u.x + u.w && lx + tw > u.x && Math.abs(y - u.y) < 12); k++) y += 13;
+    for (let k = 0; k < 4 && used.some((u) => lx < u.x + u.w && lx + tw > u.x && Math.abs(y - u.y) < 11); k++) y += 12;
     used.push({ x: lx, y, w: tw });
     ctx.fillText(text, tx, y);
     ctx.globalAlpha = 1;
@@ -277,7 +282,13 @@
       edgeMarker(ctx, game, R, game.sys.station.x, game.sys.station.y, game.sys.station.name, C.ok);
       // Har man panorert bort fra skipet, viser en pil hvor det er.
       if (game.camFree) edgeMarker(ctx, game, R, b.x, b.y, 'Your ship', '#ffffff', game.cam, 16);
-      for (const g of RF.gatesOf(game.sys)) edgeMarker(ctx, game, R, g.x, g.y, g.name || 'Gate', C.gate);
+      // Kapitalporten er for store skip: pila vises bare for dem, eller når den er nær.
+      for (const g of RF.gatesOf(game.sys)) {
+        if (g.key === 'gate2' && b.radius < 30 && G.len(g.x - b.x, g.y - b.y) > 1500) continue;
+        edgeMarker(ctx, game, R, g.x, g.y, g.name || 'Gate', C.gate);
+      }
+      const gt = RF.Guide && RF.Guide.target(game);
+      if (gt) edgeMarker(ctx, game, R, gt.x, gt.y, gt.label, gt.color);
       if (game.sys.port) edgeMarker(ctx, game, R, game.sys.port.x, game.sys.port.y, game.sys.port.world, RF.Planets.COLOR);
       for (const n of game.sys.npcs) {
         if (!n.T.hostile || !n.active || n.dead) continue;
@@ -333,7 +344,8 @@
     ctx.fillText(spd.toFixed(1) + ' m/s', 16, top + 53);
     ctx.font = F.label;
     ctx.fillStyle = ship.fa ? C.gate : C.amber;
-    const assist = 'ASSIST ' + ['OFF', 'ROT', 'FULL'][ship.fa];
+    // Flyhjelpen: av (ren Newton), demper snurr, eller bremser også farten.
+    const assist = ['NO ASSIST', 'ASSIST: SPIN', 'ASSIST: FULL'][ship.fa];
     ctx.fillText(assist, 84, top + 53);
     if (ship.nav && ship.nav.hold) {
       ctx.fillStyle = C.ok;
@@ -358,14 +370,22 @@
     }
     // Skadekart bare når noe er skadet.
     if (damaged) damageMap(ctx, ship, 8 + PW + 4, top + 6, 34, PH - 12);
+    // Veilederen: neste oppgave under panelet.
+    const scoopLbl = ship.scoop && ship.scoop.on && !ship.docked ? 18 : 0;
+    const guideH = RF.Guide ? RF.Guide.draw(ctx, R, game, 8, top + PH + 6 + scoopLbl, Math.min(300, w - 16)) : 0;
+    // Hvor langt ned og ut panelområdet går (pilene i kanten holder seg unna).
+    game._hudBottom = top + PH + scoopLbl + (guideH ? guideH + 6 : 0);
+    game._hudRight = 8 + Math.max(PW + (damaged ? 44 : 0), guideH ? Math.min(300, w - 16) : 0);
 
     // Verktøylinje nederst på PC: små ikonbrikker med tasten. Bare det valgte
     // verktøyet viser navnet. Til høyre: samlestrålen eller lasteluken (F).
     // På mobil er verktøyene knapper.
     if (!touch && !ship.docked) {
-      const have = { laser: st.lasers.length, kanon: st.guns.length, rakett: st.rockets.length, anker: st.anchors.length };
+      const have = { laser: st.lasers.length + st.drills.length, kanon: st.guns.length, rakett: st.rockets.length, anker: st.anchors.length };
       const ICON = { laser: 'laser', kanon: 'cannon', rakett: 'rocket', anker: 'hook' };
-      const chips = RF.TOOLS.map((t, i) => {
+      // Verktøy skipet ikke har, vises ikke.
+      const chips = RF.TOOLS.filter((t) => have[t] || ship.tool === t).map((t) => {
+        const i = RF.TOOLS.indexOf(t);
         const sel = ship.tool === t;
         let lbl = sel ? RF.TOOL_NAMES[t].toUpperCase() : '';
         if (t === 'rakett' && have[t]) lbl += (lbl ? ' ' : '') + s.ammo;
@@ -375,7 +395,8 @@
       const hasT = st.tractors.length > 0;
       const colOn = hasT ? ship.tractor.on : !!(ship.scoop && ship.scoop.on);
       chips.push({ gap: true });
-      chips.push({ key: 'F', icon: hasT ? 'collect' : 'scoop', lbl: colOn ? (hasT ? 'COLLECT' : 'SCOOP') : '', sel: colOn, dim: false, on: true });
+      const hint = RF.Guide && RF.Guide.highlight(game);
+      chips.push({ key: 'F', icon: hasT ? 'collect' : 'scoop', lbl: colOn ? (hasT ? 'COLLECT' : 'SCOOP') : hint ? 'PRESS F' : '', sel: colOn || !!hint, dim: false, on: true });
       ctx.font = F.label;
       const H = 22;
       for (const c of chips) c.w = c.gap ? 8 : 38 + (c.lbl ? ctx.measureText(c.lbl).width + 6 : 0);
@@ -411,7 +432,7 @@
       const txt = touch ? game.prompt.replace(/^\[[^\]]+\]\s*/, '') : game.prompt;
       ctx.font = F.label;
       const tw = ctx.measureText(txt).width + 18;
-      const py = touch ? (h > w ? top + 128 : h - 22) : h - 50;
+      const py = touch ? (h > w ? top + 128 + (guideH ? guideH + 8 : 0) : h - 22) : h - 50;
       panel(ctx, w / 2 - tw / 2, py - 13, tw, 20, 0.85);
       ctx.textAlign = 'center';
       ctx.fillStyle = C.amber;
@@ -425,7 +446,7 @@
     // På mobil midt mellom panelet og radaren, så de ikke går oppi dem.
     // På høykant under panelet.
     const port = touch && h > w;
-    const my = port ? top + 86 : top + 18, mx = port ? w / 2 : touch ? (196 + (w - 96)) / 2 : w / 2, lh = touch ? 14 : 17;
+    const my = port ? top + 86 + (guideH ? guideH + 8 : 0) : top + 18, mx = port ? w / 2 : touch ? (196 + (w - 96)) / 2 : w / 2, lh = touch ? 14 : 17;
     game.messages.slice(-2).forEach((m, i) => {
       ctx.globalAlpha = Math.min(1, m.t) * 0.95;
       ctx.fillStyle = '#000';

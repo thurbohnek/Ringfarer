@@ -133,6 +133,8 @@
         const want = hasT ? 'collect|Collect' : 'scoop|Scoop';
         if (tb.dataset.cur !== want) iconBtn(tb, ...want.split('|'));
         tb.classList.toggle('on', hasT ? sh.tractor.on : !!(sh.scoop && sh.scoop.on));
+        // Veilederen får knappen den snakker om til å pulsere.
+        tb.classList.toggle('hint', !!RF.Guide.highlight(game) && !tb.classList.contains('on'));
         $('#tc-light').classList.toggle('on', sh.lightOn);
         $('#tc-winch').hidden = !sh.anchor;
         $('#tc-winchout').hidden = !sh.anchor;
@@ -140,7 +142,13 @@
         const fl = (sh.tool === 'anker' && (sh.anchor || sh.harpoon) ? 'Release' : RF.TOOL_NAMES[sh.tool]) + (sh.tool === 'rakett' ? ' ' + sh.s.ammo : '');
         const fk = TOOL_ICON[sh.tool] + '|' + fl;
         if (fire.dataset.cur !== fk) iconBtn(fire, TOOL_ICON[sh.tool], fl);
-        document.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('on', b.dataset.tool === sh.tool));
+        // Bare verktøy skipet faktisk har, vises som knapper.
+        const stt = sh.stats, have = { laser: stt.lasers.length + stt.drills.length, kanon: stt.guns.length, rakett: stt.rockets.length, anker: stt.anchors.length };
+        document.querySelectorAll('[data-tool]').forEach((b) => {
+          b.classList.toggle('on', b.dataset.tool === sh.tool);
+          const hide = !have[b.dataset.tool];
+          if (b.hidden !== hide) b.hidden = hide;
+        });
       }
       touchRoot.hidden = !game.touchUI || game.state !== 'play' || UI.isOpen();
     },
@@ -179,12 +187,21 @@
 
     openHelp() {
       const back = game.state === 'play' ? 'close' : 'title';
+      // Hjelpen: kort hurtigstart øverst, så emner som kan åpnes og lukkes.
+      const touchUI = game.touchUI;
+      const quick = touchUI
+        ? ['Push the <b>stick</b> (bottom left) to turn and fly. <b>BRAKE</b> stops you.', '<b>Tap</b> empty space to fly there. <b>Drag</b> to look around.',
+          '<b>Press and hold</b> on a rock to cut it with the laser.', 'Tap <b>COLLECT</b> and fly slowly into the loose ore.', 'Fly home, tap <b>DOCK</b> and sell under Market.']
+        : ['<kbd>W</kbd> thrust, <kbd>A</kbd><kbd>D</kbd> turn, <kbd>S</kbd> brake. <b>Click</b> empty space to fly there.', '<b>Hold the mouse</b> on a rock (or <kbd>Space</kbd>) to cut it with the laser.',
+          '<kbd>F</kbd> opens the scoop or collector. Fly slowly into the loose ore.', '<kbd>N</kbd> scans for minerals. <kbd>Tab</kbd> opens the star map.', 'Fly home, press <kbd>T</kbd> to dock and sell under Market.'];
+      const tips = (html) => html.replace(/<li><b>([^<]*?):<\/b>\s*([\s\S]*?)<\/li>/g, '<details class="tip"><summary>$1</summary><p>$2</p></details>');
       show('help', `
         <div class="card plate help-card"><div class="hazard"></div>
-          <div class="card-head"><h2>Controls and tips</h2><button class="btn ghost" data-act="${back}">✕ Close</button></div>
-          ${keyList()}
-          <h3>How it works</h3>
-          <ul class="tips">
+          <div class="card-head"><h2>How to play</h2><button class="btn ghost" data-act="${back}">✕ Close</button></div>
+          <ol class="quick">${quick.map((q) => `<li>${q}</li>`).join('')}</ol>
+          <details class="tip"><summary>All keys</summary>${keyList()}</details>
+          <h3>Topics</h3>
+          <div class="tips">${tips(`
             <li><b>Aiming:</b> tools sit in mounts on the edge of the hull and turn toward where you tap or point. Each turret reaches a little over 90° either way. The crosshair turns green when at least one turret can reach the target.</li>
             <li><b>Tap to move:</b> a short tap on empty space (for example next to an asteroid) sets a target. The ship flies there and stops, and follows the rock if the target is next to one. Steering yourself switches the autopilot off. The autopilot flies straight unless the ship has a <b>navigation computer</b> (Equipment → Tools): then it plots a course around asteroids, stations and ships.</li>
             <li><b>Choose the heading:</b> press and hold on empty space until the target ring appears, then drag toward where the nose should point when the ship arrives. A green arrow shows the heading.</li>
@@ -211,7 +228,7 @@
             <li><b>Drones:</b> drones come in three sizes. Small ones live in drone bays, medium ones in hangar decks and large ones on docking clamps outside the hull. Press K to launch them: the doors open and they fly out. Press K again to call them home, and they fly back and dock. Mining and collector drones bring ore, repair drones fix the ship, guard drones burn rocks heading for you, cargo drones sell goods at the station and shuttles fly passengers and crew to the station or to other ships.</li>
             <li><b>Planets:</b> each system has a planet with a spaceport. Follow the purple marker to the descent corridor, fly slowly into the ring and press T (or the action button) to land. On the planet you can trade, refuel and take passenger and cargo contracts. Taking off again costs fuel: the stronger the gravity, the more.</li>
             <li><b>Passengers:</b> fit passenger cabins or habitat modules (and life support for more than a handful) and take passenger contracts. Passengers leave when you dock at their station, or a shuttle drone can fly them over. Crew changes out to freighters need a shuttle drone.</li>
-          </ul>
+          `)}</div>
           <div class="row"><button class="btn primary" data-act="${back}" data-autofocus>Back</button></div>
         </div>`);
     },
@@ -224,15 +241,19 @@
           ${act.length ? `<h3>Active contracts</h3><ul class="plain">${act.map((m) => `<li>${esc(RF.missionShort(m))} <span class="reward num">${kr(m.reward)}</span></li>`).join('')}</ul>` : ''}
           <div class="col">
             <button class="btn primary" data-act="close" data-autofocus>Resume</button>
-            <button class="btn" data-act="help">Controls</button>
-            <button class="btn" data-act="money">Give me 1,000,000 cr</button>
-            <button class="btn" data-act="map">Star map</button>
-            <button class="btn" data-act="raid">Call raiders (test)</button>
-            <button class="btn" data-act="mute">${RF.Audio.muted ? 'Sound on' : 'Sound off'}</button>
-            <div class="row vol-row"><button class="btn" data-act="vol-down" aria-label="Lower volume">−</button><span class="num">Volume ${Math.round(RF.Audio.volume() * 100)} %</span><button class="btn" data-act="vol-up" aria-label="Raise volume">+</button></div>
-            <button class="btn" data-act="touch">${game.touchUI ? 'Hide touch controls' : 'Show touch controls'}</button>
-            <button class="btn ghost" data-act="quit">Main menu</button>
+            <div class="row two"><button class="btn" data-act="map">Star map</button><button class="btn" data-act="help">Help</button></div>
           </div>
+          <h3>Settings</h3>
+          <div class="col">
+            <div class="row vol-row"><button class="btn" data-act="vol-down" aria-label="Lower volume">−</button>
+              <button class="btn ghost grow" data-act="mute">${RF.Audio.muted ? 'Sound: off' : 'Sound ' + Math.round(RF.Audio.volume() * 100) + ' %'}</button>
+              <button class="btn" data-act="vol-up" aria-label="Raise volume">+</button></div>
+            <button class="btn" data-act="guide">Step-by-step guide: ${game.guide && game.guide.on ? 'on' : 'off'}</button>
+            <button class="btn" data-act="touch">Touch controls: ${game.touchUI ? 'on' : 'off'}</button>
+          </div>
+          <h3>Testing</h3>
+          <div class="row two"><button class="btn sm" data-act="money">+1,000,000 cr</button><button class="btn sm" data-act="raid">Call raiders</button></div>
+          <button class="btn ghost" data-act="quit">Save and quit to menu</button>
         </div>`);
     },
 
@@ -547,6 +568,7 @@
       : [['marked', 'Market'], ['verksted', 'Repairs'], ['utstyr', 'Equipment'], ['verft', 'Shipyard'], ['droner', 'Drones'], ['oppdrag', 'Contracts'], ['stasjon', 'Station']];
     if (!tabs.some((x) => x[0] === tab)) tab = 'marked';
     let body = '';
+    const tip = RF.Guide.stationTip(game);
     if (tab === 'marked') body = marketTab(st);
     else if (tab === 'verksted') body = repairTab();
     else if (tab === 'utstyr') body = gearTab();
@@ -579,7 +601,7 @@
           <nav class="tabs" role="tablist">
             ${tabs.map(([id, name]) => `<button role="tab" class="tab ${tab === id ? 'on' : ''}" data-act="tab" data-id="${id}" aria-selected="${tab === id}">${icon(id)}<span>${name}</span></button>`).join('')}
           </nav>
-          <div class="tab-body">${body}</div>
+          <div class="tab-body">${tip ? `<p class="guide-tip">${tip}</p>` : ''}${body}</div>
         </div>
         <footer class="st-foot"><button class="btn primary" data-act="undock" data-autofocus>${port ? `Take off · ${RF.Planets.takeoffPct(ship, st)} % fuel` : 'Undock'}</button></footer>
         ${toastHtml()}
@@ -1150,6 +1172,7 @@
       case 'vol-down': RF.Audio.setVolume(RF.Audio.volume() - 0.1); UI.openPause(); break;
       case 'vol-up': RF.Audio.setVolume(RF.Audio.volume() + 0.1); UI.openPause(); break;
       case 'touch': UI.setTouch(!game.touchUI); UI.openPause(); break;
+      case 'guide': RF.Guide.toggle(game); game.save(); UI.openPause(); break;
       case 'quit': game.save(); game.state = 'title'; location.reload(); break;
       case 'raid': UI.closeAll(); if (!game.ship.docked) RF.Pirates.spawn(game, 20000); break;
       case 'map': UI.openMap(); break;
@@ -1172,6 +1195,7 @@
         RF.Stations.gain(st.id, got);
         s.cargo[id] = 0;
         game.msg(`Sold ${tonn(amt)} of ${RF.PRODUCTS[id].name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
+        if (got > 0) RF.Guide.event(game, 'sold');
         after();
         break;
       }
@@ -1181,6 +1205,7 @@
         game.credits += got;
         RF.Stations.gain(st.id, got);
         game.msg(`Sold the whole cargo for ${kr(got)}`, RF.HUD_COLORS.ok);
+        if (got > 0) RF.Guide.event(game, 'sold');
         after();
         break;
       }

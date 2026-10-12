@@ -54,6 +54,17 @@
     return g;
   }
 
+  // Grense for hvor ofte en lyd kan spilles. Mange like lyder tett etter
+  // hverandre (steiner som dunker borti hverandre, malm som kommer inn) ble
+  // til en vegg av dunk og sus. Nå går bare én gjennom per tidsrom.
+  const lastT = {};
+  function allow(name, gap) {
+    const t = A.ctx.currentTime;
+    if (t - (lastT[name] || -9) < gap) return false;
+    lastT[name] = t;
+    return true;
+  }
+
   // Omhylning: tone inn på a sekunder og dø ut til t + dur.
   function env(g, t, vol, dur, a = 0.006) {
     g.gain.setValueAtTime(0.0001, t);
@@ -136,11 +147,15 @@
   // treffer noe, rcs 0..1 = sidedyser og snudyser.
   A.update = (engine, laser, tractor, laserHit, rcs = 0) => {
     if (!A.ctx) return;
-    const t = A.ctx.currentTime, e = Math.min(1, engine);
-    engGain.gain.setTargetAtTime(e * 0.4, t, 0.12);
-    engFilter.frequency.setTargetAtTime(90 + e * 260, t, 0.15);
-    humGain.gain.setTargetAtTime(e * 0.12, t, 0.15);
-    hum.frequency.setTargetAtTime(38 + e * 22, t, 0.2);
+    const t = A.ctx.currentTime;
+    // Små motorstøt (stabilisering, autopilot) er stille. Lyden tones jevnt
+    // inn og ut, og filteret flyttes bare litt, så det ikke blir et «sus»
+    // hver gang motoren slår seg av og på.
+    const e = Math.max(0, Math.min(1, engine) - 0.12) / 0.88;
+    engGain.gain.setTargetAtTime(e * 0.32, t, 0.25);
+    engFilter.frequency.setTargetAtTime(110 + e * 90, t, 0.4);
+    humGain.gain.setTargetAtTime(e * 0.1, t, 0.25);
+    hum.frequency.setTargetAtTime(40 + e * 12, t, 0.4);
     // Bare tydelige dysestøt høres. Små justeringer fra stabiliseringen og
     // autopiloten er stille.
     const rq = Math.max(0, Math.min(1, rcs) - 0.35) / 0.65;
@@ -172,30 +187,33 @@
   // Dunk: støy gjennom et filter, og en lav tone under når det er kraftig.
   // bright = lysere (metall og stein som treffer).
   A.thud = (strength, bright) => {
-    if (!A.ctx || strength < 0.02) return;
-    const c = A.ctx, t = c.currentTime, s = Math.min(1, strength);
+    if (!A.ctx || strength < 0.04) return;
+    const s = Math.min(1, strength);
+    // Svake dunk høres sjelden, kraftige litt oftere.
+    if (!allow(s < 0.3 ? 'thudW' : 'thud', s < 0.3 ? 0.35 : 0.12)) return;
+    const c = A.ctx, t = c.currentTime;
+    // Et kort, tørt slag (ikke en lang støyhale, som hørtes ut som sus).
     const src = c.createBufferSource();
     src.buffer = noiseBuf;
-    const f = filt('lowpass', bright ? 2000 : 250 + s * 700);
+    const f = filt('lowpass', bright ? 900 : 260 + s * 300, 0.9);
     const g = gain();
-    env(g, t, s * 0.6, 0.2 + s * 0.45);
+    env(g, t, s * 0.4, 0.05 + s * 0.08, 0.002);
     src.connect(f); f.connect(g); g.connect(master);
-    src.start(t, Math.random()); src.stop(t + 1);
-    if (s > 0.3) {
-      const o = c.createOscillator();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(bright ? 140 : 90, t);
-      o.frequency.exponentialRampToValueAtTime(40, t + 0.25 + s * 0.3);
-      const og = gain();
-      env(og, t, s * 0.35, 0.3 + s * 0.35);
-      o.connect(og); og.connect(master);
-      o.start(t); o.stop(t + 0.8);
-    }
+    src.start(t, Math.random()); src.stop(t + 0.2);
+    // Kroppen i slaget: en lav tone som faller raskt.
+    const o = c.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(bright ? 150 : 95, t);
+    o.frequency.exponentialRampToValueAtTime(45, t + 0.12 + s * 0.12);
+    const og = gain();
+    env(og, t, s * 0.45, 0.14 + s * 0.16, 0.002);
+    o.connect(og); og.connect(master);
+    o.start(t); o.stop(t + 0.4);
   };
 
   // Kort tone, for menyer og beskjeder. Firkant og sagtann dempes med et filter.
   A.blip = (freq, dur = 0.08, type = 'square', vol = 0.12) => {
-    if (!A.ctx) return;
+    if (!A.ctx || !allow('blip' + Math.round(freq), 0.04)) return;
     const c = A.ctx, t = c.currentTime;
     const o = c.createOscillator();
     o.type = type; o.frequency.value = freq;
@@ -212,7 +230,7 @@
 
   // Massedriver: et tungt smell med et slag nedover i tone. v = styrke 0..1.
   A.gun = (v = 1) => {
-    if (!A.ctx || v < 0.03) return;
+    if (!A.ctx || v < 0.05 || !allow('gun', 0.05)) return;
     const c = A.ctx, t = c.currentTime;
     const src = c.createBufferSource(); src.buffer = noiseBuf;
     const f = filt('bandpass', 900, 0.8);
@@ -229,7 +247,7 @@
 
   // Maskinkanon og nærforsvar: kort, tørt knatter.
   A.auto = (v = 1) => {
-    if (!A.ctx || v < 0.03) return;
+    if (!A.ctx || v < 0.03 || !allow('auto', 0.06)) return;
     const c = A.ctx, t = c.currentTime;
     const src = c.createBufferSource(); src.buffer = noiseBuf;
     const f = filt('bandpass', 1300, 1.2);
@@ -295,21 +313,21 @@
   };
 
   // Rakett skytes ut: et sus som stiger.
-  A.rocket = () => {
-    if (!A.ctx) return;
+  A.rocket = (v = 1) => {
+    if (!A.ctx || v < 0.05 || !allow('rocket', 0.12)) return;
     const c = A.ctx, t = c.currentTime;
     const src = c.createBufferSource(); src.buffer = noiseBuf;
     const f = filt('bandpass', 400, 1.5);
     f.frequency.setValueAtTime(400, t);
     f.frequency.exponentialRampToValueAtTime(2400, t + 0.6);
-    const g = gain(); env(g, t, 0.35, 0.8, 0.03);
+    const g = gain(); env(g, t, 0.28 * v, 0.6, 0.02);
     src.connect(f); f.connect(g); g.connect(master);
-    src.start(t, Math.random()); src.stop(t + 0.9);
+    src.start(t, Math.random()); src.stop(t + 0.7);
   };
 
   // Eksplosjon: et dypt drønn og en lang, dempet rumling. s = styrke 0..1.
   A.boom = (s = 1) => {
-    if (!A.ctx || s < 0.03) return;
+    if (!A.ctx || s < 0.05 || !allow('boom', 0.08)) return;
     const c = A.ctx, t = c.currentTime;
     const src = c.createBufferSource(); src.buffer = brownBuf;
     const f = filt('lowpass', 900, 0.7);
@@ -328,7 +346,7 @@
 
   // Malm tas inn: en liten, myk «plopp».
   A.pickup = () => {
-    if (!A.ctx) return;
+    if (!A.ctx || !allow('pickup', 0.09)) return;
     const c = A.ctx, t = c.currentTime;
     const o = c.createOscillator(); o.type = 'sine';
     o.frequency.setValueAtTime(420, t);
@@ -365,7 +383,7 @@
   // En bit knekker løs: et skarpt knepp, et knirk og en dump rumling.
   // size 0..1 (liten til stor bit).
   A.crack = (size = 0.5) => {
-    if (!A.ctx) return;
+    if (!A.ctx || !allow('crack', 0.3)) return;
     const c = A.ctx, t = c.currentTime;
     const snap = c.createBufferSource();
     snap.buffer = noiseBuf;
@@ -381,7 +399,7 @@
     const og = gain(); env(og, t + 0.01, 0.06, 0.45 + size * 0.3, 0.04);
     o.connect(of); of.connect(og); og.connect(master);
     o.start(t); o.stop(t + 0.8 + size * 0.3);
-    setTimeout(() => A.thud(0.25 + size * 0.5, false), 40);
+    setTimeout(() => { lastT.thud = -9; A.thud(0.25 + size * 0.5, false); }, 40);
   };
 
   // Alarm: to toner som veksler, for fiender på vei.
