@@ -266,7 +266,7 @@
   game.fitZoom = () => {
     const r = game.ship.body.radius, R = RF.renderer;
     const byShip = (game.touchUI ? 30 : 40) / r;
-    const byView = (Math.min(R.w, R.h) / 2) / (game.touchUI ? 90 : 140);
+    const byView = (Math.min(R.w, R.h) / 2) / (game.touchUI ? 75 : 110);
     game.cam.zoom = G.clamp(Math.min(byShip, byView), 0.03, 7);
   };
 
@@ -791,7 +791,7 @@
     const ship = game.ship, S = ship.scoop || (ship.scoop = { on: false, open: 0, caught: 0 });
     S.on = !S.on;
     Audio.blip(S.on ? 260 : 180, 0.18, 'triangle', 0.08);
-    game.msg(S.on ? 'Cargo scoop open. Fly slowly into the ore to catch it (U or F to close)' : 'Cargo scoop closed', S.on ? RF.HUD_COLORS.ok : RF.HUD_COLORS.gate);
+    game.msg(S.on ? 'Scoop opening. Fly slowly into the ore' : 'Scoop closed', S.on ? RF.HUD_COLORS.ok : RF.HUD_COLORS.gate);
   };
 
   game.tryIntake = (o) => {
@@ -1005,14 +1005,16 @@
       const cs0 = Math.cos(g.a), sn0 = Math.sin(g.a), gk0 = R / RF.GATE_R;
       const near = G.len(game.ship.body.x - g.x, game.ship.body.y - g.y) < 900 * gk0;
       if (ch > g.chevrons) {
-        g.chevrons = ch; Audio.chevron(ch);
+        // Lyden høres bare i nærheten. Porten man ringer selv, høres alltid.
+        g.vol = !g.incoming && !g.dialedBy ? 1 : Audio.near(g.x, g.y, 1100 * gk0);
+        g.chevrons = ch; Audio.chevron(ch, g.vol);
         // Gnister der chevronen låser.
         const a = -Math.PI / 2 + ((ch - 1) / 9) * Math.PI * 2;
         const lx = Math.cos(a) * (RF.GATE_R + 2.4) * 0.34 * gk0, ly = Math.sin(a) * (RF.GATE_R + 2.4) * gk0;
         if (near) game.particles.burst(g.x + lx * cs0 - ly * sn0, g.y + lx * sn0 + ly * cs0, 14, { type: 'glow', sMin: 3 * gk0, sMax: 14 * gk0, color: '#ffb04a', zMin: 0.1, zMax: 0.3, lMin: 0.2, lMax: 0.6 });
       }
       if (g.chevrons >= 7 && g.t > 7 * 0.62 + 0.4) {
-        g.state = 'kawoosh'; g.t = 0; Audio.kawoosh();
+        g.state = 'kawoosh'; g.t = 0; Audio.kawoosh(g.vol != null ? g.vol : 1);
         // Åpningen: sjokkbølger, en sky av blå gnister forover, lysglimt og risting.
         g.waves = [{ t0: game.time }, { t0: game.time + 0.25 }, { t0: game.time + 0.55 }];
         if (near) {
@@ -1465,7 +1467,7 @@
     if (Input.hit('KeyX')) RF.Weapons.fireHarpoon(ship, game);
     if (Input.hit('KeyJ')) RF.Combat.dropFlares(game, true);
     if (Input.hit('KeyK')) game.launchDrones();
-    if (Input.hit('KeyN')) RF.Scan.pulse(game);
+    if (Input.hit('KeyN')) RF.Scan.toggle(game);
     if (Input.hit('KeyB')) game.toggleHold();
     const tools = { Digit1: 'laser', Digit2: 'kanon', Digit3: 'rakett', Digit4: 'anker' };
     for (const k in tools) if (Input.hit(k)) game.selectTool(tools[k]);

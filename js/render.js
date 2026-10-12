@@ -1108,37 +1108,70 @@
 
     // Lasteluken foran på skipet: to luker som svinger ut og danner en trakt.
     // Åpen: mørk åpning og svake ledelinjer som viser hvor man fanger malm.
+    // Lasteluken: to pansrede dører på hydraulikkstempler danner en trakt.
+    // I halsen går bremsevalser (stripene beveger seg innover når luken er
+    // åpen). Lysene ved halsen: gult mens dørene går, grønt når den er klar,
+    // rødt når lasten er full.
     drawScoop(ship, time) {
       const S = ship.scoop;
       if (!S || S.open <= 0.01 || ship.docked) return;
-      const ctx = this.ctx, b = ship.body, o = S.open, nx = ship.noseX, half = Math.max(1.6, RF.CELL * 1.1);
+      const ctx = this.ctx, b = ship.body, o = S.open, g = ship.scoopGeom(), px = this.px / (b.s || 1);
+      const full = ship.holdFree() - ship.procProduct() <= 0.02;
       ctx.save();
       ctx.translate(b.x, b.y); ctx.rotate(b.a); if (b.s !== 1) ctx.scale(b.s, b.s);
-      // Åpningen.
-      ctx.fillStyle = `rgba(10,12,14,${0.85 * o})`;
-      ctx.beginPath(); ctx.ellipse(nx - 0.2, 0, 0.6 + 0.4 * o, half * o, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = `rgba(120,255,210,${0.5 * o})`; ctx.lineWidth = 0.08;
-      ctx.stroke();
-      // To luker som svinger ut.
-      for (const s of [-1, 1]) {
-        ctx.save();
-        ctx.translate(nx - 0.4, s * half * 0.95);
-        ctx.rotate(s * (0.2 + o * 0.9));
-        const L = half * 1.25;
-        ctx.fillStyle = '#7d776a';
-        ctx.beginPath(); ctx.moveTo(0, -s * 0.15); ctx.lineTo(L, -s * 0.05); ctx.lineTo(L, s * 0.55); ctx.lineTo(0, s * 0.75); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#1d1b17'; ctx.lineWidth = 0.08; ctx.stroke();
-        ctx.fillStyle = '#b88a2a';
-        for (let x = 0.3; x < L - 0.2; x += 0.6) ctx.fillRect(x, s > 0 ? 0.05 : -0.2, 0.25, 0.15);
+      const tan = Math.tan(g.ang), L = g.L * o;
+      // Halsen og innsiden av trakta: mørk, med valser.
+      ctx.fillStyle = `rgba(14,15,17,${0.92 * o})`;
+      ctx.beginPath();
+      ctx.moveTo(g.nx - 0.5, -g.h0); ctx.lineTo(g.nx - 0.5, g.h0);
+      ctx.lineTo(g.nx + Math.cos(g.ang) * L, g.h0 + Math.sin(g.ang) * L);
+      ctx.lineTo(g.nx + Math.cos(g.ang) * L, -g.h0 - Math.sin(g.ang) * L);
+      ctx.closePath(); ctx.fill();
+      if (o > 0.6) {
+        ctx.save(); ctx.clip();
+        ctx.strokeStyle = `rgba(90,86,76,${0.7 * o})`; ctx.lineWidth = 0.22;
+        const shift = (time * 2.2) % 0.7;
+        for (let x = g.nx + 2.2 - shift; x > g.nx - 0.6; x -= 0.7) {
+          const hw = g.h0 + Math.max(0, x - g.nx) * tan;
+          ctx.beginPath(); ctx.moveTo(x, -hw); ctx.lineTo(x, hw); ctx.stroke();
+        }
         ctx.restore();
       }
-      // Ledelinjer forover (blinker svakt) når luken er helt åpen.
-      if (o > 0.8) {
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = `rgba(120,255,210,${0.12 + 0.06 * Math.sin(time * 4)})`;
-        ctx.lineWidth = 0.12; ctx.setLineDash([0.6, 0.8]);
-        for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(nx + 0.5, s * half); ctx.lineTo(nx + 14, s * (half + 14 * 0.35)); ctx.stroke(); }
-        ctx.setLineDash([]);
+      // Dørene: pansrede plater med varselstriper på tuppen og stempler.
+      for (const side of [-1, 1]) {
+        ctx.save();
+        ctx.translate(g.nx, g.h0 * side);
+        ctx.rotate(g.ang * side);
+        const th = 0.7;
+        // Hydraulikkstempel fra skroget til midten av døra.
+        ctx.save();
+        ctx.rotate(-g.ang * side);
+        ctx.strokeStyle = '#2b2d30'; ctx.lineWidth = 0.45; ctx.lineCap = 'round';
+        const mx = Math.cos(g.ang) * L * 0.5, my = Math.sin(g.ang) * L * 0.5 * side;
+        ctx.beginPath(); ctx.moveTo(-1.1, side * 0.15); ctx.lineTo(mx, my); ctx.stroke();
+        ctx.strokeStyle = '#b9bdc2'; ctx.lineWidth = 0.2;
+        ctx.beginPath(); ctx.moveTo(-0.2, side * 0.25); ctx.lineTo(mx, my); ctx.stroke();
+        ctx.restore();
+        const gr = ctx.createLinearGradient(0, 0, 0, th * side);
+        gr.addColorStop(0, '#a49e90'); gr.addColorStop(1, '#5d584e');
+        ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L, 0); ctx.lineTo(L - 0.2, th * side); ctx.lineTo(0, th * side); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#1a1814'; ctx.lineWidth = Math.max(0.05, px); ctx.stroke();
+        // Varselstriper på tuppen.
+        for (let x = L - 1.6; x < L - 0.3; x += 0.42) { ctx.fillStyle = '#d99a34'; ctx.fillRect(x, side > 0 ? 0.12 : -0.46, 0.2, 0.34); }
+        // Hengsel.
+        ctx.fillStyle = '#2b2d30'; ctx.beginPath(); ctx.arc(0, th * side * 0.5, 0.26, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      // Lys i halsen.
+      const moving = S.on ? o < 1 : true;
+      const col = full ? '255,70,50' : moving ? '255,180,60' : '110,240,140';
+      const blink = moving ? (Math.sin(time * 10) > 0 ? 1 : 0.3) : 0.85;
+      ctx.globalCompositeOperation = 'lighter';
+      for (const side of [-1, 1]) {
+        const lg = ctx.createRadialGradient(g.nx - 0.2, side * (g.h0 - 0.2), 0, g.nx - 0.2, side * (g.h0 - 0.2), 1.1);
+        lg.addColorStop(0, `rgba(${col},${0.9 * blink})`); lg.addColorStop(1, `rgba(${col},0)`);
+        ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(g.nx - 0.2, side * (g.h0 - 0.2), 1.1, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
     }

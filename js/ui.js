@@ -35,6 +35,7 @@
     collect: 'M6 4v8a6 6 0 0 0 12 0V4 M6 8h4 M14 8h4',
     scoop: 'M3 7l5 5h8l5-5 M8 12v6h8v-6 M12 3v5',
     scan: 'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0 M12 12l5.5-5.5 M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
+    clear: 'M12 12m-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0 M9 9l6 6 M15 9l-6 6',
     more: 'M6 12h.01 M12 12h.01 M18 12h.01',
     light: 'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z',
     assist: 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0',
@@ -133,6 +134,9 @@
         const want = hasT ? 'collect|Collect' : 'scoop|Scoop';
         if (tb.dataset.cur !== want) iconBtn(tb, ...want.split('|'));
         tb.classList.toggle('on', hasT ? sh.tractor.on : !!(sh.scoop && sh.scoop.on));
+        // Skanneknappen blir CLEAR mens skannemerkene vises.
+        const sc = $('#tc-scan'), sw = RF.Scan.visible(game) ? 'clear|Clear' : 'scan|Scan';
+        if (sc && sc.dataset.cur !== sw) iconBtn(sc, ...sw.split('|'));
         // Veilederen får knappen den snakker om til å pulsere.
         tb.classList.toggle('hint', !!RF.Guide.highlight(game) && !tb.classList.contains('on'));
         $('#tc-light').classList.toggle('on', sh.lightOn);
@@ -193,7 +197,7 @@
         ? ['Push the <b>stick</b> (bottom left) to turn and fly. <b>BRAKE</b> stops you.', '<b>Tap</b> empty space to fly there. <b>Drag</b> to look around.',
           '<b>Press and hold</b> on a rock to cut it with the laser.', 'Tap <b>COLLECT</b> and fly slowly into the loose ore.', 'Fly home, tap <b>DOCK</b> and sell under Market.']
         : ['<kbd>W</kbd> thrust, <kbd>A</kbd><kbd>D</kbd> turn, <kbd>S</kbd> brake. <b>Click</b> empty space to fly there.', '<b>Hold the mouse</b> on a rock (or <kbd>Space</kbd>) to cut it with the laser.',
-          '<kbd>F</kbd> opens the scoop or collector. Fly slowly into the loose ore.', '<kbd>N</kbd> scans for minerals. <kbd>Tab</kbd> opens the star map.', 'Fly home, press <kbd>T</kbd> to dock and sell under Market.'];
+          '<kbd>F</kbd> opens the scoop or collector. Fly slowly into the loose ore.', '<kbd>N</kbd> scans for minerals (N again clears the marks). <kbd>Tab</kbd> opens the star map.', 'Fly home, press <kbd>T</kbd> to dock and sell under Market.'];
       const tips = (html) => html.replace(/<li><b>([^<]*?):<\/b>\s*([\s\S]*?)<\/li>/g, '<details class="tip"><summary>$1</summary><p>$2</p></details>');
       show('help', `
         <div class="card plate help-card"><div class="hazard"></div>

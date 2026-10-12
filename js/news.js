@@ -10,6 +10,15 @@
 
   RF.NEWS = [
     {
+      v: 'v0.27.0', date: '2026-10-12', title: 'New HUD and a real cargo scoop',
+      items: [
+        'A lighter HUD with numbers on every gauge: hull, shield, fuel and cargo. Speed has its own line, and only unusual modes (drift, auto-brake, hold) are shown.',
+        'The cargo scoop is a real funnel: two armored doors swing out on hydraulic rams. Pieces bounce off the doors, and rollers in the throat pull in what comes slowly enough. Too fast and it bounces back out.',
+        'Press N again (or CLEAR) to remove the scan marks.',
+        'The gate no longer plays its dialing sound at full volume when a freighter uses it far away.',
+      ],
+    },
+    {
       v: 'v0.26.0', date: '2026-10-12', title: 'Smoother, quieter, clearer',
       items: [
         'Much smoother: the ship is drawn far faster, and the game lowers its resolution by itself if your device struggles.',

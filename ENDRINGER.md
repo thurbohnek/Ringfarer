@@ -57,6 +57,79 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-10-12: v0.27.0 · Ny HUD, ekte lastetrakt, skann kan fjernes, og porten er stille langt unna
+
+**Ønske:** «Det er en sånn dut dut dut dut dut swoushhhh lyd av og til... Kan
+du på nytt forsøke å ordne hudden. Liker ikke oppsettet når jeg spiller. Når
+man har scannet må man ha en måte å ta bort sanningen også. Scoop er veldig
+dårlig laget. Må virke mer realistisk.»
+
+**Hva lyden var:**
+
+- Det var porten som ringer: sju chevron-låsinger («dut dut …») og
+  åpningen («swoush»).
+- Frakteskipene reiser gjennom porten av og til, både inn og ut. Da ble
+  lyden spilt for fullt, samme hvor langt unna man var.
+
+**Hva som er gjort:**
+
+- **Portlyden** (`js/audio.js`, `js/game.js`):
+  - Chevron-lydene og åpningen følger nå avstanden til porten. De er stille
+    over omtrent 1,1 km unna.
+  - Bare når du ringer selv, høres den for fullt.
+- **Ny HUD** (`js/hud.js`):
+  - **Panelet:** lett og gjennomsiktig i stedet for tunge stålplater. Det
+    har tall på alle målerne: HULL og SHIELD i prosent, FUEL i prosent og
+    CARGO i tonn (for eksempel 4.2/16 t). Tallet blir rødt når det er lite
+    igjen.
+  - **Fartslinja:** farten, med merkelapper bare når noe er spesielt: HOLD,
+    AUTOPILOT, DRIFT (flyhjelp av), AUTO-BRAKE og antall oppdrag. «ASSIST:
+    SPIN» er borte.
+  - **Skadekartet** står i en egen liten rute ved siden av.
+  - **Resten i samme stil:** verktøylinja (valgt verktøy har en strek
+    under), hintet og radaren har fått samme lette stil.
+  - **Veilederkortet** er mindre og krymper til én linje etter ti sekunder.
+  - **Meldingene:** på høykant står de alltid under panelet og veilederen.
+    Lange meldinger krymper litt, så de får plass.
+  - **Lukemeldingen** er kortere: «Scoop opening. Fly slowly into the ore».
+- **Skanning** (`js/scan.js`, `js/game.js`, `js/ui.js`):
+  - Trykk N igjen (eller CLEAR på mobil) mens merkene vises, for å fjerne
+    dem.
+  - SCAN-knappen skifter til CLEAR så lenge det er merker.
+  - Merkene forsvinner også av seg selv etter 30 sekunder (før: 45).
+- **Lasteluken som en ekte trakt** (`js/ship.js`, `js/render.js`):
+  - **Dørene:** to pansrede dører på hydraulikkstempler svinger sakte ut
+    (rundt ett sekund) og danner en V-formet trakt. Det kommer et lite dunk
+    når de er helt åpne eller lukket.
+  - **Ingen sug lenger.** En bit fanges bare når den faktisk kommer inn i
+    trakta.
+  - **Dørene er harde plater:** biter spretter av dem (litt sprett og
+    friksjon) og ledes mot halsen. Biter som treffer utsiden, spretter også
+    av. Store steiner tas av vanlig kollisjon mot skroget.
+  - **Bremsevalser i halsen** tar imot biter som kommer under 7 m/s. Biten
+    dras inn under skroget (cirka 0,45 s) og havner så i lasten.
+  - **Stopper i halsen:** biter som er for raske, spretter ut igjen. Biter
+    som er for store, passer ikke. Er lasten full, er halsen stengt, og det
+    kommer en melding.
+  - **Tegningen:** mørk hals med valser som går, varselstriper på
+    dørtuppene og hengsler. Lysene ved halsen er gule mens dørene går,
+    grønne når luken er klar, og røde når lasten er full.
+- **Kameraet** starter litt nærmere enn i v0.26.0 (110 m opp og ned på PC,
+  75 m på mobil), så skipet ikke blir for lite.
+- **Veilederen** sier at man skal velge en grå stein hvis laseren sier at
+  steinen er for hard.
+- `index.html`: versjonen er nå v0.27.0.
+- `js/news.js`: nyhet.
+
+**Testet** i nettleseren:
+
+- **Lasteluken:** åpnet foran ni malmbiter. Med små motorstøt forover ble
+  alle ni fanget. En bit som kom i 14 m/s, spratt tilbake ut av trakta.
+- **Skanning:** merkene ble fjernet med N.
+- **HUD-en:** skjermbilder på PC, mobil på høykant og mobil liggende.
+- **De gamle testene:** knappene (høykant og liggende), trykk,
+  veilederen, kamp og landing virker. Ingen feil i konsollen.
+
 ## 2026-10-12: v0.26.0 · Ryddigere, roligere og raskere
 
 **Ønske:** «Kan du fikse dette spillet. Gå over hva som bør gjøres og orden

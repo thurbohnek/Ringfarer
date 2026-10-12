@@ -7,7 +7,7 @@
   const RF = window.RF, G = RF.G;
   const Scan = (RF.Scan = {});
 
-  Scan.SHOW = 45; // sekunder en skannet stein viser innholdet
+  Scan.SHOW = 30; // sekunder en skannet stein viser innholdet
   Scan.SPEED = 1100; // m/s for pulsen
   Scan.COOLDOWN = 3;
 
@@ -88,6 +88,20 @@
   };
 
   Scan.scanned = (o, game) => o.scanT != null && game.time - o.scanT < Scan.SHOW;
+
+  // Vises det skannemerker nå? Da fjerner N (eller CLEAR) dem i stedet for
+  // å skanne på nytt.
+  Scan.visible = (game) => {
+    const S = game.scan;
+    return !!(S && !S.cleared && game.time - S.t0 < Scan.SHOW && (S.done ? S.found > 0 : true));
+  };
+  Scan.clear = (game) => {
+    for (const o of game.sys.world.bodies) o.scanT = null;
+    if (game.scan) { game.scan.cleared = true; game.scan.done = true; }
+    RF.Audio.blip(520, 0.08, 'sine', 0.06);
+    game.msg('Scan markers cleared', RF.HUD_COLORS.muted);
+  };
+  Scan.toggle = (game) => (Scan.visible(game) ? Scan.clear(game) : Scan.pulse(game));
 
   Scan.fmtCr = (v) => (v >= 1e6 ? (v / 1e6).toFixed(1) + 'M cr' : v >= 1e4 ? Math.round(v / 1000) + 'k cr' : Math.round(v).toLocaleString('en-US') + ' cr');
   Scan.fmtMass = (kg) => (kg >= 1e6 ? (kg / 1e6).toFixed(1) + ' kt' : kg >= 1000 ? (kg / 1000).toFixed(kg < 1e4 ? 1 : 0) + ' t' : Math.round(kg) + ' kg');

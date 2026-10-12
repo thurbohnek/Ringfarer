@@ -515,35 +515,119 @@
     // Lasteluke foran: åpnes (F på skip uten traktorstråle) og fanger løse
     // malmbiter som skipet kjører inn i. Litt sug trekker biter rett foran
     // inn mot åpningen. Fungerer bare når farten mot biten er lav nok.
+    // Lasteluken: to dører i nesen svinger ut og danner en trakt. Ingen
+    // magi: en bit fanges bare når den faktisk kommer inn i trakta. Veggene
+    // er harde (biter spretter av dem og ledes mot halsen), og bremsevalser i
+    // halsen tar imot biter som kommer sakte nok. Biten dras inn under
+    // skroget og havner i lasten. For fort: den spretter ut igjen. For stor
+    // eller full last: halsen er stengt.
+    scoopGeom() {
+      const nx = this.noseX, h0 = Math.max(1.6, RF.CELL * 1.1);
+      const open = this.scoop ? this.scoop.open : 0;
+      const L = h0 * 2.3, ang = 0.1 + 0.6 * open; // dørens vinkel ut fra nesen
+      return { nx, h0, L, ang, tip: { x: nx + Math.cos(ang) * L, y: h0 + Math.sin(ang) * L } };
+    }
+
     updateScoop(dt, game) {
       const S = this.scoop || (this.scoop = { on: false, open: 0, caught: 0 });
-      S.open = G.clamp(S.open + (S.on && !this.docked ? dt * 2 : -dt * 2), 0, 1);
-      if (S.open < 0.8 || this.docked) return;
-      const b = this.body, nx = this.noseX, half = Math.max(1.6, RF.CELL * 1.1);
-      const mouth = b.toWorld(nx + 0.6, 0);
+      const was = S.open;
+      // Dørene går sakte (hydraulikk), ca. ett sekund helt ut.
+      S.open = G.clamp(S.open + (S.on && !this.docked ? dt * 1.1 : -dt * 1.4), 0, 1);
+      if ((was < 1 && S.open >= 1) || (was > 0 && S.open <= 0)) RF.Audio.thud(0.22, false);
+      // Biter på vei inn under skroget.
+      const b = this.body, sc = b.s || 1;
+      if (S.swallow && S.swallow.length) {
+        for (const w of S.swallow) {
+          const o = w.o;
+          if (o.dead) { w.done = true; continue; }
+          w.t += dt;
+          const k = Math.min(1, w.t / 0.45);
+          const lx = w.lx + (this.noseX - 1.2 - w.lx) * k, ly = w.ly * (1 - k);
+          const p = b.toWorld(lx, ly);
+          o.x = p.x; o.y = p.y; o.vx = b.vx; o.vy = b.vy;
+          if (k >= 1) {
+            o._tractorFrom = b.toWorld(this.noseX - 0.6, 0);
+            game.tryIntake(o);
+            w.done = true;
+            if (o.dead) S.caught++;
+            else {
+              // Fikk ikke plass likevel: valsene skyver den ut igjen.
+              const q = b.toWorld(this.noseX + 2 + o.radius / sc, 0), f = b.dirWorld(1, 0);
+              o.x = q.x; o.y = q.y; o.vx = b.vx + f.x * 1.5; o.vy = b.vy + f.y * 1.5; o.ghost = false;
+            }
+          }
+        }
+        S.swallow = S.swallow.filter((w) => !w.done);
+      }
+      if (S.open < 0.05 || this.docked) return;
+      const g = this.scoopGeom();
       const full = this.holdFree() - this.procProduct() <= 0.02;
+      const ca = Math.cos(b.a), sa = Math.sin(b.a);
+      // Retningen til hver dør (lokalt) og en normal som peker inn i trakta.
+      const doors = [1, -1].map((side) => ({ ox: g.nx, oy: g.h0 * side, dx: Math.cos(g.ang), dy: Math.sin(g.ang) * side }));
       for (const o of game.sys.world.bodies) {
-        if (o.dead || o.ghost) continue;
-        const small = o.kind === 'ore' || (o.kind === 'wreck' && o.modules.length <= 2);
-        if (!small) continue;
-        const dx = o.x - mouth.x, dy = o.y - mouth.y;
-        if (dx * dx + dy * dy > 30 * 30 * b.s * b.s) continue;
-        const l = b.toLocal(o.x, o.y);
-        const ahead = l.x - nx, r = Math.sqrt(o.area || 1) * 0.5 / b.s;
-        const rv = b.pointVel(o.x, o.y), relx = o.vx - rv.x, rely = o.vy - rv.y;
-        // I åpningen: inn i lasten.
-        if (ahead > -1.2 && ahead < 1.6 + r && Math.abs(l.y) < half + r * 0.5) {
-          if (full) continue;
-          if (G.len(relx, rely) < 9) { o._tractorFrom = mouth; game.tryIntake(o); S.caught++; }
-          continue;
+        if (o.dead || o.ghost || o.isStatic || o === b) continue;
+        // Bare småbiter. Store steiner er for tunge til at døra kan dytte dem
+        // (da tar vanlig kollisjon mot skroget over).
+        if (!(o.kind === 'ore' || o.kind === 'wreck' || o.rubble || (o.kind === 'rock' && o.radius < 3))) continue;
+        const r = (o.radius || 1) / sc;
+        const wx = o.x - b.x, wy = o.y - b.y;
+        const lx = (wx * ca + wy * sa) / sc, ly = (-wx * sa + wy * ca) / sc;
+        if (lx < g.nx - 2 - r || lx > g.tip.x + r + 1 || Math.abs(ly) > g.tip.y + r + 1) continue;
+        // Farten i forhold til skipet, i skipets retninger.
+        const pv = b.pointVel(o.x, o.y);
+        let rvx = o.vx - pv.x, rvy = o.vy - pv.y;
+        let lvx = (rvx * ca + rvy * sa) / sc, lvy = (-rvx * sa + rvy * ca) / sc;
+        let hit = 0;
+        // Dørene: harde plater (begge sider), med litt sprett og friksjon.
+        for (const d of doors) {
+          const qx = lx - d.ox, qy = ly - d.oy;
+          const t = G.clamp(qx * d.dx + qy * d.dy, 0, g.L * S.open + 0.2);
+          const cx = d.ox + d.dx * t, cy = d.oy + d.dy * t;
+          let nx = lx - cx, ny = ly - cy;
+          const dist = Math.hypot(nx, ny) || 1e-3;
+          if (dist > r + 0.15) continue;
+          nx /= dist; ny /= dist;
+          const vn = lvx * nx + lvy * ny;
+          if (vn < 0) {
+            const tx = -ny, ty = nx, vt = lvx * tx + lvy * ty;
+            const nvn = -vn * 0.25, nvt = vt * 0.85;
+            lvx = nx * nvn + tx * nvt; lvy = ny * nvn + ty * nvt;
+            hit = Math.max(hit, -vn);
+          }
+          // Skyv biten ut av platen.
+          const push = r + 0.15 - dist;
+          const px = nx * push, py = ny * push;
+          o.x += (px * ca - py * sa) * sc; o.y += (px * sa + py * ca) * sc;
         }
-        // Rett foran (innenfor en kjegle): svakt sug mot åpningen.
-        if (ahead > 0 && ahead < 25 && Math.abs(l.y) < half + ahead * 0.35 && !full) {
-          const d = G.len(dx, dy) || 1;
-          const k = 6 * dt;
-          o.vx += (-dx / d) * k + (rv.x - o.vx) * dt * 0.8;
-          o.vy += (-dy / d) * k + (rv.y - o.vy) * dt * 0.8;
+        // Inne i trakta og helt inne ved halsen?
+        const inFunnel = lx > g.nx - 0.4 && lx < g.tip.x && Math.abs(ly) < g.h0 + (lx - g.nx) * Math.tan(g.ang) - r * 0.3;
+        const fits = o.kind === 'ore' || (o.kind === 'wreck' && o.modules && o.modules.length <= 2);
+        if (inFunnel && lx < g.nx + r + 0.8 && S.open > 0.9) {
+          const sp = Math.hypot(lvx, lvy) * sc;
+          if (fits && !full && sp < 7) {
+            // Valsene tar biten: den dras inn under skroget.
+            o.ghost = true;
+            (S.swallow || (S.swallow = [])).push({ o, t: 0, lx, ly });
+            RF.Audio.blip(240, 0.06, 'triangle', 0.05);
+            continue;
+          }
+          // For fort, for stor eller full last: halsen stopper den.
+          if (lvx < 0) { hit = Math.max(hit, -lvx); lvx = -lvx * 0.3; }
+          if (full && !game._fullWarn2 || (full && game.time - game._fullWarn2 > 4)) { game._fullWarn2 = game.time; game.msg('Cargo hold is full: the scoop is closed', RF.HUD_COLORS.amber); }
+        } else if (inFunnel && lx < g.nx + 4) {
+          // Bremsebørster i trakta: farten mot skipet dempes litt.
+          const k = Math.min(1, dt * 1.5);
+          lvx -= lvx * k * 0.5; lvy -= lvy * k;
         }
+        if (hit > 1.5) {
+          const v = RF.Audio.near(o.x, o.y, 300);
+          RF.Audio.thud(Math.min(0.35, hit / 20) * v, true);
+          if (hit > 3) game.particles.burst(o.x, o.y, 4, { sMin: 2, sMax: 6, color: '#ffd28a', zMin: 0.1, zMax: 0.25, lMin: 0.1, lMax: 0.3, vx: pv.x, vy: pv.y });
+        }
+        // Tilbake til verdens retninger.
+        rvx = (lvx * ca - lvy * sa) * sc; rvy = (lvx * sa + lvy * ca) * sc;
+        o.vx = pv.x + rvx; o.vy = pv.y + rvy;
       }
     }
 

@@ -357,13 +357,15 @@
   };
 
   // Chevron som låser seg: tung klunk + tone.
-  A.chevron = (i) => {
-    A.thud(0.5, false);
-    A.blip(220 + i * 30, 0.25, 'triangle', 0.1);
+  // v = styrke etter avstand (porter langt unna høres svakt eller ikke).
+  A.chevron = (i, v = 1) => {
+    if (v < 0.05) return;
+    A.thud(0.5 * v, false);
+    A.blip(220 + i * 30, 0.25, 'triangle', 0.1 * v);
   };
 
-  A.kawoosh = () => {
-    if (!A.ctx) return;
+  A.kawoosh = (v = 1) => {
+    if (!A.ctx || v < 0.05) return;
     const c = A.ctx, t = c.currentTime;
     const s = c.createBufferSource();
     s.buffer = noiseBuf;
@@ -373,11 +375,11 @@
     f.frequency.exponentialRampToValueAtTime(300, t + 1.6);
     const g = gain();
     g.gain.setValueAtTime(0.001, t);
-    g.gain.exponentialRampToValueAtTime(0.9, t + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.9 * v, t + 0.15);
     g.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
     s.connect(f); f.connect(g); g.connect(master);
     s.start(t); s.stop(t + 2);
-    A.boom(0.5);
+    A.boom(0.5 * v);
   };
 
   // En bit knekker løs: et skarpt knepp, et knirk og en dump rumling.

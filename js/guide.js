@@ -15,8 +15,8 @@
       pc: 'Follow the yellow ASTEROIDS arrow. W = thrust, A/D = turn, S = brake. Or click next to a rock and the autopilot flies there.',
       touch: 'Follow the yellow ASTEROIDS arrow. Push the stick to fly, or tap next to a rock and the autopilot flies there.' },
     { id: 'cut', title: 'Cut a piece loose',
-      pc: 'Hold the mouse on a rock (or aim and hold Space). Keep the laser on one line until it cuts through.',
-      touch: 'Press and hold on a rock. Keep the laser on one line until it cuts through.' },
+      pc: 'Hold the mouse on a rock (or aim and hold Space). Keep the laser on one line until it cuts through. If it says too hard, pick a grey rock.',
+      touch: 'Press and hold on a rock. Keep the laser on one line until it cuts through. If it says too hard, pick a grey rock.' },
     { id: 'collect', title: 'Collect the ore',
       pc: 'Press F to open the scoop and fly slowly into the loose pieces.',
       touch: 'Tap COLLECT to open the scoop and fly slowly into the loose pieces.' },
@@ -94,7 +94,9 @@
   Gd.draw = (ctx, R, game, x, y, wMax) => {
     const s = Gd.current();
     if (!s || game.ship.docked || game.dead) return 0;
-    const text = game.touchUI ? s.touch : s.pc;
+    // Etter 10 sekunder krymper kortet til bare oppgaven (en linje).
+    const short = game.guide.t > 10;
+    const text = short ? '' : game.touchUI ? s.touch : s.pc;
     const W = Math.min(wMax, 300);
     ctx.font = '400 12px "Saira Condensed", "Arial Narrow", sans-serif';
     // Bryt teksten i linjer.
@@ -104,12 +106,12 @@
       const t = cur ? cur + ' ' + w : w;
       if (ctx.measureText(t).width > W - 20 && cur) { lines.push(cur); cur = w; } else cur = t;
     }
-    if (cur) lines.push(cur);
-    const H = 26 + lines.length * 14;
+    if (cur && !short) lines.push(cur);
+    const H = short ? 20 : 26 + lines.length * 14;
     const pulse = 0.5 + 0.5 * Math.sin(game.time * 3);
     ctx.save();
     ctx.globalAlpha = Math.min(1, game.guide.t * 3);
-    ctx.fillStyle = 'rgba(12,11,9,0.82)';
+    ctx.fillStyle = 'rgba(8,9,11,0.62)';
     ctx.fillRect(x, y, W, H);
     ctx.fillStyle = `rgba(227,160,58,${0.7 + 0.3 * pulse})`;
     ctx.fillRect(x, y, 3, H);

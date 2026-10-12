@@ -65,6 +65,19 @@
     rivet(ctx, x + 5, y + h - 5);
   }
 
+  // Lett, gjennomsiktig flate med tynn kant (i stedet for tunge stålplater).
+  function glass(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(8,9,11,0.58)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, 6); else ctx.rect(x, y, w, h);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(230,223,205,0.12)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function miniBar(ctx, x, y, w, label, frac, color, text) {
     ctx.font = F.label;
     ctx.fillStyle = C.muted;
@@ -165,9 +178,8 @@
     const ship = game.ship.body, range = r > 60 ? 2200 : 1200;
     ctx.save();
     ctx.globalAlpha = 0.92;
-    ctx.fillStyle = '#3a3226';
-    ctx.beginPath(); ctx.arc(x, y, r + 4, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#0b0a08'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(230,223,205,0.18)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, r + 2, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(6,14,8,0.92)';
     ctx.fill();
@@ -305,77 +317,95 @@
       }
     }
 
-    // Øverst til venstre: ett lite panel med alt om skipet.
-    // Linje 1: system og kreditter. Linje 2: fire tynne målere. Linje 3: fart.
+    // Øverst til venstre: et lett, gjennomsiktig panel med tall på alt.
+    //   MIDGARD                1,500 cr
+    //   HULL 100 %      SHIELD 100 %     (hver med en tynn stolpe under)
+    //   FUEL  72 %      CARGO 3/16 t
+    //   12.4 m/s   [HOLD] [DRIFT] [2 JOBS]
     const name = game.sys.def.name.toUpperCase();
     const cred = Math.floor(game.credits).toLocaleString('en-US') + ' cr';
     const hf = ship.hullFrac();
     const damaged = hf < 0.999;
-    const PW = 176, PH = ship.anchor ? 74 : 62;
-    panel(ctx, 8, top, PW + (damaged ? 44 : 0), PH, 0.82);
+    const PW = touch ? 190 : 206, PH = 88 + (ship.anchor ? 13 : 0);
+    const x0 = 8, y0 = top;
+    glass(ctx, x0, y0, PW, PH);
     ctx.font = F.label;
     ctx.fillStyle = C.text;
-    ctx.fillText(name, 16, top + 15);
+    ctx.fillText(name, x0 + 9, y0 + 15);
     ctx.font = F.num;
     ctx.fillStyle = C.amber;
     ctx.textAlign = 'right';
-    ctx.fillText(cred, 8 + PW - 8, top + 15);
+    ctx.fillText(cred, x0 + PW - 9, y0 + 15);
     ctx.textAlign = 'left';
     const cm = RF.cargoMass(s);
-    const bars = [
-      ['HULL', hf, hpColor(hf)],
-      ['SHLD', ship.shield / (st.shieldMax || 1), C.gate],
-      ['FUEL', s.fuel / (st.fuelCap || 1), s.fuel < st.fuelCap * 0.15 ? C.danger : C.amber],
-      ['CARGO', cm / (st.hold || 1), '#c9a24a'],
+    const fuelF = s.fuel / (st.fuelCap || 1), shF = ship.shield / (st.shieldMax || 1), cargoF = cm / (st.hold || 1);
+    const pctT = (f) => Math.round(G.clamp(f, 0, 1) * 100) + ' %';
+    const meters = [
+      ['HULL', hf, hpColor(hf), pctT(hf)],
+      ['SHIELD', shF, C.gate, st.shieldMax ? pctT(shF) : '—'],
+      ['FUEL', fuelF, fuelF < 0.15 ? C.danger : C.amber, pctT(fuelF)],
+      ['CARGO', cargoF, cargoF > 0.95 ? C.danger : '#c9a24a', cm.toFixed(cm < 10 ? 1 : 0) + '/' + st.hold + 't'],
     ];
-    const bw = (PW - 16 - 3 * 6) / 4;
-    bars.forEach(([lbl, f, col], i) => {
-      const x = 16 + i * (bw + 6), y = top + 22;
-      ctx.fillStyle = '#0c0b09';
-      ctx.fillRect(x, y + 10, bw, 4);
-      ctx.fillStyle = col;
-      ctx.fillRect(x, y + 10, bw * G.clamp(f, 0, 1), 4);
+    const cw = (PW - 18 - 10) / 2;
+    meters.forEach(([lbl, f, col, val], i) => {
+      const x = x0 + 9 + (i % 2) * (cw + 10), y = y0 + 23 + Math.floor(i / 2) * 23;
       ctx.font = '600 9px "Saira Condensed", "Arial Narrow", sans-serif';
       ctx.fillStyle = C.muted;
-      ctx.fillText(lbl, x, y + 7);
-    });
-    ctx.font = F.num;
-    ctx.fillStyle = C.text;
-    ctx.fillText(spd.toFixed(1) + ' m/s', 16, top + 53);
-    ctx.font = F.label;
-    ctx.fillStyle = ship.fa ? C.gate : C.amber;
-    // Flyhjelpen: av (ren Newton), demper snurr, eller bremser også farten.
-    const assist = ['NO ASSIST', 'ASSIST: SPIN', 'ASSIST: FULL'][ship.fa];
-    ctx.fillText(assist, 84, top + 53);
-    if (ship.nav && ship.nav.hold) {
-      ctx.fillStyle = C.ok;
-      ctx.fillText('HOLD', 84 + ctx.measureText(assist).width + 8, top + 53);
-    }
-    const active = game.missions.filter((m) => m.status === 'aktiv').length;
-    if (active) {
-      ctx.fillStyle = C.muted;
+      ctx.fillText(lbl, x, y + 8);
+      ctx.font = '400 10px "Share Tech Mono", ui-monospace, monospace';
+      ctx.fillStyle = col === C.danger ? C.danger : C.text;
       ctx.textAlign = 'right';
-      ctx.fillText(active + ' JOB' + (active > 1 ? 'S' : ''), 8 + PW - 8, top + 53);
+      ctx.fillText(val, x + cw, y + 8);
       ctx.textAlign = 'left';
-    }
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(x, y + 12, cw, 3);
+      ctx.fillStyle = col;
+      ctx.fillRect(x, y + 12, cw * G.clamp(f, 0, 1), 3);
+    });
+    // Fart og tilstander (bare de som ikke er vanlige vises).
+    let tx = x0 + 9;
+    const ty = y0 + 80;
+    ctx.font = '400 12px "Share Tech Mono", ui-monospace, monospace';
+    ctx.fillStyle = C.text;
+    const spdT = spd.toFixed(1) + ' m/s';
+    ctx.fillText(spdT, tx, ty);
+    tx += ctx.measureText(spdT).width + 8;
+    const tag = (t, col) => {
+      ctx.font = '700 9px "Saira Condensed", "Arial Narrow", sans-serif';
+      const tw = ctx.measureText(t).width + 8;
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.85; ctx.lineWidth = 1;
+      ctx.strokeRect(tx + 0.5, ty - 9.5, tw, 12);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = col;
+      ctx.fillText(t, tx + 4, ty);
+      tx += tw + 4;
+    };
+    if (ship.nav && ship.nav.hold) tag('HOLD', C.ok);
+    else if (ship.nav) tag('AUTOPILOT', C.gate);
+    if (ship.fa === 0) tag('DRIFT', C.amber);
+    else if (ship.fa === 2) tag('AUTO-BRAKE', C.gate);
+    const active = game.missions.filter((m) => m.status === 'aktiv').length;
+    if (active && tx < x0 + PW - 40) tag(active + (active > 1 ? ' JOBS' : ' JOB'), C.muted);
     if (ship.anchor) {
+      ctx.font = F.label;
       ctx.fillStyle = C.ok;
-      ctx.fillText('CABLE ' + ship.anchor.rope.length.toFixed(0) + ' M', 16, top + 67);
+      ctx.fillText('CABLE ' + ship.anchor.rope.length.toFixed(0) + ' M', x0 + 9, y0 + 94);
     }
     // Lasteluken: liten merkelapp rett under panelet.
     if (ship.scoop && ship.scoop.on && !ship.docked) {
       ctx.font = F.label;
-      ctx.fillStyle = ship.holdFree() - ship.procProduct() <= 0.02 ? C.amber : C.ok;
-      ctx.fillText(ship.holdFree() - ship.procProduct() <= 0.02 ? 'SCOOP OPEN · HOLD FULL' : 'SCOOP OPEN', 12, top + PH + 14);
+      const fullH = ship.holdFree() - ship.procProduct() <= 0.02;
+      ctx.fillStyle = fullH ? C.amber : C.ok;
+      ctx.fillText(fullH ? 'SCOOP OPEN · HOLD FULL' : ship.scoop.open < 1 ? 'SCOOP OPENING…' : 'SCOOP OPEN', x0 + 4, y0 + PH + 13);
     }
     // Skadekart bare når noe er skadet.
-    if (damaged) damageMap(ctx, ship, 8 + PW + 4, top + 6, 34, PH - 12);
+    if (damaged) { glass(ctx, x0 + PW + 4, y0, 44, PH); damageMap(ctx, ship, x0 + PW + 9, y0 + 6, 34, PH - 12); }
     // Veilederen: neste oppgave under panelet.
     const scoopLbl = ship.scoop && ship.scoop.on && !ship.docked ? 18 : 0;
-    const guideH = RF.Guide ? RF.Guide.draw(ctx, R, game, 8, top + PH + 6 + scoopLbl, Math.min(300, w - 16)) : 0;
+    const guideH = RF.Guide ? RF.Guide.draw(ctx, R, game, x0, y0 + PH + 6 + scoopLbl, Math.min(touch ? 250 : 270, w - 16)) : 0;
     // Hvor langt ned og ut panelområdet går (pilene i kanten holder seg unna).
-    game._hudBottom = top + PH + scoopLbl + (guideH ? guideH + 6 : 0);
-    game._hudRight = 8 + Math.max(PW + (damaged ? 44 : 0), guideH ? Math.min(300, w - 16) : 0);
+    game._hudBottom = y0 + PH + scoopLbl + (guideH ? guideH + 6 : 0);
+    game._hudRight = x0 + Math.max(PW + (damaged ? 48 : 0), guideH ? Math.min(touch ? 250 : 270, w - 16) : 0);
 
     // Verktøylinje nederst på PC: små ikonbrikker med tasten. Bare det valgte
     // verktøyet viser navnet. Til høyre: samlestrålen eller lasteluken (F).
@@ -405,7 +435,8 @@
       const y = h - 30;
       for (const c of chips) {
         if (c.gap) { x += c.w; continue; }
-        panel(ctx, x, y, c.w, H, c.sel ? 0.95 : 0.5);
+        glass(ctx, x, y, c.w, H);
+        if (c.sel) { ctx.fillStyle = c.on ? C.ok : C.amber; ctx.fillRect(x + 4, y + H - 2, c.w - 8, 2); }
         const col = c.dim ? '#5a554a' : c.sel ? (c.on ? C.ok : C.amber) : C.text;
         ctx.fillStyle = C.muted;
         ctx.font = '600 9px "Share Tech Mono", ui-monospace, monospace';
@@ -432,8 +463,8 @@
       const txt = touch ? game.prompt.replace(/^\[[^\]]+\]\s*/, '') : game.prompt;
       ctx.font = F.label;
       const tw = ctx.measureText(txt).width + 18;
-      const py = touch ? (h > w ? top + 128 + (guideH ? guideH + 8 : 0) : h - 22) : h - 50;
-      panel(ctx, w / 2 - tw / 2, py - 13, tw, 20, 0.85);
+      const py = touch ? (h > w ? (game._hudBottom || 100) + 58 : h - 22) : h - 50;
+      glass(ctx, w / 2 - tw / 2, py - 13, tw, 20);
       ctx.textAlign = 'center';
       ctx.fillStyle = C.amber;
       ctx.fillText(txt, w / 2, py + 1);
@@ -446,8 +477,12 @@
     // På mobil midt mellom panelet og radaren, så de ikke går oppi dem.
     // På høykant under panelet.
     const port = touch && h > w;
-    const my = port ? top + 86 + (guideH ? guideH + 8 : 0) : top + 18, mx = port ? w / 2 : touch ? (196 + (w - 96)) / 2 : w / 2, lh = touch ? 14 : 17;
+    const my = port ? (game._hudBottom || 100) + 16 : top + 18, mx = port ? w / 2 : touch ? (196 + (w - 96)) / 2 : w / 2, lh = touch ? 14 : 17;
+    const baseFont = ctx.font;
     game.messages.slice(-2).forEach((m, i) => {
+      // Lange meldinger krymper litt, så de får plass på smale skjermer.
+      ctx.font = baseFont;
+      if (ctx.measureText(m.text).width > w - 24) ctx.font = '600 10px "Saira Condensed", "Arial Narrow", sans-serif';
       ctx.globalAlpha = Math.min(1, m.t) * 0.95;
       ctx.fillStyle = '#000';
       ctx.fillText(m.text, mx + 1, my + i * lh + 1);
