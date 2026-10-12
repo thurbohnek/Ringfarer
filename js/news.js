@@ -10,6 +10,14 @@
 
   RF.NEWS = [
     {
+      v: 'v0.28.0', date: '2026-10-12', title: 'Cleaner phone screen',
+      items: [
+        'The big stick is gone. Put your thumb anywhere in the bottom left and a small stick appears under it. A quick tap there flies you to that spot.',
+        'Fewer buttons: the trigger shows your tool, one button switches to the next tool, and Brake sits beside it. Scan, Collect and More are above.',
+        'Dock, Land and Dial are one clear green button at the bottom. Markers stay at the screen edge, away from your ship and the buttons.',
+      ],
+    },
+    {
       v: 'v0.27.0', date: '2026-10-12', title: 'New HUD and a real cargo scoop',
       items: [
         'A lighter HUD with numbers on every gauge: hull, shield, fuel and cargo. Speed has its own line, and only unusual modes (drift, auto-brake, hold) are shown.',

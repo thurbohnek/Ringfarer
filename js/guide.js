@@ -13,7 +13,7 @@
       pc: 'Press UNDOCK at the bottom of the station screen.', touch: 'Tap UNDOCK at the bottom of the station screen.' },
     { id: 'fly', title: 'Fly to the asteroids',
       pc: 'Follow the yellow ASTEROIDS arrow. W = thrust, A/D = turn, S = brake. Or click next to a rock and the autopilot flies there.',
-      touch: 'Follow the yellow ASTEROIDS arrow. Push the stick to fly, or tap next to a rock and the autopilot flies there.' },
+      touch: 'Follow the yellow ASTEROIDS arrow. Drag with your thumb bottom left to fly, or tap next to a rock and the autopilot flies there.' },
     { id: 'cut', title: 'Cut a piece loose',
       pc: 'Hold the mouse on a rock (or aim and hold Space). Keep the laser on one line until it cuts through. If it says too hard, pick a grey rock.',
       touch: 'Press and hold on a rock. Keep the laser on one line until it cuts through. If it says too hard, pick a grey rock.' },

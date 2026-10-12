@@ -138,7 +138,7 @@
     const portrait = touch && R.h > R.w;
     // På høykant ligger panel, veileder og meldinger øverst: pilene under dem.
     const hb = game._hudBottom || 80;
-    const ml = 22, mr = touch ? (portrait ? 24 : 120) : 26, mt = portrait ? Math.max(150, hb + 44) : touch ? 70 : 84, mb = touch ? (portrait ? Math.min(400, R.h * 0.46) : 110) : 80;
+    const ml = 22, mr = touch ? (portrait ? 24 : 110) : 26, mt = portrait ? Math.max(120, hb + 44) : touch ? 64 : 84, mb = touch ? (portrait ? Math.min(250, R.h * 0.32) : 76) : 80;
     const inside = s.x > ml && s.x < R.w - mr && s.y > mt && s.y < R.h - mb;
     if (inside) return;
     const ship = from || game.ship.body;
@@ -326,7 +326,8 @@
     const cred = Math.floor(game.credits).toLocaleString('en-US') + ' cr';
     const hf = ship.hullFrac();
     const damaged = hf < 0.999;
-    const PW = touch ? 190 : 206, PH = 88 + (ship.anchor ? 13 : 0);
+    // På mobil: et lite panel med fire korte målere på én rad.
+    const PW = touch ? 172 : 206, PH = (touch ? 58 : 88) + (ship.anchor ? 13 : 0);
     const x0 = 8, y0 = top;
     glass(ctx, x0, y0, PW, PH);
     ctx.font = F.label;
@@ -347,7 +348,19 @@
       ['CARGO', cargoF, cargoF > 0.95 ? C.danger : '#c9a24a', cm.toFixed(cm < 10 ? 1 : 0) + '/' + st.hold + 't'],
     ];
     const cw = (PW - 18 - 10) / 2;
-    meters.forEach(([lbl, f, col, val], i) => {
+    if (touch) {
+      const w4 = (PW - 18 - 18) / 4;
+      meters.forEach(([lbl, f, col], i) => {
+        const x = x0 + 9 + i * (w4 + 6), y = y0 + 22;
+        ctx.font = '600 8.5px "Saira Condensed", "Arial Narrow", sans-serif';
+        ctx.fillStyle = col === C.danger || (i < 3 && f < 0.25) ? C.danger : C.muted;
+        ctx.fillText(lbl === 'SHIELD' ? 'SHLD' : lbl, x, y + 7);
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(x, y + 11, w4, 3);
+        ctx.fillStyle = col;
+        ctx.fillRect(x, y + 11, w4 * G.clamp(f, 0, 1), 3);
+      });
+    } else meters.forEach(([lbl, f, col, val], i) => {
       const x = x0 + 9 + (i % 2) * (cw + 10), y = y0 + 23 + Math.floor(i / 2) * 23;
       ctx.font = '600 9px "Saira Condensed", "Arial Narrow", sans-serif';
       ctx.fillStyle = C.muted;
@@ -364,7 +377,7 @@
     });
     // Fart og tilstander (bare de som ikke er vanlige vises).
     let tx = x0 + 9;
-    const ty = y0 + 80;
+    const ty = y0 + (touch ? 50 : 80);
     ctx.font = '400 12px "Share Tech Mono", ui-monospace, monospace';
     ctx.fillStyle = C.text;
     const spdT = spd.toFixed(1) + ' m/s';
@@ -389,7 +402,7 @@
     if (ship.anchor) {
       ctx.font = F.label;
       ctx.fillStyle = C.ok;
-      ctx.fillText('CABLE ' + ship.anchor.rope.length.toFixed(0) + ' M', x0 + 9, y0 + 94);
+      ctx.fillText('CABLE ' + ship.anchor.rope.length.toFixed(0) + ' M', x0 + 9, y0 + PH - 4);
     }
     // Lasteluken: liten merkelapp rett under panelet.
     if (ship.scoop && ship.scoop.on && !ship.docked) {
@@ -459,11 +472,12 @@
 
     // Handlingshint.
     // På mobil uten tastenavnet (knappen over avtrekkeren gjør det samme).
-    if (game.prompt) {
+    // På mobil viser knappen (DOCK, LAND …) det samme, så da trengs ikke teksten.
+    if (game.prompt && !(touch && game.action)) {
       const txt = touch ? game.prompt.replace(/^\[[^\]]+\]\s*/, '') : game.prompt;
       ctx.font = F.label;
       const tw = ctx.measureText(txt).width + 18;
-      const py = touch ? (h > w ? (game._hudBottom || 100) + 58 : h - 22) : h - 50;
+      const py = touch ? (h > w ? h - 150 : h - 24) : h - 50;
       glass(ctx, w / 2 - tw / 2, py - 13, tw, 20);
       ctx.textAlign = 'center';
       ctx.fillStyle = C.amber;

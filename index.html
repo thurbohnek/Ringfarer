@@ -344,49 +344,49 @@
     display: grid; place-items: center; padding: 0; text-shadow: 0 1px 0 #000;
   }
   #touch button.on { background: linear-gradient(180deg, rgba(233, 172, 72, 0.9), rgba(167, 107, 31, 0.9)); color: #1b1206; text-shadow: none; }
-  /* Fast styrespak nede til venstre. Alt utenfor sirkelen brukes til å sikte. */
-  #stick { position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom)); width: 176px; height: 176px; border-radius: 50%; pointer-events: auto; touch-action: none; }
-  #stick .base, #stick .knob { position: absolute; left: 50%; top: 50%; border-radius: 50%; pointer-events: none; transition: opacity 0.15s; }
-  #stick .base { width: 150px; height: 150px; margin: -75px 0 0 -75px; border: 2px solid rgba(217, 154, 52, 0.45); background: radial-gradient(circle, rgba(0,0,0,0.05), rgba(0,0,0,0.4)); opacity: 0.5; }
-  #stick .knob { width: 56px; height: 56px; margin: -28px 0 0 -28px; background: radial-gradient(circle at 35% 35%, #8a8374, #3a372f 60%, #16140f); border: 2px solid #000; opacity: 0.55; }
-  #stick.active .base, #stick.active .knob { opacity: 0.95; }
-  #stick.thrust .knob { box-shadow: 0 0 18px rgba(233, 172, 72, 0.8); }
-  .stick-hint { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 184px); font: 700 10px/1.35 var(--body); letter-spacing: 0.12em; color: rgba(230, 223, 205, 0.35); pointer-events: none; text-transform: uppercase; }
-  #stick.active + .stick-hint { display: none; }
+  /* Styrespaken: en usynlig sone nede til venstre. Sokkelen dukker opp der
+     tommelen settes ned. En svak ring viser hvor sonen er. */
+  #stick { position: absolute; left: 0; bottom: 0; width: min(46vw, 260px); height: min(40vh, 280px); pointer-events: auto; touch-action: none; }
+  #stick .ghost { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(22px, env(safe-area-inset-bottom)); width: 84px; height: 84px; border-radius: 50%;
+    border: 1.5px dashed rgba(217, 154, 52, 0.28); display: grid; place-items: center; pointer-events: none; transition: opacity 0.2s; }
+  #stick .ghost i { font: 700 9px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; font-style: normal; color: rgba(230, 223, 205, 0.32); }
+  #stick.active .ghost { opacity: 0; }
+  #stick .base, #stick .knob { position: absolute; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 0.12s; }
+  #stick .base { width: 104px; height: 104px; margin: -52px 0 0 -52px; border: 2px solid rgba(217, 154, 52, 0.5); background: radial-gradient(circle, rgba(0,0,0,0.05), rgba(0,0,0,0.35)); }
+  #stick .knob { width: 42px; height: 42px; margin: -21px 0 0 -21px; background: radial-gradient(circle at 35% 35%, #8a8374, #3a372f 60%, #16140f); border: 2px solid #000; }
+  #stick.active .base, #stick.active .knob { opacity: 0.9; }
+  #stick.thrust .knob { box-shadow: 0 0 16px rgba(233, 172, 72, 0.8); }
   /* Runde ikonknapper med et kort navn under ikonet. */
   #touch .ib { position: relative; width: 46px; height: 46px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-    background: radial-gradient(circle at 35% 30%, rgba(80, 76, 66, 0.78), rgba(28, 26, 22, 0.78)); border: 1.5px solid rgba(0, 0, 0, 0.85); }
-  #touch .ib.sm { width: 40px; height: 40px; }
-  #touch .ib svg, #touch .tile svg, #touch .fire svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  #touch .ib.sm svg { width: 17px; height: 17px; }
-  #touch .ib i, #touch .tile i { font: 700 7.5px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; font-style: normal; opacity: 0.85; }
-  #touch .ib.sm i { font-size: 7px; }
-  #touch .ib i { letter-spacing: 0.02em; max-width: 100%; overflow: hidden; }
+    background: radial-gradient(circle at 35% 30%, rgba(80, 76, 66, 0.62), rgba(28, 26, 22, 0.62)); border: 1px solid rgba(0, 0, 0, 0.7); }
+  #touch .ib.sm { width: 42px; height: 42px; }
+  #touch .ib svg, #touch .tile svg, #touch .fire svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #touch .ib.sm svg { width: 16px; height: 16px; }
+  #touch .ib i, #touch .tile i { font: 700 7.5px/1 var(--body); letter-spacing: 0.04em; text-transform: uppercase; font-style: normal; opacity: 0.8; max-width: 100%; overflow: hidden; }
   #touch .fire i { font: 700 10px/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; font-style: normal; }
   #touch .ib.on, #touch .tile.on { background: radial-gradient(circle at 35% 30%, rgba(240, 185, 85, 0.95), rgba(160, 100, 28, 0.95)); color: #1b1206; }
-  #touch .fire { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); width: 80px; height: 80px; border-radius: 50%;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px;
-    background: radial-gradient(circle at 35% 30%, rgba(160, 70, 40, 0.85), rgba(70, 25, 12, 0.85)); }
-  #touch .fire svg { width: 26px; height: 26px; }
+  /* Avtrekkeren nede til høyre viser verktøyet. Til venstre for den: bytt
+     verktøy og brems. Over: skann, samle og mer. */
+  #touch .fire { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); width: 72px; height: 72px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: radial-gradient(circle at 35% 30%, rgba(160, 70, 40, 0.8), rgba(70, 25, 12, 0.8)); }
+  #touch .fire svg { width: 24px; height: 24px; }
   #touch .fire.on { background: radial-gradient(circle, rgba(255, 190, 110, 0.95), rgba(200, 80, 30, 0.95)); color: #1b0a02; }
-  .tc-tools { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: max(14px, env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; gap: 5px; }
-  .tc-acts { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 88px); display: flex; flex-direction: column; gap: 6px; align-items: center; width: 80px; }
-  #touch .brake { position: absolute; left: calc(max(14px, env(safe-area-inset-left)) + 184px); bottom: max(18px, env(safe-area-inset-bottom)); width: 52px; height: 52px; }
-  #touch .ctx { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 186px); height: 30px; padding: 0 12px; border-radius: 15px; font-size: 11px; color: var(--ok); border-color: var(--ok); }
-  .tc-winch { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 136px); bottom: max(14px, env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; gap: 5px; }
-  /* Telefon på høykant: bremsen over styrespaken, så den ikke treffer verktøyene. */
-  @media (orientation: portrait) {
-    #touch .brake { left: calc(max(14px, env(safe-area-inset-left)) + 62px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 190px); }
-    #tc-drawer { grid-template-columns: repeat(4, 54px); }
-    #touch .tile { width: 54px; }
-  }
-  #tc-drawer { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 92px); display: grid; grid-template-columns: repeat(4, 58px); gap: 6px; padding: 8px; pointer-events: auto; z-index: 6; }
-  #touch .tile { width: 58px; height: 52px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
-  #touch .tc-acts .ib { width: 46px; height: 46px; }
+  .tc-row { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 80px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 4px); display: flex; flex-direction: row; gap: 8px; align-items: flex-end; }
+  .tc-acts { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 13px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 82px); display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .tc-winch { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 80px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 58px); display: flex; flex-direction: row; gap: 8px; }
+  #touch .ctx { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 120px); height: 38px; padding: 0 22px; border-radius: 19px;
+    font: 700 14px/1 var(--body); letter-spacing: 0.12em; color: #10200a; background: linear-gradient(180deg, #b4e08a, #7aa850); border: 1px solid #000; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+  #tc-drawer { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 66px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 82px); display: grid; grid-template-columns: repeat(4, 56px); gap: 6px; padding: 8px; pointer-events: auto; z-index: 6; }
+  #touch .tile { width: 56px; height: 50px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  @media (orientation: portrait) { #tc-drawer { grid-template-columns: repeat(4, 52px); } #touch .tile { width: 52px; } }
   @media (max-height: 520px) {
-    #stick { width: 150px; height: 150px; }
-    #stick .base { width: 130px; height: 130px; margin: -65px 0 0 -65px; }
-    .stick-hint { display: none; }
+    #touch .fire { width: 64px; height: 64px; }
+    #touch .ib { width: 42px; height: 42px; }
+    #touch .ib.sm { width: 38px; height: 38px; }
+    .tc-row { right: calc(max(14px, env(safe-area-inset-right)) + 72px); }
+    .tc-acts { right: calc(max(14px, env(safe-area-inset-right)) + 11px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 72px); gap: 6px; }
+    #touch .ctx { bottom: max(16px, env(safe-area-inset-bottom)); }
   }
 
   /* Utstyr */
@@ -447,16 +447,6 @@
     .st-foot .btn { padding: 8px 16px; font-size: 13px; }
     td { padding: 5px 8px; }
   }
-  @media (max-height: 520px) {
-    #touch .fire { width: 68px; height: 68px; }
-    #touch .ib { width: 42px; height: 42px; }
-    #touch .ib.sm { width: 36px; height: 36px; }
-    .tc-tools { right: calc(max(14px, env(safe-area-inset-right)) + 76px); gap: 4px; }
-    .tc-acts { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 76px); width: 68px; gap: 5px; }
-    .tc-winch { right: calc(max(14px, env(safe-area-inset-right)) + 118px); }
-    #touch .ctx { right: calc(max(14px, env(safe-area-inset-right)) + 76px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 160px); }
-    #touch .brake { left: calc(max(14px, env(safe-area-inset-left)) + 156px); width: 46px; height: 46px; }
-  }
   /* Veilederen: tips øverst i stasjonsmenyen, og en knapp som pulserer. */
   .guide-tip { padding: 9px 12px; background: rgba(217, 154, 52, 0.14); border-left: 3px solid var(--paint); font-size: 15px; }
   .guide-tip b { color: #f3d9a4; }
@@ -480,19 +470,17 @@
 <canvas id="game" aria-label="Game view"></canvas>
 
 <div id="touch" hidden>
-  <div id="stick"><div class="base"></div><div class="knob"></div></div>
-  <button class="ib brake" data-hold="retro" data-icon="brake" data-label="Brake"></button>
+  <!-- Styrespaken er usynlig til man setter tommelen ned nede til venstre. -->
+  <div id="stick"><div class="ghost"><i>Steer</i></div><div class="base"></div><div class="knob"></div></div>
   <button id="tc-ctx" class="ctx" data-tap="Interact" hidden></button>
   <div class="tc-acts">
     <button class="ib" data-tap="KeyN" id="tc-scan" data-icon="scan" data-label="Scan"></button>
     <button class="ib" data-tap="KeyF" id="tc-tractor" data-icon="collect" data-label="Collect"></button>
     <button class="ib" id="tc-more" aria-label="More" data-icon="more" data-label="More"></button>
   </div>
-  <div class="tc-tools">
-    <button class="ib sm" data-tap="Digit1" data-tool="laser" data-icon="laser" data-label="Laser"></button>
-    <button class="ib sm" data-tap="Digit2" data-tool="kanon" data-icon="cannon" data-label="Guns"></button>
-    <button class="ib sm" data-tap="Digit3" data-tool="rakett" data-icon="rocket" data-label="Rocket"></button>
-    <button class="ib sm" data-tap="Digit4" data-tool="anker" data-icon="hook" data-label="Hook"></button>
+  <div class="tc-row">
+    <button class="ib sm" id="tc-tool" data-tap="ToolNext" data-icon="laser" data-label="Tool"></button>
+    <button class="ib sm" id="tc-brake" data-hold="retro" data-icon="brake" data-label="Brake"></button>
   </div>
   <div class="tc-winch">
     <button class="ib sm" id="tc-winch" data-hold="winch" data-icon="winchIn" data-label="Winch" hidden></button>
@@ -518,7 +506,7 @@
 <script>
   // Versjonen står her og brukes i adressen til hver skriptfil (?v=…), så
   // nettlesere henter nye filer når versjonen endres i stedet for gamle kopier.
-  window.RF_VERSION = 'v0.27.0 · 2026-10-12';
+  window.RF_VERSION = 'v0.28.0 · 2026-10-12';
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
     var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'stations', 'missions', 'input', 'audio',

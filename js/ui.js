@@ -146,13 +146,15 @@
         const fl = (sh.tool === 'anker' && (sh.anchor || sh.harpoon) ? 'Release' : RF.TOOL_NAMES[sh.tool]) + (sh.tool === 'rakett' ? ' ' + sh.s.ammo : '');
         const fk = TOOL_ICON[sh.tool] + '|' + fl;
         if (fire.dataset.cur !== fk) iconBtn(fire, TOOL_ICON[sh.tool], fl);
-        // Bare verktøy skipet faktisk har, vises som knapper.
+        // Bytt verktøy: viser det neste verktøyet skipet har. Skjult når
+        // skipet bare har ett.
         const stt = sh.stats, have = { laser: stt.lasers.length + stt.drills.length, kanon: stt.guns.length, rakett: stt.rockets.length, anker: stt.anchors.length };
-        document.querySelectorAll('[data-tool]').forEach((b) => {
-          b.classList.toggle('on', b.dataset.tool === sh.tool);
-          const hide = !have[b.dataset.tool];
-          if (b.hidden !== hide) b.hidden = hide;
-        });
+        const owned = RF.TOOLS.filter((t) => have[t]);
+        const tbtn = $('#tc-tool');
+        tbtn.hidden = owned.length < 2 && (owned[0] === sh.tool || !owned.length);
+        const nextT = owned.length ? owned[(owned.indexOf(sh.tool) + 1) % owned.length] : sh.tool;
+        const tk = TOOL_ICON[nextT] + '|' + RF.TOOL_NAMES[nextT];
+        if (tbtn.dataset.cur !== tk) iconBtn(tbtn, TOOL_ICON[nextT], RF.TOOL_NAMES[nextT]);
       }
       touchRoot.hidden = !game.touchUI || game.state !== 'play' || UI.isOpen();
     },
@@ -194,7 +196,7 @@
       // Hjelpen: kort hurtigstart øverst, så emner som kan åpnes og lukkes.
       const touchUI = game.touchUI;
       const quick = touchUI
-        ? ['Push the <b>stick</b> (bottom left) to turn and fly. <b>BRAKE</b> stops you.', '<b>Tap</b> empty space to fly there. <b>Drag</b> to look around.',
+        ? ['Put your thumb <b>anywhere bottom left</b> and drag to steer, drag further to thrust. <b>BRAKE</b> stops you.', '<b>Tap</b> empty space to fly there. <b>Drag</b> to look around.',
           '<b>Press and hold</b> on a rock to cut it with the laser.', 'Tap <b>COLLECT</b> and fly slowly into the loose ore.', 'Fly home, tap <b>DOCK</b> and sell under Market.']
         : ['<kbd>W</kbd> thrust, <kbd>A</kbd><kbd>D</kbd> turn, <kbd>S</kbd> brake. <b>Click</b> empty space to fly there.', '<b>Hold the mouse</b> on a rock (or <kbd>Space</kbd>) to cut it with the laser.',
           '<kbd>F</kbd> opens the scoop or collector. Fly slowly into the loose ore.', '<kbd>N</kbd> scans for minerals (N again clears the marks). <kbd>Tab</kbd> opens the star map.', 'Fly home, press <kbd>T</kbd> to dock and sell under Market.'];

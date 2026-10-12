@@ -82,27 +82,23 @@
 
   // Styrespak: legg tommelen hvor som helst i feltet og dra. Retningen du
   // drar er retningen skipet skal peke; drar du langt, gir det gass.
-  // Styrespaken står fast i sirkelen nede til venstre. Retningen man drar
-  // snur skipet, drar man langt ut gir den gass.
+  // Flytende styrespak: sonen nede til venstre er usynlig. Der tommelen
+  // settes ned, dukker sokkelen opp. Retningen man drar snur skipet, drar man
+  // langt ut gir den gass. Et kort trykk uten å dra virker som et trykk på
+  // skjermen (autopiloten flyr dit).
   Input.bindStick = (zone, base, knob) => {
-    let id = null, ox = 0, oy = 0;
-    const R = 64;
-    const center = () => {
-      const r = zone.getBoundingClientRect();
-      ox = r.left + r.width / 2; oy = r.top + r.height / 2;
-    };
-    // Sokkel og knott står midt i sirkelen (CSS); knotten flyttes relativt.
-    const place = (kx, ky) => { knob.style.transform = `translate(${kx - ox}px, ${ky - oy}px)`; };
-    const rest = () => { knob.style.transform = ''; };
+    let id = null, ox = 0, oy = 0, t0 = 0, moved = false;
+    const R = 46;
     const move = (e) => {
       if (pinching) return;
       let dx = e.clientX - ox, dy = e.clientY - oy;
       const d = Math.hypot(dx, dy);
+      if (d > 10) moved = true;
       if (d > R) { dx *= R / d; dy *= R / d; }
-      place(ox + dx, oy + dy);
-      if (d > 12) {
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      if (d > 10) {
         touch.aim = Math.atan2(dy, dx);
-        touch.aimThrust = Math.max(0, Math.min(1, (d - 34) / (R - 34)));
+        touch.aimThrust = Math.max(0, Math.min(1, (d - 26) / (R - 26)));
       } else {
         touch.aim = null;
         touch.aimThrust = 0;
@@ -114,10 +110,12 @@
       e.preventDefault();
       e.stopPropagation();
       id = e.pointerId;
-      center();
+      ox = e.clientX; oy = e.clientY; t0 = performance.now(); moved = false;
+      const r = zone.getBoundingClientRect();
+      for (const el of [base, knob]) { el.style.left = ox - r.left + 'px'; el.style.top = oy - r.top + 'px'; }
+      knob.style.transform = '';
       zone.classList.add('active');
       try { zone.setPointerCapture(id); } catch (_) { /* ignorer */ }
-      move(e);
     });
     zone.addEventListener('pointermove', (e) => {
       if (e.pointerId !== id) return;
@@ -130,7 +128,8 @@
       touch.aim = null;
       touch.aimThrust = 0;
       zone.classList.remove('active', 'thrust');
-      rest();
+      knob.style.transform = '';
+      if (!moved && performance.now() - t0 < 300 && e.type === 'pointerup' && Input.onStickTap) Input.onStickTap(e.clientX, e.clientY);
     };
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);

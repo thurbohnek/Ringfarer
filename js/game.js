@@ -1471,7 +1471,12 @@
     if (Input.hit('KeyB')) game.toggleHold();
     const tools = { Digit1: 'laser', Digit2: 'kanon', Digit3: 'rakett', Digit4: 'anker' };
     for (const k in tools) if (Input.hit(k)) game.selectTool(tools[k]);
-    if (Input.hit('ToolNext')) game.selectTool(RF.TOOLS[(RF.TOOLS.indexOf(ship.tool) + 1) % RF.TOOLS.length]);
+    if (Input.hit('ToolNext')) {
+      // Neste verktøy skipet faktisk har.
+      const st = ship.stats, have = { laser: st.lasers.length + st.drills.length, kanon: st.guns.length, rakett: st.rockets.length, anker: st.anchors.length };
+      const owned = RF.TOOLS.filter((t) => have[t]);
+      if (owned.length) game.selectTool(owned[(owned.indexOf(ship.tool) + 1) % owned.length]);
+    }
     // Engangsbruk av verktøy ved trykk.
     if (Input.hit('Space') || Input.hit('Fire')) {
       if (ship.tool === 'rakett') RF.Weapons.fireRocket(ship, game);
@@ -1682,6 +1687,10 @@
     }, { passive: false });
     game.touchUI = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     // Knip med to fingre for å zoome.
+    // Kort trykk i styrespak-sonen: fly dit, som et trykk ellers på skjermen.
+    RF.Input.onStickTap = (sx, sy) => {
+      if (game.ship && !game.ship.docked && !game.dead && game.setNav) { const w = toWorld(sx, sy); game.setNav(w.x, w.y); }
+    };
     RF.Input.onPinch = (f) => { game.cam.zoom = G.clamp(game.cam.zoom * f, 0.02, game.maxZoom()); };
     // Sikt med musen eller fingeren. Trykk på radaren gjør den stor eller liten.
     RF.Input.bindAim(canvas, (e) => {

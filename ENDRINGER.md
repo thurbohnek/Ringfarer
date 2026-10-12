@@ -57,6 +57,61 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-10-12: v0.28.0 · Ryddig mobilskjerm og flytende styrespak
+
+**Ønske:** (med skjermbilde fra telefonen) «Kan du vennligst rydd opp og
+orden dette. Alt for mye på skjermen. Fiks knapper og iconer osv. Ender på
+layout om nødvendig. Bære fiks. Trenger ikke så stor styrespake. Kansje
+styrespake ikke er nødvendig. Kansje det finnes en annen måte å styre skipet
+på???»
+
+**Hva som var galt på bildet:**
+
+- Pilene «CAPITAL GATE» og «ASGRUND» lå midt oppå skipet. Sonen pilene
+  holdt seg innenfor, var for liten på høykant.
+- Hintet «Hold position at …» lå oppå «GATE»-pila, og sa det samme som
+  DOCK-knappen.
+- Det var ni knapper og en stor fast styrespak.
+
+**Hva som er gjort:**
+
+- **Flytende styrespak** (`js/input.js`, `index.html`):
+  - Den store faste spaken er borte. Nede til venstre er det en usynlig
+    sone (merket med en svak, stiplet ring med «STEER»).
+  - Der tommelen settes ned, dukker en liten spak opp. Dra for å snu, dra
+    lenger ut for å gi gass.
+  - Et kort trykk i sonen uten å dra virker som et trykk på skjermen: skipet
+    flyr dit (`Input.onStickTap` i `js/game.js`).
+  - Trykk ellers på skjermen og hold-og-dra virker som før.
+- **Færre knapper:**
+  - Avtrekkeren nede til høyre viser verktøyet, som før.
+  - Til venstre for den er det to knapper: én som bytter til neste verktøy
+    (den viser hvilket som kommer) og Brake. Bytteknappen skjules når
+    skipet bare har ett verktøy.
+  - Over avtrekkeren ligger Scan, Collect og More.
+  - De fire verktøyknappene er borte. Byttet går bare mellom verktøy skipet
+    faktisk har, også med tasten for neste verktøy (`js/game.js`).
+  - Knappene er litt mer gjennomsiktige.
+- **DOCK, LAND, DIAL og TOW** er en tydelig grønn knapp midt nederst. Når
+  den vises, skjules hintteksten (samme beskjed). Andre hint står nede på
+  midten.
+- **Pilene i kanten** holder seg i kanten: under panelet og over knappene på
+  høykant, og unna knappene liggende.
+- **Mindre panel på mobil:** navn og kreditter, fire korte målere på én rad
+  (HULL, SHLD, FUEL, CARGO) og farten. Etiketten blir rød når noe er lavt.
+  PC har det store panelet med tall.
+- **Hjelpen og veilederen** forklarer den nye styringen.
+- `index.html`: versjonen er nå v0.28.0.
+- `js/news.js`: nyhet.
+
+**Testet** i nettleseren i telefonstørrelse 412 × 870 (høykant og
+liggende), med testskipet ved stasjonen som på bildet:
+
+- **Skjermen:** ingen piler over skipet, og ingen knapper som overlapper.
+- **Styrespaken:** et kort trykk i sonen satte autopiloten.
+- **De gamle testene:** trykk (oppdatert til den nye bytteknappen),
+  veilederen, kamp, landing og lasteluken virker. Ingen feil i konsollen.
+
 ## 2026-10-12: v0.27.0 · Ny HUD, ekte lastetrakt, skann kan fjernes, og porten er stille langt unna
 
 **Ønske:** «Det er en sånn dut dut dut dut dut swoushhhh lyd av og til... Kan
