@@ -1389,7 +1389,8 @@
         if (d > 3600 || (ds > JUNK_FAR && !seen(b))) { crumble(b, false); continue; }
         junk.push({ b, ds, on: seen(b) });
       }
-      if (d > 3600) {
+      // Bare steiner flyttes: skip, droner, byskipet og vrak skal være der de er.
+      if (d > 3600 && (b.kind === 'rock' || b.kind === 'ore')) {
         if (b.comet || b.kind === 'ore') { b.dead = true; continue; }
         // Steiner som driver ut kommer inn igjen på motsatt side.
         b.x = -b.x * 0.95; b.y = -b.y * 0.95;

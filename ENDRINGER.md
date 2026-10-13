@@ -58,6 +58,43 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
 
+## 2026-10-13: v0.29.1 · Skipet skytes ikke lenger avgårde ved avgang
+
+**Ønske:** «Når jeg undocker med flåten så skytes skipet mitt avgårde...»
+
+**Hva som var galt:**
+
+- Opprydningen i verden (`cleanupWorld` i `js/game.js`) flyttet alt som var
+  over 3,6 km fra midten av systemet over til motsatt side. Det var ment for
+  steiner som driver ut av feltet.
+- Byskipet Hearthold seiler rundt 4–5 km ute og ble speilet over til den
+  andre siden. Så korrigerte det seg tilbake mot banen sin med flere tusen
+  m/s, rett gjennom stasjonsområdet.
+- Traff det skipet ditt, ble du kastet av gårde med opptil 2 500 m/s. Det
+  skjedde oftest rett etter avgang, fordi du da var ved stasjonen.
+- Det hadde ingenting med flåten å gjøre, men skjedde i Midgard der
+  byskipet er.
+
+**Hva som er gjort:**
+
+- `js/game.js`: bare steiner og malm flyttes til motsatt side. Skip,
+  droner, byskipet, vrak og skip med nødsignal blir der de er.
+- `js/fleet.js`: Hearthold kan ikke lenger få stor fart. Blir det skjøvet
+  ut av banen, settes det rett tilbake, og korreksjonen er begrenset til
+  2 m/s.
+- `index.html`: versjonen er nå v0.29.1.
+- `js/news.js`: nyhet.
+
+**Testet** i nettleseren:
+
+- **Feilen:** før rettingen fikk skipet 700–2 500 m/s i fire av seks
+  avganger. Kollisjonen var med Hearthold, som hadde 4 580 m/s.
+- **Etter rettingen:** seks avganger (vanlig skip og testskipet, med tre
+  flåteskip) i seks sekunder hver, uten hopp i fart. Hearthold holder seg
+  på banen i 3 m/s.
+- **Testene for flåte, karriere, knapper, kamp og landing:** virker. Ingen
+  feil i konsollen.
+
 ## 2026-10-13: v0.29.0 · Ny meny og nytt fargetema, og alle punktene i planen
 
 **Ønske:** «Gjør alle punkter. Også endre menyen totalt. Alt for rotete.

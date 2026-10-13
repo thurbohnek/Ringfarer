@@ -207,7 +207,10 @@
     const b = n.body, w = 3 / n.cr;
     n.ca += w * dt;
     const tx = n.cx + Math.cos(n.ca) * n.cr, ty = n.cy + Math.sin(n.ca) * n.cr;
-    b.vx = (tx - b.x) * 0.5 + -Math.sin(n.ca) * 3; b.vy = (ty - b.y) * 0.5 + Math.cos(n.ca) * 3;
+    // Har den blitt skjøvet ut av banen, settes den rett tilbake (den skal
+    // aldri få fart nok til å skade noe).
+    if (Math.hypot(tx - b.x, ty - b.y) > 30) { b.x = tx; b.y = ty; }
+    b.vx = G.clamp((tx - b.x) * 0.5, -2, 2) - Math.sin(n.ca) * 3; b.vy = G.clamp((ty - b.y) * 0.5, -2, 2) + Math.cos(n.ca) * 3;
     b.a = n.ca + Math.PI / 2; b.w = 0;
     // Dokkingsringen sitter bak hekken.
     const back = b.toWorld(-(b.radius * 0.95) / (n.scale || 1) * 0 - 0, 0);

@@ -10,6 +10,10 @@
 
   RF.NEWS = [
     {
+      v: 'v0.29.1', date: '2026-10-13', title: 'No more launch into space',
+      items: ['Fixed: your ship could be flung away right after undocking in Midgard. The city ship Hearthold was being moved to the far side of the system and raced back through the station.'],
+    },
+    {
       v: 'v0.29.0', date: '2026-10-13', title: 'New look and a whole career',
       items: [
         'A new look: dark glass panels, new icons, and the station tabs as one clean row.',
