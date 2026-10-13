@@ -143,6 +143,7 @@
     game.priceMod = {};
     game.stationXP = {};
     game.career = RF.Career.fresh();
+    RF.Fleet.reset();
     game.lastStation = 'midgard';
     RF.Weapons.reset();
     if (RF.Combat) RF.Combat.reset();
@@ -181,7 +182,7 @@
       },
       missions: game.missions.filter((m) => m.status === 'aktiv'),
       lastStation: game.lastStation, fa: game.ship.fa, test: game.testMode, stationXP: game.stationXP || {},
-      landed: game.ship.docked && game.ship.docked.isPort ? game.ship.docked.id : null,
+      landed: game.ship.docked && (game.ship.docked.isPort || game.ship.docked.isCity) ? game.ship.docked.id : null,
       guide: game.guide ? { on: game.guide.on, step: game.guide.step } : null,
       career: game.career,
     };
@@ -214,6 +215,7 @@
     game.guide = data.guide ? Object.assign({ t: 0 }, data.guide) : { on: false, step: 0, t: 0 };
     game.career = Object.assign(RF.Career.fresh(), data.career || {});
     game.stationXP = data.stationXP || {};
+    RF.Fleet.reset();
     game.boards = {};
     game.systems = {};
     game.priceMod = {};
@@ -226,7 +228,8 @@
     if (data.landed && RF.stationById(data.landed)) {
       game.ship.docked = null;
       game.sys = game.getSystem(RF.stationById(data.landed).id);
-      if (game.sys.port) dock(true, game.sys.port);
+      if (data.landed === RF.CITY.id) dock(true, RF.CITY);
+      else if (game.sys.port) dock(true, game.sys.port);
     }
     game.msg('Career loaded', RF.HUD_COLORS.gate);
   };
@@ -304,7 +307,7 @@
   // --- Dokking ---
   // place: stasjonen (standard) eller romhavnen på planeten.
   function dock(silent, place) {
-    const ship = game.ship, st = place || game.sys.station, port = !!st.isPort;
+    const ship = game.ship, st = place || game.sys.station, port = !!(st.isPort || st.isCity);
     ship.releaseAnchor(game);
     game.recallDronesNow();
     removeShipFromWorld();
@@ -348,6 +351,17 @@
     const ship = game.ship, st = ship.docked;
     if (!st) return;
     if (st.isPort) { game.takeOff(); return; }
+    if (st.isCity) {
+      // Ut fra hekken på byskipet, med dens fart.
+      ship.docked = null;
+      const b = ship.body, off = 30 + b.radius;
+      Object.assign(b, { x: st.x + Math.cos(st.a) * off, y: st.y + Math.sin(st.a) * off, a: st.a, vx: (st.vx || 0) + Math.cos(st.a) * 2, vy: (st.vy || 0) + Math.sin(st.a) * 2, w: 0 });
+      ship.s.blueprint = ship.s.layout.map((m) => ({ t: m.t, x: m.x, y: m.y }));
+      enterSystem(game.sys.def.id);
+      RF.UI.closeAll();
+      game.save();
+      return;
+    }
     ship.docked = null;
     const dp = RF.dockPoint(st);
     const out = { x: Math.cos(st.a), y: Math.sin(st.a) };
@@ -1438,6 +1452,16 @@
       game.prompt = 'Fly into the dashed ring at the end of the docking arm';
       return;
     }
+    // Byskipet Hearthold: dokk i hekken.
+    if (RF.Fleet.cityHere()) {
+      const C2 = RF.CITY, cd = G.len(b.x - C2.x, b.y - C2.y);
+      if (cd < C2.R + 30 + b.radius * 0.5) {
+        const rel = G.len(b.vx - (C2.vx || 0), b.vy - (C2.vy || 0));
+        if (rel < 6) { game.prompt = `[T] Dock at ${C2.name} (city ship)`; game.action = 'city'; }
+        else game.prompt = `Match speed with ${C2.name} to dock (${rel.toFixed(1)} > 6 m/s)`;
+        return;
+      }
+    }
     // Nedstigningskorridoren til planeten.
     const pt = sys.port;
     if (pt) {
@@ -1511,6 +1535,7 @@
     if (Input.hit('KeyY')) game.toggleLaserMode();
     if (Input.hit('Period')) RF.Career.cycleTime();
     if (Input.hit('KeyI')) game.togglePhoto();
+    if (Input.hit('Comma')) RF.Fleet.cycleAll();
     if (Input.hit('KeyK')) game.launchDrones();
     if (Input.hit('KeyN')) RF.Scan.toggle(game);
     if (Input.hit('KeyB')) game.toggleHold();
@@ -1545,6 +1570,7 @@
     if ((Input.hit('KeyR') || act) && game.action === 'return') game.returnHome();
     else if ((Input.hit('KeyT') || act) && game.action === 'dock') dock();
     else if ((Input.hit('KeyT') || act) && game.action === 'land') game.landAt(game.sys.port);
+    else if ((Input.hit('KeyT') || act) && game.action === 'city') { dock(false, RF.CITY); game.msg(`Docked at ${RF.CITY.name}`, RF.HUD_COLORS.ok); }
     else if ((Input.hit('KeyG') || act) && game.action === 'dial') RF.UI.openDial();
     else if ((Input.hit('KeyR') || act) && game.action === 'tow') towHome();
   }
@@ -1582,6 +1608,7 @@
     RF.Pirates.update(dt, game);
     RF.Guide.update(dt, game);
     RF.Career.update(dt, game);
+    RF.Fleet.tick(dt, game);
     updateStationShield(dt);
     // Steiner i bane gjennom feltet trekkes svakt mot midten av det.
     for (const o of game.sys.world.bodies) {

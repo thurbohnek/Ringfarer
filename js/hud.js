@@ -305,6 +305,7 @@
         if (o.distress) edgeMarker(ctx, game, R, o.x, o.y, 'Distress', C.danger);
         else if (o.salvage && G.len(o.x - b.x, o.y - b.y) < 1500) edgeMarker(ctx, game, R, o.x, o.y, 'Wreck', C.amber);
       }
+      if (RF.Fleet.cityHere()) edgeMarker(ctx, game, R, RF.CITY.x, RF.CITY.y, 'Hearthold', C.amber);
       const gt = RF.Guide && RF.Guide.target(game);
       if (gt) edgeMarker(ctx, game, R, gt.x, gt.y, gt.label, gt.color);
       if (game.sys.port) edgeMarker(ctx, game, R, game.sys.port.x, game.sys.port.y, game.sys.port.world, RF.Planets.COLOR);

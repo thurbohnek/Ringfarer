@@ -130,7 +130,7 @@
         const act = game.action;
         const ctx = $('#tc-ctx');
         ctx.hidden = !act;
-        const label = act === 'dock' ? 'DOCK' : act === 'land' ? 'LAND' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : act === 'return' ? 'FLY HOME' : '';
+        const label = act === 'dock' || act === 'city' ? 'DOCK' : act === 'land' ? 'LAND' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : act === 'return' ? 'FLY HOME' : '';
         if (ctx.textContent !== label) ctx.textContent = label;
         // Samlestråle hvis skipet har en, ellers lasteluken.
         const tb = $('#tc-tractor'), hasT = sh.stats.tractors.length > 0;
@@ -1251,6 +1251,9 @@
       case 'export': RF.Career.exportSave(); break;
       case 'import': RF.Career.importSave(); break;
       case 'hire': RF.Career.hire(+id); renderStation(); break;
+      case 'fbuy': RF.Fleet.buy(id); renderStation(); break;
+      case 'fsell': RF.Fleet.sell(+id); renderStation(); break;
+      case 'forder': { const [i, o] = String(id).split(':'); RF.Fleet.setOrder(+i, o); renderStation(); break; }
       case 'crewfire': RF.Career.fire(+id); renderStation(); break;
       case 'quit': game.save(); game.state = 'title'; location.reload(); break;
       case 'raid': UI.closeAll(); if (!game.ship.docked) RF.Pirates.spawn(game, 20000); break;

@@ -41,6 +41,8 @@
       for (const f of RF.Weapons.list) if (f.type === 'flare' && !f.dead) cands.push(f);
     } else {
       for (const n of hostiles(game)) cands.push(n.body);
+      // Kanonskipets fakler kan lure rakettene dine.
+      for (const f of RF.Weapons.list) if (f.type === 'flare' && f.pirate && !f.dead) cands.push(f);
     }
     let best = null, bs = 0;
     for (const o of cands) {

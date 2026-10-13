@@ -217,6 +217,9 @@
 
     update(dt, game) {
       this.shieldFlash = Math.max(0, this.shieldFlash - dt * 2);
+      // Flåten din og kjempeskipet styres fra fleet.js.
+      if (this.city) return;
+      if (this.fleet) { if (this.active) RF.Fleet.update(this, dt, game); return; }
       if (this.T.own && !this.active) { this.updateOwnHidden(dt, game); return; }
       if (!this.active) {
         this.timer -= dt;
@@ -747,6 +750,7 @@
     // skroget er dårlig, når spilleren er nær stasjonen eller har dokket.
     updateHostile(dt, game) {
       const b = this.body, ship = game.ship, sb = ship.body, T = this.T;
+      if (T.static) { RF.Fleet.updateBase(this, dt, game); return; }
       this.timer += dt;
       this.gunCd -= dt;
       const st = this.sys.station;
@@ -920,6 +924,7 @@
 
     takeImpact(dv, px, py, game) {
       if (dv < 3) return;
+      if (this.fleet && game.time < (this.safeUntil || 0)) return;
       const dmg = Math.pow(dv - 3, 1.5) * 3;
       this.hull -= dmg;
       this.shieldFlash = Math.min(1, dmg / 30);
@@ -933,6 +938,16 @@
 
     explode(game) {
       const b = this.body;
+      if (this.fleet) {
+        // Et av dine skip er tapt.
+        const L = RF.Career.get().fleet, i = L.indexOf(this.fleet);
+        if (i >= 0) L.splice(i, 1);
+        game.particles.burst(b.x, b.y, 50, { sMin: 5, sMax: 30, color: '#ffcf80', zMin: 0.2, zMax: 0.6, lMin: 0.5, lMax: 1.4, vx: b.vx, vy: b.vy });
+        RF.Audio.boom(0.8 * RF.Audio.near(b.x, b.y, 1200));
+        game.msg(`${this.name} was destroyed`, RF.HUD_COLORS.danger);
+        RF.Fleet.reset();
+        return;
+      }
       if (this.T.hostile) {
         if (this.dead) return;
         this.dead = true;

@@ -385,7 +385,7 @@
       this._sunDir = sunDir;
       const ship = game.ship;
       // Står skipet på en planet, er det ikke i rommet.
-      const shipLive = ship && !game.dead && !(ship.docked && ship.docked.isPort);
+      const shipLive = ship && !game.dead && !(ship.docked && (ship.docked.isPort || ship.docked.isCity));
 
       this.drawDust(game);
 

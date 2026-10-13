@@ -55,13 +55,14 @@
     const away = Math.atan2(sb.y - st.y, sb.x - st.x) + G.rand(-1.1, 1.1);
     const x0 = sb.x + Math.cos(away) * 850, y0 = sb.y + Math.sin(away) * 850;
     const big = value > 15000 || P.danger(sys) > 0.8;
-    const group = big ? ['raider', 'stinger', 'stinger'] : Math.random() < 0.5 ? ['raider'] : ['stinger', 'stinger'];
+    // I farlige systemer kan et tungt kanonskip lede en stor gruppe.
+    const group = big ? (P.danger(sys) >= 0.6 && Math.random() < 0.6 ? ['gunship', 'raider', 'stinger'] : ['raider', 'stinger', 'stinger']) : Math.random() < 0.5 ? ['raider'] : ['stinger', 'stinger'];
     group.forEach((type, i) => {
       const n = new RF.NPC(type, sys);
       n.index = i;
       n.state = 'attack';
       // Raidere i farlige systemer har med seg varmesøkende missiler.
-      n.missiles = type === 'raider' ? (P.danger(sys) >= 0.6 ? 2 : P.danger(sys) > 0.4 ? 1 : 0) : 0;
+      n.missiles = type === 'gunship' ? 4 : type === 'raider' ? (P.danger(sys) >= 0.6 ? 2 : P.danger(sys) > 0.4 ? 1 : 0) : 0;
       n.timer = 0;
       const a = away + (i - 1) * 0.25;
       const x = x0 + Math.cos(a + Math.PI / 2) * i * 30, y = y0 + Math.sin(a + Math.PI / 2) * i * 30;

@@ -645,6 +645,7 @@
     <button class="tile" data-tap="KeyY" data-icon="laser" data-label="Laser mode"></button>
     <button class="tile" data-tap="Period" data-icon="time" data-label="Time ×2"></button>
     <button class="tile" data-tap="KeyI" data-icon="photo" data-label="Photo"></button>
+    <button class="tile" data-tap="Comma" data-icon="fleet" data-label="Fleet"></button>
     <button class="tile" data-tap="Recenter" data-icon="follow" data-label="Follow"></button>
     <button class="tile" data-tap="Escape" data-icon="pause" data-label="Pause"></button>
   </div>
@@ -661,7 +662,7 @@
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
     var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'stations', 'missions', 'input', 'audio',
-      'render', 'sky', 'shipdraw', 'weapons', 'combat', 'planets', 'guide', 'career', 'hud', 'ui', 'game'];
+      'render', 'sky', 'shipdraw', 'weapons', 'combat', 'planets', 'guide', 'career', 'fleet', 'hud', 'ui', 'game'];
     var i = 0;
     (function next() {
       if (i >= files.length) { RF.game.boot(); return; }
