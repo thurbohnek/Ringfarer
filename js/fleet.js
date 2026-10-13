@@ -198,7 +198,8 @@
       n = g.sys._city = new RF.NPC('city', g.sys);
       n.name = 'Hearthold'; n.city = true; n.state = 'city'; n.pal = null;
       const st = g.sys.station;
-      n.cx = st.x - 2600; n.cy = st.y + 600; n.cr = 1400; n.ca = Math.random() * 6.28;
+      // Banen går godt unna stasjonen og asteroidefeltene.
+      n.cx = st.x - 3800; n.cy = st.y + 2000; n.cr = 1200; n.ca = Math.random() * 6.28;
       n.spawnAt(n.cx + Math.cos(n.ca) * n.cr, n.cy + Math.sin(n.ca) * n.cr, n.ca + Math.PI / 2, 0, 0);
       g.sys.npcs.push(n);
     }

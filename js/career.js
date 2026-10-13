@@ -290,6 +290,23 @@
     }
   }
 
+  // ---------- Skadde moduler ----------
+  // Moduler virker dårligere når de er skadet (se layoutStats). Her sier
+  // spillet fra én gang når et viktig verktøy er under halvparten.
+  function damageWarn(dt) {
+    const sh = game().ship;
+    sh._dmgT = (sh._dmgT || 0) + dt;
+    if (sh._dmgT < 2) return;
+    sh._dmgT = 0;
+    for (const m of sh.s.layout) {
+      const D = RF.MODULES[m.t];
+      if (!(D.laser || D.gun || D.thrust || D.drill || D.shield)) continue;
+      const f = m.hp / D.hp;
+      if (f < 0.5 && !m._warned) { m._warned = true; game().msg(`${D.name} damaged: works at ${Math.round((0.35 + 0.65 * f) * 100)} %. Repair at a station`, RF.HUD_COLORS.amber); }
+      if (f >= 0.5) m._warned = false;
+    }
+  }
+
   // ---------- Hovedløkka ----------
   C.update = (dt, game_) => {
     const g = game(), c = C.get();
@@ -298,6 +315,7 @@
       const b = g.ship.body;
       c.stats.distance += Math.hypot(b.vx, b.vy) * dt / 1000;
       updateHeat(dt);
+      damageWarn(dt);
       updateDistress(dt);
       updateWeather(dt);
       C.salvageCheck(false);

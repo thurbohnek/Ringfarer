@@ -715,7 +715,8 @@
 
     updateShield(dt) {
       if (this.shieldDelay > 0) this.shieldDelay -= dt;
-      else this.shield = Math.min(this.stats.shieldMax, this.shield + dt * Math.max(4, this.stats.shieldMax * 0.07) * (1 + 0.25 * this.stats.power));
+      // Våpen og skjold deler kraften: varme våpen gir tregere opplading.
+      else this.shield = Math.min(this.stats.shieldMax, this.shield + dt * Math.max(4, this.stats.shieldMax * 0.07) * (1 + 0.25 * this.stats.power) * (1 - 0.6 * Math.min(1, this.heat || 0)));
       this.shieldFlash = Math.max(0, this.shieldFlash - dt * 2.5);
     }
 

@@ -7,40 +7,40 @@ en meny som kan foldes ut, nederst i hvert svar fra Claude.
 1. ~~Skanner for mineraler (N). Pulsen viser hva steinene inneholder, og en dypskanner er en oppgradering.~~ (v0.16.0)
 2. ~~Verdi på løse biter og malm. Musen over (eller låst sikte) viser mineral, vekt og omtrentlig pris.~~ (v0.16.0)
 3. ~~Holde posisjon ved en stein (B). Skipet følger steinen mens man skjærer.~~ (v0.16.0)
-4. Priser som svinger mellom stasjoner. Salg presser prisen ned, og det lønner seg å frakte varer.
-5. Test på ekte telefon (ytelse og berøringsstyring).
-6. Lagring til fil (eksport og import av karrieren).
-7. Borehodene som skjærestråle, eller som et eget tunnelverktøy.
+4. ~~Priser som svinger mellom stasjoner. Salg presser prisen ned, og det lønner seg å frakte varer.~~ (v0.29.0)
+5. Test på ekte telefon (ytelse og berøringsstyring). Kan bare gjøres av brukeren. Claude tester i telefonstørrelse i nettleseren.
+6. ~~Lagring til fil (eksport og import av karrieren).~~ (v0.29.0)
+7. ~~Borehodene som skjærestråle, eller som et eget tunnelverktøy.~~ (v0.29.0)
 8. ~~Lyd for skjæring: jevnt sus og et knepp når en bit løsner.~~ (v0.17.0)
 9. ~~Pirater og fiendtlige droner som angriper skip med mye last.~~ (v0.17.0)
-10. Skade fra kollisjoner med store løse biter.
-11. Kostnader: drivstoff, reparasjon og havneavgift.
-12. Enkel flåte: 2–3 egne skip med ordrene «følg», «min» og «forsvar».
-13. Nasjoner som eier systemene, med egne priser, oppdrag og omdømme.
+10. ~~Skade fra kollisjoner med store løse biter.~~ (v0.29.0)
+11. ~~Kostnader: drivstoff, reparasjon og havneavgift.~~ (v0.29.0)
+12. ~~Enkel flåte: 2–3 egne skip med ordrene «følg», «min» og «forsvar».~~ (v0.29.0)
+13. ~~Nasjoner som eier systemene, med egne priser, oppdrag og omdømme.~~ (v0.29.0)
 14. ~~Planeter med landing og persontransport.~~ (v0.25.0)
-15. Kjempeskipet: den flyvende byen som hovedsenter for flåten.
+15. ~~Kjempeskipet: den flyvende byen som hovedsenter for flåten.~~ (v0.29.0)
 16. ~~Skjul pilen «Your ship 0 m» når skipet synes på skjermen.~~ (v0.18.2)
 17. ~~Kart over systemene med porter, stasjoner og hva de kjøper.~~ (v0.17.0)
-18. Varsel om full last, med «fly til nærmeste stasjon».
-19. Raffineri om bord: malm blir rent metall (lettere og mer verdt).
-20. Ulike laserformer: bred for grovskjæring, smal for presisjon.
+18. ~~Varsel om full last, med «fly til nærmeste stasjon».~~ (v0.29.0)
+19. ~~Raffineri om bord: malm blir rent metall (lettere og mer verdt).~~ (v0.29.0)
+20. ~~Ulike laserformer: bred for grovskjæring, smal for presisjon.~~ (v0.29.0)
 21. ~~Kometer med is og gass som gir drivstoff og vann.~~ (v0.19.0)
 22. ~~Asteroider i bevegelse og rotasjon som man må matche farten med.~~ (v0.17.0)
-23. Vrak å berge: skjær løs moduler og last og selg dem.
-24. Oppdrag med historie og små valg underveis.
-25. Rangering og titler som låser opp bedre oppdrag.
-26. Mannskap med ferdigheter (pilot, ingeniør, geolog).
-27. Skade på moduler som virker dårligere til de er reparert.
-28. Nødsignal og slep mot betaling.
-29. Statistikkside (tonn utvunnet, penger tjent, distanse og annet).
-30. Bildemodus uten HUD.
-31. Innstillinger: grafikknivå, lydstyrke og taster.
+23. ~~Vrak å berge: skjær løs moduler og last og selg dem.~~ (v0.29.0)
+24. ~~Oppdrag med historie og små valg underveis.~~ (v0.29.0)
+25. ~~Rangering og titler som låser opp bedre oppdrag.~~ (v0.29.0)
+26. ~~Mannskap med ferdigheter (pilot, ingeniør, geolog).~~ (v0.29.0)
+27. ~~Skade på moduler som virker dårligere til de er reparert.~~ (v0.29.0)
+28. ~~Nødsignal og slep mot betaling.~~ (v0.29.0)
+29. ~~Statistikkside (tonn utvunnet, penger tjent, distanse og annet).~~ (v0.29.0)
+30. ~~Bildemodus uten HUD.~~ (v0.29.0)
+31. ~~Innstillinger: grafikknivå, lydstyrke og taster.~~ (v0.29.0)
 32. ~~Opplæring de første minuttene.~~ (v0.26.0)
-33. Tidsakselerasjon på lange flyturer.
-34. Romvær: solstormer og tåker.
+33. ~~Tidsakselerasjon på lange flyturer.~~ (v0.29.0)
+34. ~~Romvær: solstormer og tåker.~~ (v0.29.0)
 35. ~~Stasjoner som vokser når spilleren handler mye der.~~ (v0.21.0)
 36. ~~Skjold rundt stasjonene som beskytter mot steiner, kometer og skudd.~~ (v0.20.0)
 37. ~~Våpensystemer: varmesøkende raketter, maskinkanon, railkanon, nærforsvar og fakler.~~ (v0.24.0)
-38. Tyngre piratskip med egne fakler og nærforsvar, og piratbaser.
-39. Våpenvarme og strøm: våpen og skjold deler reaktoren, og man må velge hva som får kraft.
-40. Styre selv det siste stykket ned til landingsplassen på planeten.
+38. ~~Tyngre piratskip med egne fakler og nærforsvar, og piratbaser.~~ (v0.29.0)
+39. ~~Våpenvarme og strøm: våpen og skjold deler reaktoren, og man må velge hva som får kraft.~~ (v0.29.0)
+40. ~~Styre selv det siste stykket ned til landingsplassen på planeten.~~ (v0.29.0)

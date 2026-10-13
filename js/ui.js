@@ -156,8 +156,9 @@
         const tbtn = $('#tc-tool');
         tbtn.hidden = owned.length < 2 && (owned[0] === sh.tool || !owned.length);
         const nextT = owned.length ? owned[(owned.indexOf(sh.tool) + 1) % owned.length] : sh.tool;
-        const tk = TOOL_ICON[nextT] + '|' + RF.TOOL_NAMES[nextT];
-        if (tbtn.dataset.cur !== tk) iconBtn(tbtn, TOOL_ICON[nextT], RF.TOOL_NAMES[nextT]);
+        const SHORT = { laser: 'Laser', kanon: 'Guns', rakett: 'Rocket', anker: 'Hook' };
+        const tk = TOOL_ICON[nextT] + '|' + SHORT[nextT];
+        if (tbtn.dataset.cur !== tk) iconBtn(tbtn, TOOL_ICON[nextT], SHORT[nextT]);
       }
       touchRoot.hidden = !game.touchUI || game.state !== 'play' || UI.isOpen() || game.photo;
     },
@@ -325,6 +326,7 @@
         return `<div class="sys${d.id === here ? ' here' : ''}">
           <h3>${esc(d.name)}${d.id === here ? ' <span class="hi small">· You are here</span>' : ''}</h3>
           <div class="muted small">${esc(d.blurb)}</div>
+          <div class="buy"><span style="color:${RF.Career.NATIONS[d.id].color}">${esc(RF.Career.NATIONS[d.id].name)}</span> · ${RF.Career.repName(RF.Career.get().rep[d.id] || 0)}${d.port ? ` · Planet: ${esc(d.port.world)}` : ''}${d.id === 'midgard' ? ' · City ship Hearthold' : ''}${d.id === 'muspel' ? ' · <span class="dz">Raider base</span>' : ''}</div>
           <div class="buy">${esc(st.name)} · Raiders: <span class="${dz === 'High' ? 'dz' : dz === 'Medium' ? 'lo' : 'hi'}">${dz}</span></div>
           ${hi.length ? `<div class="buy"><span class="hi">Pays well:</span> ${hi.map(fmt).join(', ')}</div>` : ''}
           ${lo.length ? `<div class="buy"><span class="lo">Pays little:</span> ${lo.map(fmt).join(', ')}</div>` : ''}
@@ -396,6 +398,11 @@
       ${k(['X'], 'Fire / release harpoon')}
       ${k(['C', 'V'], 'Winch in / pay out cable')}
       ${k(['J'], 'Drop flares (also automatic when a missile closes in)')}
+      ${k(['Y'], 'Laser mode: focused or wide')}
+      ${k(['R'], 'Cargo full: autopilot home')}
+      ${k(['.'], 'Time acceleration ×2 / ×4 (not near raiders)')}
+      ${k([','], 'Fleet order for all ships: follow, mine, defend')}
+      ${k(['I'], 'Photo mode (hides everything)')}
       ${k(['F'], 'Collector beam on/off (ships without one: open/close the cargo scoop)')}
       ${k(['U'], 'Open/close the cargo scoop in the nose')}
       ${k(['K'], 'Launch / recall drones')}

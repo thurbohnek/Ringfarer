@@ -35,11 +35,12 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   hvor fort låsen går, hvor ofte nærforsvaret treffer et missil (16 % per
   skudd), sjansen for at en fakkel lurer et missil (70 %), og hvor mange
   missiler piratene har.
+- **Mye nytt i v0.29.0, testet i nettleseren, ikke i lange spilløkter.**
+  Balansen (priser, lønn, varme, flåte, piratbase, solstorm og
+  historiebelønninger) må justeres etter at du har spilt en stund.
 - **Planetene:** turen ned og opp er en egen sekvens. Man flyr ikke selv i
   atmosfæren. Det er ingen piratangrep, skader eller landingsbein ennå. Ett
   mulig neste steg er at man styrer selv det siste stykket ned.
-- **Piratene har ikke fakler eller nærforsvar ennå.** Rakettene dine kan
-  derfor ikke lures. Det kan komme med tyngre piratskip senere.
 - **Skjærefarten** kan justeres etter testing. Startlaseren bruker omtrent
   25 sekunder gjennom en gråstein på 50 m.
 - **Laseren gir ikke lenger malm av gråstein** (kondritt, silikat, karbon).
@@ -56,6 +57,164 @@ tekniske oversikten over hvordan spillet henger sammen står i `README.md`.
   passasjerer de hadde med seg akkurat da, blir borte.
 - **Gamle lagringer fra v0.3 kan ikke lastes** fordi skipet er bygget helt om.
   Start en ny karriere eller testmodus.
+
+## 2026-10-13: v0.29.0 · Ny meny og nytt fargetema, og alle punktene i planen
+
+**Ønske:** «Gjør alle punkter. Også endre menyen totalt. Alt for rotete.
+Annen utforming, iconer og farge tema.»
+
+**Ny meny, nye ikoner og nytt fargetema** (`index.html`, `js/ui.js`,
+`js/hud.js`, `js/guide.js`):
+
+- **Fargetema:** et mørkt romtema med glasspaneler, én aksentfarge (cyan),
+  gull for penger, grønt for ok og rødt for fare. Stålplatene, naglene og
+  varselstripene er borte.
+- **Skrift:** «Exo 2» i overskrifter og «Inter» i tekst (Google Fonts).
+- **Stasjonsmenyen:** fanene er en rad med runde knapper og ikoner øverst,
+  og den valgte fanen er cyan. Overskriften viser nasjon, omdømme og rang.
+- **Ikoner:** et nytt, felles ikonsett for alle fanene, og nye ikoner på
+  startskjermens valg.
+- **Knapper:** avrundede knapper, kort og etiketter.
+- **Touch-knappene og HUD-en** har samme farger.
+- **Markedet på mobil:** én kompakt rad per vare, med navn og knapper på
+  samme linje.
+- **Pausemenyen** er delt i fortsett, kart, loggbok og hjelp, så
+  innstillinger og så testverktøy.
+
+**Planpunktene** (nye filer `js/career.js` og `js/fleet.js`):
+
+- **4 · Priser som svinger:**
+  - Hver vare har en prisfaktor per handelssted. Den driver over tid og
+    trekkes mot normalen.
+  - Selger du mye av én vare, faller prisen der en stund. Kjøp løfter den.
+  - Av og til kommer «markedsnyheter» om mangel eller overflod.
+  - Markedet viser ▲ eller ▼ når prisen er høy eller lav.
+- **6 · Lagring til fil:** «Export save» laster ned en JSON-fil, og «Import
+  save» leser den inn igjen. Begge ligger i pausemenyen.
+- **7 · Tunnelbor:** ny modul, Tunnel bore (2×2). Den borer tunnel for
+  skipet, også i hardhet 3.
+- **10 · Skade fra kollisjoner:** fantes fra før. Store biter gir skade,
+  sterkere jo hardere støtet er.
+- **11 · Kostnader:**
+  - Havneavgift ved hver dokking og landing, etter skipets størrelse.
+  - Mannskapets lønn trekkes ved dokking.
+  - Drivstoff og reparasjon kostet fra før.
+- **12 · Flåte:**
+  - Eskortejager (18 000 cr) og gruvelekter (24 000 cr), opptil tre skip,
+    kjøpt i den nye Fleet-fanen.
+  - Ordrer: Follow (formasjon bak deg), Mine (lekteren skjærer myke steiner
+    og sender malmen over til lasten din) og Defend (jagerne angriper
+    pirater nær deg).
+  - Ordren byttes for alle med «,» eller Fleet i More-menyen.
+  - Skip som skytes ned, er tapt.
+- **13 · Nasjoner:**
+  - Midgard Union, Vanir Compact og Surtr Combine.
+  - Omdømmet går fra −100 til 100 (Hostile, Neutral, Friendly, Trusted og
+    Honored). Det stiger med handel, oppdrag, redninger og dusører.
+  - Godt omdømme gir opptil 8 % bedre priser og bedre betalte oppdrag.
+  - Det vises på stasjonen, i loggboka og på stjernekartet.
+- **15 · Kjempeskipet Hearthold:**
+  - En flyvende by på rundt 700 m som seiler sakte i en stor bane i
+    Midgard.
+  - Man matcher farten og dokker i hekken (T eller DOCK).
+  - Den har marked, service, verft, flåte, mannskap og oppdrag.
+- **18 · Full last:** når lasten er full, tilbyr spillet «Cargo full:
+  autopilot to …» (R, eller FLY HOME på mobil).
+- **19 · Raffineri om bord:** ny modul, Onboard refinery (2×2). Den gir 25 %
+  mer produkt per tonn og 50 % raskere prosessering.
+- **20 · Laserformer:** fokusert (én kraftig stråle med lengre rekkevidde)
+  eller bred (tre stråler side om side som skjærer en bred renne). Byttes
+  med Y eller i More-menyen.
+- **23 · Vrak:**
+  - Hvert asteroidefelt har et vrak.
+  - Slep det med harpunen inn til stasjonen (innen 380 m), så betales det
+    bergingslønn: 25 % av modulenes verdi.
+  - Vrak innen 1,5 km vises med pil i kanten.
+- **24 · Historie i fem steg:** et merkelig signal, survey-skipet, den
+  tapte sonden (slep den inn), raidere i Muspelheim og kjerneprøven på
+  Eldhjarta. Det gir belønning ved hvert steg og tittelen Pathfinder til
+  slutt. Historien vises i Contracts, i loggboka og som en linje under
+  panelet.
+- **25 · Rangering:**
+  - Sju titler fra Rookie til Ringfarer, med erfaring fra salg, oppdrag,
+    dusører, redninger og berging.
+  - Hver rang gir 5 % bedre betalte oppdrag. Opprykk varsles.
+- **26 · Mannskap:**
+  - Ny Crew-fane med tre personer å ansette på hvert sted.
+  - Pilot: snur raskere. Ingeniør: reparerer i flukt og kjøler våpnene.
+    Geolog: lengre skanning og mer malm. Skytter: raskere kanoner og
+    raskere lås.
+  - Ferdighet 1–3 stjerner. Signeringsgebyr og lønn per dokking.
+  - Antall køyer er 2 pluss passasjerplasser.
+- **27 · Skadde moduler:** de virket allerede dårligere. Nå kommer en
+  melding når et viktig verktøy er under halvparten («works at 60 %»).
+- **28 · Nødsignal og slep:**
+  - Av og til sender et hjelpeløst skip nødsignal (rød pil).
+  - Slep det inn til stasjonen for 900–2 200 cr og omdømme.
+- **29 · Loggbok:** rang med fremdrift, omdømme hos nasjonene, historien og
+  tolv tall (penger, malm, salg, steiner, oppdrag, raidere, redninger,
+  berging, hopp, landinger, distanse og spilletid).
+- **30 · Bildemodus:** I eller Photo skjuler alt. Trykk eller I igjen for å
+  komme tilbake.
+- **31 · Innstillinger:**
+  - Grafikk: Auto, High, Medium eller Low.
+  - Skjermristing på eller av.
+  - Lyd, veileder, touch-styring og lagring til fil.
+  - Grafikk og risting huskes.
+- **33 · Tidsakselerasjon:** «.» eller Time ×2 gir ×2 og så ×4. Den slås
+  av ved pirater, solstorm og dokking.
+- **34 · Romvær:**
+  - Solstorm varsles 20 s før og varer 30 s.
+  - Skjoldet tappes, og skanneren er forstyrret.
+  - Skjermen får et oransje skjær med nedtelling.
+- **38 · Tyngre pirater:**
+  - Kanonskip: 330 i skrog, fire missiler, fakler mot rakettene dine og
+    nærforsvar som kan skyte dem ned. Det leder store raid i farlige
+    systemer.
+  - Piratbase i Muspelheim: et fort med kanoner som sender ut raidere når
+    du er nær. Det gir 15 000 cr i dusør, og en ny base bygges etter 20
+    minutter.
+- **39 · Varme og kraft:**
+  - Våpen varmes opp. Railkanonen varmer mest, og laseren varmer jevnt.
+  - Over 100 % er våpnene overopphetet til de har kjølt seg ned.
+  - Varme våpen gir tregere opplading av skjoldet (de deler kraften).
+  - Reaktor og ingeniører kjøler.
+  - HUD-en viser HEAT og OVERHEAT.
+- **40 · Styrt landing:**
+  - Det siste stykket ned styrer man selv: hold skipet over H-en på
+    landingsplassen i 2,2 sekunder mens vinden dytter.
+  - Etter 14 sekunder blir det en hard landing med litt skade.
+  - Store skip går ned med skyttel.
+- **5 · Test på ekte telefon:** kan bare gjøres av deg. Jeg tester i
+  telefonstørrelse i nettleseren.
+
+**Annet:**
+
+- **HUD-en** viser varme, tid, laserform, en historielinje, piler til
+  nødsignal, vrak og Hearthold, og solstorm.
+- **Stjernekartet** viser nasjon og omdømme, planeten, byskipet og
+  piratbasen.
+- **Nye taster** i hjelpen: Y, R, «.», «,» og I.
+- **Flere valg i More-menyen:** Laser mode, Time, Photo og Fleet.
+- **Ytelse:** skip og NPC-er regnes som synlige ut fra sin egen størrelse.
+  Ellers kunne store skip forsvinne i kanten.
+- `index.html`: `career.js` og `fleet.js` lastes, og versjonen er nå
+  v0.29.0.
+- `js/news.js`: nyhet.
+
+**Testet** i nettleseren:
+
+- **Menyen:** startskjerm, stasjon, utstyr, pause, loggbok og mannskap på PC
+  og mobil (412 × 870).
+- **Karrieren:** mannskap ansatt. Salg ga erfaring og omdømme, og prisen
+  falt til 75 % etter salg av 30 t. Nødsignal og solstorm dukket opp,
+  redningen betalte ut, og laserformen, tiden og overopphetingen virket.
+- **Flåten:** eskorte og lekter fulgte etter avgang. Dokking ved Hearthold,
+  og piratbasen ble satt ut i Muspelheim.
+- **Styrt landing:** testen holdt skipet over H-en og fikk «Smooth
+  landing».
+- **De gamle testene:** knapper, trykk, veileder, kamp, landing og
+  lasteluke virker. Ingen feil i konsollen.
 
 ## 2026-10-12: v0.28.0 · Ryddig mobilskjerm og flytende styrespak
 

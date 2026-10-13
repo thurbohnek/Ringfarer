@@ -10,6 +10,17 @@
 
   RF.NEWS = [
     {
+      v: 'v0.29.0', date: '2026-10-13', title: 'New look and a whole career',
+      items: [
+        'A new look: dark glass panels, new icons, and the station tabs as one clean row.',
+        'Your own fleet: escort fighters and mining barges with Follow, Mine and Defend orders. Dock at Hearthold, the city ship sailing around Midgard.',
+        'Nations and reputation, ranks, a five-step story, crew to hire, a logbook, wrecks to salvage and distress calls to answer.',
+        'Living markets, docking fees, solar storms, weapon heat, focused or wide laser, an onboard refinery and a tunnel bore.',
+        'Tougher raiders: gunships with flares and point defense, and a raider base in Muspelheim.',
+        'Fly the final approach yourself when you land on a planet. Plus photo mode, time acceleration, graphics settings and save files.',
+      ],
+    },
+    {
       v: 'v0.28.0', date: '2026-10-12', title: 'Cleaner phone screen',
       items: [
         'The big stick is gone. Put your thumb anywhere in the bottom left and a small stick appears under it. A quick tap there flies you to that spot.',
