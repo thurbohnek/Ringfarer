@@ -579,6 +579,18 @@
   .pal.on { border-color: var(--paint); box-shadow: 0 0 0 1px var(--paint); }
   .pips i.on { background: var(--paint); box-shadow: 0 0 6px rgba(79, 209, 255, 0.5); }
   .st-level .lvl-bar i { background: linear-gradient(90deg, #4fd1ff, #5be3a6); }
+  .trend { margin-left: 4px; font-size: 10px; }
+  .trend.up { color: var(--ok); } .trend.down { color: var(--danger); }
+  .st-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .stars { color: var(--gold); font-size: 12px; letter-spacing: 1px; }
+  .mission.story { border-color: rgba(255, 195, 90, 0.4); background: rgba(255, 195, 90, 0.06); }
+  .log-rank { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: rgba(79, 209, 255, 0.07); border: 1px solid var(--line); }
+  .log-rank b { font: 600 22px/1.1 var(--stencil); }
+  .log-rank .lvl-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .log-rank .lvl-bar i { display: block; height: 100%; background: linear-gradient(90deg, #4fd1ff, #5be3a6); }
+  .rep-row { display: grid; grid-template-columns: 140px 1fr 70px; gap: 10px; align-items: center; font-size: 14px; }
+  .rep-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .rep-bar i { display: block; height: 100%; opacity: 0.85; }
   /* Touch-knapper i samme stil. */
   #touch .ib, #touch .tile { background: rgba(10, 18, 32, 0.62); border: 1px solid rgba(120, 180, 255, 0.22); color: #dbe9ff; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
   #touch .ib.on, #touch .tile.on { background: var(--paint); color: #03141c; border-color: var(--paint); }
@@ -630,6 +642,9 @@
     <button class="tile" data-tap="Tab" data-icon="map" data-label="Map"></button>
     <button class="tile" data-tap="KeyB" data-icon="hold" data-label="Hold"></button>
     <button class="tile" data-tap="KeyU" data-icon="scoop" data-label="Scoop"></button>
+    <button class="tile" data-tap="KeyY" data-icon="laser" data-label="Laser mode"></button>
+    <button class="tile" data-tap="Period" data-icon="time" data-label="Time ×2"></button>
+    <button class="tile" data-tap="KeyI" data-icon="photo" data-label="Photo"></button>
     <button class="tile" data-tap="Recenter" data-icon="follow" data-label="Follow"></button>
     <button class="tile" data-tap="Escape" data-icon="pause" data-label="Pause"></button>
   </div>
@@ -646,7 +661,7 @@
   (function () {
     var v = encodeURIComponent(window.RF_VERSION.split(' ')[0]);
     var files = ['news', 'geom', 'physics', 'world', 'voxel', 'scan', 'modules', 'classes', 'ship', 'npc', 'pirates', 'stations', 'missions', 'input', 'audio',
-      'render', 'sky', 'shipdraw', 'weapons', 'combat', 'planets', 'guide', 'hud', 'ui', 'game'];
+      'render', 'sky', 'shipdraw', 'weapons', 'combat', 'planets', 'guide', 'career', 'hud', 'ui', 'game'];
     var i = 0;
     (function next() {
       if (i >= files.length) { RF.game.boot(); return; }

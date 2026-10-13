@@ -299,6 +299,12 @@
         if (g.key === 'gate2' && b.radius < 30 && G.len(g.x - b.x, g.y - b.y) > 1500) continue;
         edgeMarker(ctx, game, R, g.x, g.y, g.name || 'Gate', C.gate);
       }
+      // Nødsignal (alltid) og vrak i nærheten (kan slepes inn for bergingslønn).
+      for (const o of game.sys.world.bodies) {
+        if (o.dead || o.kind !== 'wreck') continue;
+        if (o.distress) edgeMarker(ctx, game, R, o.x, o.y, 'Distress', C.danger);
+        else if (o.salvage && G.len(o.x - b.x, o.y - b.y) < 1500) edgeMarker(ctx, game, R, o.x, o.y, 'Wreck', C.amber);
+      }
       const gt = RF.Guide && RF.Guide.target(game);
       if (gt) edgeMarker(ctx, game, R, gt.x, gt.y, gt.label, gt.color);
       if (game.sys.port) edgeMarker(ctx, game, R, game.sys.port.x, game.sys.port.y, game.sys.port.world, RF.Planets.COLOR);
@@ -397,6 +403,9 @@
     else if (ship.nav) tag('AUTOPILOT', C.gate);
     if (ship.fa === 0) tag('DRIFT', C.amber);
     else if (ship.fa === 2) tag('AUTO-BRAKE', C.gate);
+    if ((ship.heat || 0) > 0.25) tag(ship.overheat ? 'OVERHEAT' : 'HEAT ' + Math.round(ship.heat * 100) + '%', ship.overheat || ship.heat > 0.8 ? C.danger : C.amber);
+    if ((game.timeScale || 1) > 1) tag('TIME ×' + game.timeScale, C.gate);
+    if (ship.laserMode === 'wide' && ship.tool === 'laser' && tx < x0 + PW - 40) tag('WIDE', C.gate);
     const active = game.missions.filter((m) => m.status === 'aktiv').length;
     if (active && tx < x0 + PW - 40) tag(active + (active > 1 ? ' JOBS' : ' JOB'), C.muted);
     if (ship.anchor) {
@@ -415,7 +424,17 @@
     if (damaged) { glass(ctx, x0 + PW + 4, y0, 44, PH); damageMap(ctx, ship, x0 + PW + 9, y0 + 6, 34, PH - 12); }
     // Veilederen: neste oppgave under panelet.
     const scoopLbl = ship.scoop && ship.scoop.on && !ship.docked ? 18 : 0;
-    const guideH = RF.Guide ? RF.Guide.draw(ctx, R, game, x0, y0 + PH + 6 + scoopLbl, Math.min(touch ? 250 : 270, w - 16)) : 0;
+    let guideH = RF.Guide ? RF.Guide.draw(ctx, R, game, x0, y0 + PH + 6 + scoopLbl, Math.min(touch ? 250 : 270, w - 16)) : 0;
+    // Historien: én linje når veilederen ikke viser noe.
+    const story = !guideH && RF.Career && RF.Career.story.current();
+    if (story && !ship.docked) {
+      ctx.font = '600 10px "Saira Condensed", "Arial Narrow", sans-serif';
+      const t = 'STORY · ' + story.title.toUpperCase();
+      const tw2 = ctx.measureText(t).width + 16;
+      glass(ctx, x0, y0 + PH + 6 + scoopLbl, tw2, 18);
+      ctx.fillStyle = C.amber; ctx.fillText(t, x0 + 8, y0 + PH + 18 + scoopLbl);
+      guideH = 18;
+    }
     // Hvor langt ned og ut panelområdet går (pilene i kanten holder seg unna).
     game._hudBottom = y0 + PH + scoopLbl + (guideH ? guideH + 6 : 0);
     game._hudRight = x0 + Math.max(PW + (damaged ? 48 : 0), guideH ? Math.min(touch ? 250 : 270, w - 16) : 0);
@@ -506,6 +525,17 @@
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
 
+    // Solstorm: oransje skjær og flimmer.
+    const W = game.sys.weather;
+    if (W && (W.state === 'storm' || W.state === 'warn') && !ship.docked) {
+      const a = W.state === 'storm' ? 0.22 + 0.06 * Math.sin(game.time * 9) : 0.08;
+      const g2 = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.8);
+      g2.addColorStop(0, 'rgba(255,140,40,0)'); g2.addColorStop(1, `rgba(255,140,40,${a})`);
+      ctx.fillStyle = g2; ctx.fillRect(0, 0, w, h);
+      ctx.font = F.label; ctx.textAlign = 'center'; ctx.fillStyle = C.amber;
+      ctx.fillText(W.state === 'storm' ? `SOLAR STORM · ${Math.ceil(W.t)} s` : `STORM IN ${Math.ceil(W.t)} s`, w / 2, touch ? (h > w ? (game._hudBottom || 100) + 54 : 60) : 62);
+      ctx.textAlign = 'left';
+    }
     // Rød kant når skroget er kritisk.
     if (hf < 0.3 && !game.dead) {
       const a = 0.18 + 0.12 * Math.sin(game.time * 6);

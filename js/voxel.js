@@ -780,6 +780,7 @@
         RF.Audio.crack(Math.min(1, big / 500));
         if (game._myBeam) {
           game.msg('A piece has been cut loose', RF.HUD_COLORS.ok);
+          if (RF.Career) RF.Career.stat('rocks');
           if (RF.Guide) RF.Guide.event(game, 'cut');
         }
       }

@@ -44,6 +44,9 @@
     hold: 'M12 4v16 M8 8h8 M5 14a7 7 0 0 0 14 0',
     follow: 'M12 12m-7 0a7 7 0 1 0 14 0a7 7 0 1 0-14 0 M12 2v4 M12 18v4 M2 12h4 M18 12h4',
     pause: 'M9 5v14 M15 5v14',
+    time: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2 M4 4l2 2',
+    photo: 'M4 8h3l2-3h6l2 3h3v11H4z M12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
+    fleet: 'M3 13l7-3-2 7z M12 6l8-3-3 8z M12 17l8-3-2 7z',
     winchIn: 'M12 19V5 M7 10l5-5 5 5',
     winchOut: 'M12 5v14 M7 14l5 5 5-5',
   };
@@ -127,7 +130,7 @@
         const act = game.action;
         const ctx = $('#tc-ctx');
         ctx.hidden = !act;
-        const label = act === 'dock' ? 'DOCK' : act === 'land' ? 'LAND' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : '';
+        const label = act === 'dock' ? 'DOCK' : act === 'land' ? 'LAND' : act === 'dial' ? 'DIAL GATE' : act === 'tow' ? 'TOW' : act === 'return' ? 'FLY HOME' : '';
         if (ctx.textContent !== label) ctx.textContent = label;
         // Samlestråle hvis skipet har en, ellers lasteluken.
         const tb = $('#tc-tractor'), hasT = sh.stats.tractors.length > 0;
@@ -156,7 +159,7 @@
         const tk = TOOL_ICON[nextT] + '|' + RF.TOOL_NAMES[nextT];
         if (tbtn.dataset.cur !== tk) iconBtn(tbtn, TOOL_ICON[nextT], RF.TOOL_NAMES[nextT]);
       }
-      touchRoot.hidden = !game.touchUI || game.state !== 'play' || UI.isOpen();
+      touchRoot.hidden = !game.touchUI || game.state !== 'play' || UI.isOpen() || game.photo;
     },
 
     openTitle() {
@@ -241,25 +244,56 @@
 
     openPause() {
       const act = game.missions.filter((m) => m.status === 'aktiv');
+      const Q = game.quality, qn = ['Auto', 'High', 'Medium', 'Low'][game.gfx || 0];
       show('pause', `
         <div class="card plate narrow"><div class="hazard"></div>
-          <h2>Pause</h2>
-          ${act.length ? `<h3>Active contracts</h3><ul class="plain">${act.map((m) => `<li>${esc(RF.missionShort(m))} <span class="reward num">${kr(m.reward)}</span></li>`).join('')}</ul>` : ''}
+          <div class="card-head"><h2>Paused</h2><span class="muted small">${esc(RF.Career.title())}</span></div>
           <div class="col">
             <button class="btn primary" data-act="close" data-autofocus>Resume</button>
-            <div class="row two"><button class="btn" data-act="map">Star map</button><button class="btn" data-act="help">Help</button></div>
+            <div class="row two"><button class="btn" data-act="map">Star map</button><button class="btn" data-act="log">Logbook</button></div>
+            <button class="btn" data-act="help">How to play</button>
           </div>
+          ${act.length ? `<h3>Active contracts</h3><ul class="plain">${act.map((m) => `<li>${esc(RF.missionShort(m))} <span class="reward num">${kr(m.reward)}</span></li>`).join('')}</ul>` : ''}
           <h3>Settings</h3>
           <div class="col">
             <div class="row vol-row"><button class="btn" data-act="vol-down" aria-label="Lower volume">−</button>
               <button class="btn ghost grow" data-act="mute">${RF.Audio.muted ? 'Sound: off' : 'Sound ' + Math.round(RF.Audio.volume() * 100) + ' %'}</button>
               <button class="btn" data-act="vol-up" aria-label="Raise volume">+</button></div>
-            <button class="btn" data-act="guide">Step-by-step guide: ${game.guide && game.guide.on ? 'on' : 'off'}</button>
-            <button class="btn" data-act="touch">Touch controls: ${game.touchUI ? 'on' : 'off'}</button>
+            <div class="row two"><button class="btn" data-act="gfx">Graphics: ${qn}</button><button class="btn" data-act="shake">Screen shake: ${game.noShake ? 'off' : 'on'}</button></div>
+            <div class="row two"><button class="btn" data-act="guide">Guide: ${game.guide && game.guide.on ? 'on' : 'off'}</button><button class="btn" data-act="touch">Touch: ${game.touchUI ? 'on' : 'off'}</button></div>
+            <div class="row two"><button class="btn" data-act="export">Export save</button><button class="btn" data-act="import">Import save</button></div>
           </div>
           <h3>Testing</h3>
           <div class="row two"><button class="btn sm" data-act="money">+1,000,000 cr</button><button class="btn sm" data-act="raid">Call raiders</button></div>
           <button class="btn ghost" data-act="quit">Save and quit to menu</button>
+        </div>`);
+      void Q;
+    },
+
+    // Loggboka: rang, omdømme hos nasjonene og statistikk.
+    openLog() {
+      const c = RF.Career.get(), S = c.stats, r = RF.Career.rank(), R = RF.Career.RANKS;
+      const next = R[r + 1];
+      const f = next ? (c.xp - R[r][0]) / (next[0] - R[r][0]) : 1;
+      const fmtT = (sec) => `${Math.floor(sec / 3600)} h ${Math.floor((sec % 3600) / 60)} min`;
+      const rows = [['Credits earned', kr(S.earned)], ['Ore mined', (S.mined || 0).toFixed(1) + ' t'], ['Goods sold', (S.sold || 0).toFixed(1) + ' t'],
+        ['Rocks cut loose', S.rocks || 0], ['Contracts done', S.missions || 0], ['Raiders destroyed', S.pirates || 0], ['Ships rescued', S.rescues || 0],
+        ['Wrecks salvaged', S.salvaged || 0], ['Gate jumps', S.jumps || 0], ['Planet landings', S.landings || 0], ['Distance flown', (S.distance || 0).toFixed(1) + ' km'], ['Time played', fmtT(S.time || 0)]];
+      const st = RF.Career.story.current();
+      show('help', `
+        <div class="card plate"><div class="hazard"></div>
+          <div class="card-head"><h2>Logbook</h2><button class="btn ghost" data-act="pause">✕ Close</button></div>
+          <div class="log-rank"><span class="eyebrow">Rank</span><b>${esc(R[r][1])}</b>
+            <div class="lvl-bar"><i style="width:${Math.round(f * 100)}%"></i></div>
+            <span class="muted small">${next ? `${Math.round(c.xp)} / ${next[0]} XP to ${esc(next[1])}. Higher ranks get better paid contracts.` : 'Highest rank reached.'}</span></div>
+          <h3>Nations</h3>
+          <ul class="plain">${Object.keys(RF.Career.NATIONS).map((k) => { const n = RF.Career.NATIONS[k], v = c.rep[k] || 0;
+            return `<li class="rep-row"><span style="color:${n.color}">${esc(n.name)}</span><span class="rep-bar"><i style="width:${(v + 100) / 2}%;background:${n.color}"></i></span><span class="num">${RF.Career.repName(v)}</span></li>`; }).join('')}</ul>
+          <p class="muted small">Trade, contracts, rescues and bounties raise your standing. Good standing gives better prices and better paid contracts.</p>
+          <h3>Story</h3>
+          <p class="small">${st ? `<b>${esc(st.title)}:</b> ${esc(st.text)}` : 'Complete. You are a Pathfinder.'}</p>
+          <h3>Statistics</h3>
+          <dl class="stats">${rows.map(([k, v]) => `<dt>${k}</dt><dd class="num">${v}</dd>`).join('')}</dl>
         </div>`);
     },
 
@@ -578,8 +612,9 @@
     // På en planet: handel, service, oppdrag og planetfanen. Verft og
     // utstyr finnes bare på stasjonene.
     const port = !!st.isPort;
-    const tabs = port ? [['marked', 'Market'], ['verksted', 'Services'], ['oppdrag', 'Contracts'], ['planet', 'Planet']]
-      : [['marked', 'Market'], ['verksted', 'Repairs'], ['utstyr', 'Equipment'], ['verft', 'Shipyard'], ['droner', 'Drones'], ['oppdrag', 'Contracts'], ['stasjon', 'Station']];
+    const tabs = st.isCity ? [['marked', 'Market'], ['verksted', 'Services'], ['verft', 'Shipyard'], ['flate', 'Fleet'], ['mannskap', 'Crew'], ['oppdrag', 'Contracts']]
+      : port ? [['marked', 'Market'], ['verksted', 'Services'], ['oppdrag', 'Contracts'], ['mannskap', 'Crew'], ['planet', 'Planet']]
+      : [['marked', 'Market'], ['verksted', 'Repairs'], ['utstyr', 'Equipment'], ['verft', 'Shipyard'], ['droner', 'Drones'], ['flate', 'Fleet'], ['mannskap', 'Crew'], ['oppdrag', 'Contracts'], ['stasjon', 'Station']];
     if (!tabs.some((x) => x[0] === tab)) tab = 'marked';
     let body = '';
     const tip = RF.Guide.stationTip(game);
@@ -590,6 +625,8 @@
     else if (tab === 'droner') body = droneTab();
     else if (tab === 'stasjon') body = stationTab(st);
     else if (tab === 'planet') body = planetTab(st);
+    else if (tab === 'mannskap') body = crewTab(st);
+    else if (tab === 'flate') body = RF.Fleet ? RF.Fleet.tab(st, esc, kr) : '';
     else body = missionsTab(st);
     const scroll = root.querySelector('.tab-body');
     const y = scroll ? scroll.scrollTop : 0;
@@ -600,6 +637,8 @@
         <header class="st-head">
           <div class="st-title">
             <p class="eyebrow">${port ? 'Landed · ' + esc(st.world) : 'Docked · ' + esc(game.sys.def.name)} · ${esc(RF.HULLS[s.hull].name)}</p>
+            <p class="st-sub">${(() => { const n = RF.Career.NATIONS[RF.Career.nationOf(st.id)], r = RF.Career.rep(st.id);
+              return `<span style="color:${n.color}">${esc(n.name)}</span> · ${RF.Career.repName(r)} (${Math.round(r)}) · Rank: ${esc(RF.Career.title())}`; })()}</p>
             <h2>${esc(st.name)}</h2>
           </div>
           <div class="wallet"><span class="num">${Math.floor(game.credits).toLocaleString('en-US')}</span><span class="muted">credits${game.testMode ? ' · unlimited' : ''}</span>
@@ -747,7 +786,7 @@
       return `<tr>
         <td><span class="dot" style="background:${P.color}"></span>${esc(P.name)}</td>
         <td class="num" data-l="Aboard">${tonn(have)}</td>
-        <td class="num" data-l="Sell cr/t">${sell}</td>
+        <td class="num" data-l="Sell cr/t">${sell}${(() => { const t = RF.Career.trend(st.id, k); return t ? `<span class="trend ${t}" title="${t === 'up' ? 'Price is high here now' : 'Price is low here now'}">${t === 'up' ? '▲' : '▼'}</span>` : ''; })()}</td>
         <td class="num" data-l="Buy cr/t">${buy}</td>
         <td class="acts">
           <button class="btn sm" data-act="sell" data-id="${k}" ${have < 0.005 ? 'disabled' : ''}>Sell all</button>
@@ -1131,8 +1170,26 @@
 
   // ---------- Oppdrag ----------
 
+  // Mannskap: de som er om bord, og folk som vil bli med herfra.
+  function crewTab(st) {
+    const c = RF.Career.get(), cap = RF.Career.crewCap(game.ship);
+    if (!c.hire || c.hire.at !== st.id) c.hire = { at: st.id, list: [0, 1, 2].map(() => RF.Career.newCrew()) };
+    const stars = (k) => '★'.repeat(k) + '☆'.repeat(3 - k);
+    const row = (m, act, i, btn) => `<li class="mission"><div><b>${esc(m.name)} · ${esc(RF.Career.ROLES[m.role].name)} <span class="stars">${stars(m.skill)}</span></b>
+      <span class="muted">${esc(RF.Career.ROLES[m.role].what)}. Wage ${m.wage} cr per docking.</span></div>
+      <div class="m-side"><button class="btn sm ${act === 'hire' ? 'primary' : 'ghost'}" data-act="${act}" data-id="${i}">${btn}</button></div></li>`;
+    return `<p class="small">Crew aboard: <b>${c.crew.length}</b> of <b>${cap}</b> bunks. More passenger cabins give more bunks. Wages are paid each time you dock.</p>
+      <h3>Your crew</h3>
+      <ul class="missions">${c.crew.length ? c.crew.map((m, i) => row(m, 'crewfire', i, 'Let go')).join('') : '<li class="muted small">Nobody yet.</li>'}</ul>
+      <h3>Looking for work here</h3>
+      <ul class="missions">${c.hire.list.map((m, i) => row(m, 'hire', i, 'Hire · ' + kr(m.wage * 5))).join('') || '<li class="muted small">Nobody right now. Try another station.</li>'}</ul>`;
+  }
+
   function missionsTab(st) {
     const active = game.missions.filter((m) => m.status === 'aktiv');
+    const story = RF.Career.story.current();
+    const storyHtml = story ? `<li class="mission story"><div><span class="tag">Story · ${RF.Career.get().story.step + 1}/${RF.Career.STORY.length}</span><b>${esc(story.title)}</b>
+      <span class="muted">${esc(story.text)}</span></div><div class="m-side"><span class="num reward">${kr(story.reward)}</span></div></li>` : '';
     const offers = game.boards[st.id] || [];
     const s = game.ship.s;
     const activeHtml = active.length ? active.map((m) => {
@@ -1159,7 +1216,7 @@
         <button class="btn sm" data-act="accept" data-id="${m.id}" ${block ? 'disabled' : ''}>${block || 'Accept'}</button></div></li>`;
     }).join('');
     const seatInfo = cap ? `<p class="small">Passenger seats: <b>${cap - seats}</b> taken of <b>${cap}</b>.</p>` : '<p class="small muted">This ship has no passenger seats. Passenger cabins and habitat modules are under Equipment → Passengers.</p>';
-    return `<h3>Active</h3><ul class="missions">${activeHtml}</ul><h3>Contract board</h3>${seatInfo}<ul class="missions">${offerHtml}</ul>`;
+    return `<h3>Active</h3><ul class="missions">${storyHtml}</ul><ul class="missions">${activeHtml}</ul><h3>Contract board</h3>${seatInfo}<ul class="missions">${offerHtml}</ul>`;
   }
 
   // ---------- Klikk ----------
@@ -1187,6 +1244,14 @@
       case 'vol-up': RF.Audio.setVolume(RF.Audio.volume() + 0.1); UI.openPause(); break;
       case 'touch': UI.setTouch(!game.touchUI); UI.openPause(); break;
       case 'guide': RF.Guide.toggle(game); game.save(); UI.openPause(); break;
+      case 'log': UI.openLog(); break;
+      case 'pause': UI.openPause(); break;
+      case 'gfx': game.gfx = ((game.gfx || 0) + 1) % 4; game.applyGfx(); UI.openPause(); break;
+      case 'shake': game.noShake = !game.noShake; game.applyGfx(); UI.openPause(); break;
+      case 'export': RF.Career.exportSave(); break;
+      case 'import': RF.Career.importSave(); break;
+      case 'hire': RF.Career.hire(+id); renderStation(); break;
+      case 'crewfire': RF.Career.fire(+id); renderStation(); break;
       case 'quit': game.save(); game.state = 'title'; location.reload(); break;
       case 'raid': UI.closeAll(); if (!game.ship.docked) RF.Pirates.spawn(game, 20000); break;
       case 'map': UI.openMap(); break;
@@ -1208,6 +1273,7 @@
         game.credits += got;
         RF.Stations.gain(st.id, got);
         s.cargo[id] = 0;
+        RF.Career.onSell(st.id, id, amt, got);
         game.msg(`Sold ${tonn(amt)} of ${RF.PRODUCTS[id].name.toLowerCase()} for ${kr(got)}`, RF.HUD_COLORS.ok);
         if (got > 0) RF.Guide.event(game, 'sold');
         after();
@@ -1215,7 +1281,7 @@
       }
       case 'sellall': {
         let got = 0;
-        for (const k in s.cargo) { got += s.cargo[k] * game.sellPrice(st.id, k); s.cargo[k] = 0; }
+        for (const k in s.cargo) { const v = s.cargo[k] * game.sellPrice(st.id, k); got += v; if (s.cargo[k] > 0) RF.Career.onSell(st.id, k, s.cargo[k], v); s.cargo[k] = 0; }
         game.credits += got;
         RF.Stations.gain(st.id, got);
         game.msg(`Sold the whole cargo for ${kr(got)}`, RF.HUD_COLORS.ok);
@@ -1225,7 +1291,7 @@
       }
       case 'buy': {
         const p = game.buyPrice(st.id, id);
-        if (game.credits >= p && ship.holdFree() >= 1) { game.credits -= p; s.cargo[id] += 1; RF.Stations.gain(st.id, p); }
+        if (game.credits >= p && ship.holdFree() >= 1) { game.credits -= p; s.cargo[id] += 1; RF.Stations.gain(st.id, p); RF.Career.onBuy(st.id, id, 1); }
         after();
         break;
       }
@@ -1281,6 +1347,7 @@
         s.cargo[m.product] = Math.max(0, s.cargo[m.product] - m.amount);
         game.credits += m.reward;
         m.status = 'fullført';
+        RF.Career.missionDone(m, st.id);
         game.missions = game.missions.filter((x) => x.status === 'aktiv');
         game.msg(`Contract complete (+${kr(m.reward)})`, RF.HUD_COLORS.ok);
         after();

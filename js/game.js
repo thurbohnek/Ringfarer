@@ -78,6 +78,7 @@
       st.world.oneWay = (A, B) => (B.kind === 'ore' && heavy(A) ? 1 : A.kind === 'ore' && heavy(B) ? 2 : 0);
       RF.spawnNPCs(st);
       game.systems[id] = st;
+      RF.Career.onSystem(st);
       RF.Stations.sync(st);
     }
     return game.systems[id];
@@ -101,8 +102,9 @@
   // --- Priser ---
   game.sellPrice = (stationId, prod) => {
     const def = RF.stationById(stationId);
-    const mod = (game.priceMod[stationId] && game.priceMod[stationId][prod]) || 1;
-    return Math.round(RF.PRODUCTS[prod].price * (def.station.prices[prod] || 1) * mod * tradeMul() * RF.Stations.priceMul(stationId));
+    // Markedet driver over tid (career.js), og godt omdømme gir bedre priser.
+    const mod = RF.Career.factor(stationId, prod);
+    return Math.round(RF.PRODUCTS[prod].price * (def.station.prices[prod] || 1) * mod * tradeMul() * RF.Stations.priceMul(stationId) * RF.Career.priceMul(stationId));
   };
   // Større stasjoner selger også billigere (prisfordelen virker begge veier).
   game.buyPrice = (stationId, prod) => {
@@ -122,7 +124,12 @@
     const b = (game.boards[stationId] = (game.boards[stationId] || []).filter((m) => m.status === 'tilbud'));
     const sys = game.systems[stationId];
     const haulers = sys ? sys.npcs.filter((n) => n.type === 'hauler').map((n) => n.name) : [];
-    while (b.length < 5) b.push(RF.genMission(stationId, haulers));
+    while (b.length < 5) {
+      const m = RF.genMission(stationId, haulers);
+      // Høyere rang og godt omdømme gir bedre betalte oppdrag.
+      m.reward = Math.round((m.reward * RF.Career.rewardMul(stationId)) / 10) * 10;
+      b.push(m);
+    }
   }
 
   // --- Ny karriere / lagring ---
@@ -135,6 +142,7 @@
     game.systems = {};
     game.priceMod = {};
     game.stationXP = {};
+    game.career = RF.Career.fresh();
     game.lastStation = 'midgard';
     RF.Weapons.reset();
     if (RF.Combat) RF.Combat.reset();
@@ -175,6 +183,7 @@
       lastStation: game.lastStation, fa: game.ship.fa, test: game.testMode, stationXP: game.stationXP || {},
       landed: game.ship.docked && game.ship.docked.isPort ? game.ship.docked.id : null,
       guide: game.guide ? { on: game.guide.on, step: game.guide.step } : null,
+      career: game.career,
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) { /* lagring utilgjengelig */ }
   };
@@ -203,6 +212,7 @@
     RF.setMissionIdBase(game.missions.reduce((a, m) => Math.max(a, m.id), 0));
     game.lastStation = data.lastStation || 'midgard';
     game.guide = data.guide ? Object.assign({ t: 0 }, data.guide) : { on: false, step: 0, t: 0 };
+    game.career = Object.assign(RF.Career.fresh(), data.career || {});
     game.stationXP = data.stationXP || {};
     game.boards = {};
     game.systems = {};
@@ -320,6 +330,7 @@
         ship.s.missionCargo = ship.s.missionCargo.filter((c) => c.missionId !== m.id);
         game.credits += m.reward;
         RF.Stations.gain(st.id, m.reward);
+        RF.Career.missionDone(m, st.id);
         game.msg(`Delivered: ${m.goods} (+${m.reward} cr)`, RF.HUD_COLORS.ok);
         Audio.blip(660, 0.15, 'triangle', 0.12);
         Audio.blip(880, 0.2, 'triangle', 0.1);
@@ -327,6 +338,7 @@
     }
     game.missions = game.missions.filter((m) => m.status === 'aktiv');
     ship.updateMass();
+    if (!silent) RF.Career.onDock(st);
     game.save();
     if (!silent) Audio.thud(0.3);
     RF.UI.openStation();
@@ -347,6 +359,25 @@
     enterSystem(game.sys.def.id);
     RF.UI.closeAll();
     game.save();
+  };
+
+  // Laserform: fokusert (smal og kraftig) eller bred (tre stråler).
+  game.toggleLaserMode = () => {
+    const sh = game.ship;
+    sh.laserMode = sh.laserMode === 'wide' ? 'focus' : 'wide';
+    game.msg(sh.laserMode === 'wide' ? 'Laser: wide (three beams, cuts a wide groove)' : 'Laser: focused (one strong beam, longer reach)', RF.HUD_COLORS.gate);
+    Audio.blip(sh.laserMode === 'wide' ? 520 : 760, 0.05, 'sine', 0.06);
+  };
+  // Bildemodus: alt på skjermen skjules, bare romskipet og rommet vises.
+  game.togglePhoto = () => {
+    game.photo = !game.photo;
+    if (game.photo) game.msg('Photo mode: tap or press I to return', RF.HUD_COLORS.gate);
+  };
+  // Fly hjem: autopiloten setter kurs for dokkingarmen.
+  game.returnHome = () => {
+    const dp = RF.dockPoint(game.sys.station), st = game.sys.station;
+    game.setNav(dp.x + Math.cos(st.a) * 40, dp.y + Math.sin(st.a) * 40);
+    game.msg(`Autopilot: heading for ${st.name}`, RF.HUD_COLORS.gate);
   };
 
   // --- Landing på planeter ---
@@ -555,6 +586,8 @@
     }
     P.panX = P.panY = 0;
     // Korte trykk: fly dit, eller sentrer kameraet.
+    // I bildemodus avslutter et trykk bildemodusen.
+    if (game.photo && P.taps.length) { P.taps.length = 0; game.photo = false; }
     while (P.taps.length) {
       const t = P.taps.shift();
       if (t.press !== game._aimPress) continue;
@@ -807,6 +840,7 @@
       return;
     }
     o.dead = true;
+    RF.Career.stat('mined', o.mass / 1000);
     ship.processing.push({ mat: o.kind === 'wreck' ? 'skrap' : o.mat, mass: o.mass });
     ship.updateMass();
     const ip = o._tractorFrom || ship.body;
@@ -945,6 +979,7 @@
     m.status = 'fullført';
     game.credits += m.reward;
     if (game.ship.docked) RF.Stations.gain(game.ship.docked.id, m.reward);
+    RF.Career.missionDone(m, m.to);
     game.msg(`${how}: ${RF.missionTitle(m)} (+${m.reward} cr)`, RF.HUD_COLORS.ok);
     Audio.blip(660, 0.15, 'triangle', 0.12);
     Audio.blip(880, 0.2, 'triangle', 0.1);
@@ -1120,6 +1155,7 @@
 
   function transit(g, lx, ly) {
     const ship = game.ship, b = ship.body;
+    RF.Career.stat('jumps');
     ship.releaseAnchor(game);
     game.recallDronesNow();
     RF.Weapons.reset();
@@ -1246,6 +1282,7 @@
     cam.x = G.clamp(cam.x, b.x - mx, b.x + mx);
     cam.y = G.clamp(cam.y, b.y - my, b.y + my);
     cam.bx = cam.x; cam.by = cam.y; // uten risting (til støvstripene)
+    if (game.shake > 0 && game.noShake) game.shake = 0;
     if (game.shake > 0) {
       const s = game.shake * 6 / cam.zoom;
       cam.x += G.rand(-s, s);
@@ -1427,7 +1464,12 @@
       else if (g.state === 'open' && !g.incoming) game.prompt = `Gate open to ${RF.systemById(g.dest).name}: fly in from the front`;
       return;
     }
-    if (ship.s.fuel <= 0) { game.prompt = `[R] Emergency tow to ${sys.station.name} (${TOW_COST} cr)`; game.action = 'tow'; }
+    if (ship.s.fuel <= 0) { game.prompt = `[R] Emergency tow to ${sys.station.name} (${TOW_COST} cr)`; game.action = 'tow'; return; }
+    // Full last: tilby å fly hjem med autopiloten.
+    if (ship.holdFree() - ship.procProduct() <= 0.02 && !ship.nav && G.len(b.x - sys.station.x, b.y - sys.station.y) > 500) {
+      game.prompt = `[R] Cargo full: autopilot to ${sys.station.name}`;
+      game.action = 'return';
+    }
   }
 
   game.selectTool = (t) => {
@@ -1466,6 +1508,9 @@
     }
     if (Input.hit('KeyX')) RF.Weapons.fireHarpoon(ship, game);
     if (Input.hit('KeyJ')) RF.Combat.dropFlares(game, true);
+    if (Input.hit('KeyY')) game.toggleLaserMode();
+    if (Input.hit('Period')) RF.Career.cycleTime();
+    if (Input.hit('KeyI')) game.togglePhoto();
     if (Input.hit('KeyK')) game.launchDrones();
     if (Input.hit('KeyN')) RF.Scan.toggle(game);
     if (Input.hit('KeyB')) game.toggleHold();
@@ -1497,7 +1542,8 @@
     if (Input.hit('Equal') || Input.hit('NumpadAdd')) game.cam.zoom = Math.min(10, game.cam.zoom * 1.25);
     if (Input.hit('Minus') || Input.hit('NumpadSubtract')) game.cam.zoom = Math.max(0.25, game.cam.zoom / 1.25);
     const act = Input.hit('Interact') || Input.hit('Enter');
-    if ((Input.hit('KeyT') || act) && game.action === 'dock') dock();
+    if ((Input.hit('KeyR') || act) && game.action === 'return') game.returnHome();
+    else if ((Input.hit('KeyT') || act) && game.action === 'dock') dock();
     else if ((Input.hit('KeyT') || act) && game.action === 'land') game.landAt(game.sys.port);
     else if ((Input.hit('KeyG') || act) && game.action === 'dial') RF.UI.openDial();
     else if ((Input.hit('KeyR') || act) && game.action === 'tow') towHome();
@@ -1535,6 +1581,7 @@
     RF.Scan.update(dt, game);
     RF.Pirates.update(dt, game);
     RF.Guide.update(dt, game);
+    RF.Career.update(dt, game);
     updateStationShield(dt);
     // Steiner i bane gjennom feltet trekkes svakt mot midten av det.
     for (const o of game.sys.world.bodies) {
@@ -1551,20 +1598,29 @@
   // trinn (og lyskartet blir grovere). Går det lett lenge, heves den igjen.
   const Q = { avg: 16, slow: 0, fast: 0, level: 0 };
   const Q_DPR = [2, 1.5, 1.25, 1];
+  // Grafikkvalg fra pausemenyen: Auto (tilpasser seg), High, Medium, Low.
+  // Huskes i nettleseren sammen med skjermristing.
+  try { const v = JSON.parse(localStorage.getItem('rf-settings') || '{}'); game.gfx = v.gfx || 0; game.noShake = !!v.noShake; } catch (_) { /* standard */ }
+  function setLevel(L) {
+    Q.level = L; Q.slow = Q.fast = 0;
+    const R = RF.renderer;
+    if (!R) return;
+    R.qDpr = Q_DPR[L]; R.qLow = L >= 2;
+    game.particles.max = L >= 2 ? 450 : 700;
+    R.resize();
+  }
+  game.applyGfx = () => {
+    if (game.gfx) setLevel([0, 0, 1, 3][game.gfx]);
+    try { localStorage.setItem('rf-settings', JSON.stringify({ gfx: game.gfx || 0, noShake: !!game.noShake })); } catch (_) { /* ikke så farlig */ }
+  };
   function adaptQuality(dt) {
-    if (!(dt > 0)) return;
+    if (!(dt > 0) || game.gfx) return;
     Q.avg += (dt * 1000 - Q.avg) * 0.05;
     if (Q.avg > 26) { Q.slow += dt; Q.fast = 0; } else if (Q.avg < 15) { Q.fast += dt; Q.slow = 0; } else { Q.slow = 0; Q.fast = 0; }
     let L = Q.level;
     if (Q.slow > 2 && L < 3) L++;
     else if (Q.fast > 8 && L > 0) L--;
-    if (L !== Q.level) {
-      Q.level = L; Q.slow = Q.fast = 0;
-      const R = RF.renderer;
-      R.qDpr = Q_DPR[L]; R.qLow = L >= 2;
-      game.particles.max = L >= 2 ? 450 : 700;
-      R.resize();
-    }
+    if (L !== Q.level) setLevel(L);
   }
   game.quality = Q;
 
@@ -1578,13 +1634,14 @@
     if (game.ship) updateAim();
     handleKeys();
     if (!game.paused) {
-      acc += dt;
+      acc += dt * (game.timeScale || 1);
       // Høyst fire fysikksteg per bilde. Ellers blir et tregt bilde fulgt av
       // enda flere steg, og spillet hakker mer og mer (spillet går heller
       // litt saktere en kort stund).
       let n = 0;
-      while (acc >= STEP && n < 4) { update(STEP); acc -= STEP; n++; }
-      if (n >= 4) acc = 0;
+      const maxN = 4 * (game.timeScale || 1);
+      while (acc >= STEP && n < maxN) { update(STEP); acc -= STEP; n++; }
+      if (n >= maxN) acc = 0;
       game.particles.update(dt);
       if (++frameN % 30 === 0) cleanupWorld();
       const ship = game.ship;
@@ -1658,7 +1715,7 @@
     Input.endFrame();
     adaptQuality(dt);
     RF.renderer.draw(game, dt);
-    if (!game.dead) RF.drawHUD(RF.renderer, game);
+    if (!game.dead && !game.photo) RF.drawHUD(RF.renderer, game);
     if (game.landing) RF.Planets.drawOverlay(RF.renderer, game);
     if (game.flash > 0) {
       const c = RF.renderer.ctx;
@@ -1679,6 +1736,7 @@
   game.boot = () => {
     const canvas = document.getElementById('game');
     RF.renderer = new RF.Renderer(canvas);
+    game.applyGfx();
     window.addEventListener('resize', () => RF.renderer.resize());
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();

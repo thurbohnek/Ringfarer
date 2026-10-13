@@ -100,6 +100,11 @@
       desc: 'Takes 2×2 slots. A shield strong enough for capital ships.' },
     cargo3: { name: 'Cargo hold', cat: 'Cargo', mass: 6000, hp: 300, cost: 4500, hold: 95, size: 2, unlock: 1,
       desc: 'Takes 2×2 slots. 95 tonnes of cargo space.' },
+    smelter: { name: 'Onboard refinery', cat: 'Mining', mass: 5000, hp: 120, cost: 9000, size: 2, refine: true, unlock: 2,
+      desc: 'Takes 2×2 slots. Melts ore into clean metal on board: 25 % more product from every tonne of ore, and processing runs 50 % faster.' },
+    bore: { name: 'Tunnel bore', cat: 'Mining', mass: 7000, hp: 260, cost: 12000, mount: true, size: 2, unlock: 2,
+      drill: { power: 6, tier: 3, range: 6 },
+      desc: 'Takes 2×2 slots. A huge drill drum that grinds a tunnel wide enough for the ship, even through hardness 3 rock. Fires with the laser button.' },
     tractor2: { name: 'Heavy collector beam', cat: 'Mining', mass: 5000, hp: 160, cost: 5000, tractor: 350e3, mount: true, size: 2, unlock: 2,
       desc: 'Takes 2×2 slots. Pulls loose ore and salvage in five times as hard, so bigger chunks come in too.' },
     laser5: { name: 'Heavy cutting array', cat: 'Mining', mass: 11000, hp: 220, cost: 30000, mount: true, size: 2, unlock: 3,
@@ -454,6 +459,7 @@
       if (D.pd && !blocked) st.pds.push({ m, ...D.pd });
       if (D.flares) st.flareCap += D.flares;
       if (D.firectl) st.fireCtl = true;
+      if (D.refine) { st.refine = (st.refine || 0) + 1; st.yield += 0.25; }
       if (D.anchor && !blocked) st.anchors.push({ m, ...D.anchor });
       if (D.tractor && !blocked) st.tractors.push({ m, F: D.tractor * eff });
       if (D.light && !blocked) st.lights.push({ m, range: D.light });
@@ -470,6 +476,7 @@
     }
     // Cockpiten holder liv i et lite mannskap. Flere passasjerer krever livsopprettholdelse.
     st.paxCap = Math.min(st.pax, st.life) + st.cryo;
+    if (st.refine) st.proc *= 1.5;
     st.shieldMax += st.power * 40;
     st.rocketCap = st.rockets.reduce((a, r) => a + (RF.MODULES[r.m.t].ammo || 6), 0);
     // Søkeren: beste rakettkaster bestemmer hvor langt og hvor fort den låser.
@@ -482,7 +489,7 @@
   // --- Automatisk montering (butikken) ---
   // Finn beste ledige rute for en ny modul: inntil skipet, innenfor skroget,
   // uten å sperre eller snu verktøy og motorer som allerede sitter der.
-  const FWD_TOOLS = new Set(['laser', 'laser2', 'laser3', 'laser4', 'drill', 'cannon', 'autocannon', 'railgun', 'light', 'light2']);
+  const FWD_TOOLS = new Set(['laser', 'laser2', 'laser3', 'laser4', 'drill', 'bore', 'cannon', 'autocannon', 'railgun', 'light', 'light2']);
   RF.autoPlace = (layout, hull, t) => {
     const B = RF.hullBounds(hull), D = RF.MODULES[t];
     const occ = new Set(layout.map((m) => key(m.x, m.y)));

@@ -56,6 +56,7 @@
   Scan.pulse = (game) => {
     const ship = game.ship, b = ship.body;
     if (ship.docked) return;
+    if (RF.Career && RF.Career.storm()) { game.msg('Scanner jammed by the solar storm', RF.HUD_COLORS.amber); return; }
     if (game.scan && game.time - game.scan.t0 < Scan.COOLDOWN) {
       game.msg('Scanner recharging', RF.HUD_COLORS.amber);
       return;
@@ -83,6 +84,7 @@
     }
     if (S.r >= S.R) {
       S.done = true;
+      if (S.found && RF.Career) RF.Career.story.event('scanFound');
       game.msg(S.found ? `Scan: ${S.found} rock${S.found > 1 ? 's' : ''} with minerals, about ${Scan.fmtCr(S.value)}` : 'Scan: no minerals in range', S.found ? RF.HUD_COLORS.ok : RF.HUD_COLORS.amber);
     }
   };

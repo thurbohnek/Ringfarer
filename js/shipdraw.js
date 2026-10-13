@@ -742,6 +742,18 @@
         circle(ctx, 0, 0, 0.09, '#b8fff2');
         break;
       }
+      case 'smelter': {
+        // Raffineri: smelteovn med glødende vindu og rør.
+        rr(ctx, -0.85, -0.85, 1.7, 1.7, 0.2);
+        ctx.fillStyle = '#4a4640'; ctx.fill();
+        rr(ctx, -0.55, -0.4, 1.1, 0.8, 0.12);
+        const gg = ctx.createRadialGradient(0, 0, 0.05, 0, 0, 0.6);
+        gg.addColorStop(0, '#fff2b0'); gg.addColorStop(0.5, '#ff9a3a'); gg.addColorStop(1, '#7a2a10');
+        ctx.fillStyle = gg; ctx.fill();
+        ctx.strokeStyle = '#1a1814'; ctx.lineWidth = 0.08; ctx.stroke();
+        for (const y of [-0.65, 0.65]) { ctx.fillStyle = '#2a2724'; ctx.fillRect(-0.8, y - 0.06, 1.6, 0.12); }
+        break;
+      }
       case 'flares': {
         // Fakkelkaster: rad med små rør som peker ut.
         rr(ctx, -0.8, -0.7, 1.6, 1.4, 0.18);

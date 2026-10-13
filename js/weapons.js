@@ -33,9 +33,11 @@
       const m = g.m;
       m._cd = Math.max(0, (m._cd || 0) - dt);
       const rate = g.rate * (st.gunRateMul || 1);
+      // Overopphetet: kanonene venter til de har kjølt seg ned (rail lades likevel).
+      if (ship.overheat && g.kind !== 'rail') continue;
       if (g.kind === 'rail') {
         m._charge = Math.min(1, (m._charge || 0) + dt * rate * (1 + 0.35 * (st.power || 0)));
-        if (!fire || m._charge < 1 || !m.onTarget) continue;
+        if (!fire || m._charge < 1 || !m.onTarget || ship.overheat) continue;
         m._charge = 0;
       } else {
         if (!fire || m._cd > 0 || !m.onTarget) continue;
@@ -52,6 +54,8 @@
       if (g.dmg) sh.dmg = g.dmg * gm;
       if (g.pierce) { sh.pierce = g.pierce; sh.skip = []; }
       W.list.push(sh);
+      // Hvert skudd varmer opp skipet (railkanonen mest).
+      ship.heat = Math.min(1.25, (ship.heat || 0) + (g.kind === 'rail' ? 0.22 : g.kind === 'auto' ? 0.012 : 0.05));
       ship.body.applyImpulse(-d.x * mass * g.speed, -d.y * mass * g.speed, p.x, p.y);
       const ang = Math.atan2(d.y, d.x);
       if (g.kind === 'rail') {

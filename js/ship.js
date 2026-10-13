@@ -125,6 +125,8 @@
       st.torque *= st.torqueMul;
       st.strafe *= st.strafeMul;
       st.tractor *= st.tractorMul;
+      // Mannskapet: piloter, ingeniører, geologer og skyttere.
+      if (RF.Career) RF.Career.applyCrew(st);
       // Større skip har større utstyr: kraft og plass vokser med størrelsen.
       const sc = (st.scale = RF.hullScale(this.s.hull));
       if (sc !== 1) {
@@ -369,9 +371,22 @@
         const tooHard = RF.Vox.beam(t, hit, d, Dr.power, Dr.tier, dt, game, true);
         if (tooHard) hardMat = tooHard; else bit = true;
       }
-      for (const L of st.lasers) {
-        if (!L.m.onTarget) continue;
-        const { p: o, d, lx, ly, a } = this.muzzle(L.m);
+      // Laserformen: fokusert (smal, kraftig, lang) eller bred (tre stråler
+      // side om side som skjærer en bred renne). Overopphetet: ingen stråle.
+      const mode = this.laserMode || 'focus';
+      const rays = mode === 'wide' ? [[-1.1, 0.45], [0, 0.45], [1.1, 0.45]] : [[0, 1.25]];
+      const rangeK = mode === 'wide' ? 0.75 : 1.1;
+      if (this.overheat) { this.laser.on = false; return; }
+      this.heat = Math.min(1.2, (this.heat || 0) + dt * 0.06 * st.lasers.length * (mode === 'wide' ? 1.3 : 1));
+      for (const L0 of st.lasers) {
+        if (!L0.m.onTarget) continue;
+        const mz = this.muzzle(L0.m);
+        for (const [off, kp] of rays) {
+        const L = Object.assign({}, L0, { power: L0.power * kp, range: L0.range * rangeK, m: L0.m });
+        const pa = mz.a + Math.PI / 2, cosP = Math.cos(pa), sinP = Math.sin(pa);
+        const lx = mz.lx + cosP * off, ly = mz.ly + sinP * off, a = mz.a, d = mz.d;
+        const o = b.toWorld(lx, ly);
+        if (off) L.m = Object.assign(Object.create(L0.m), { _beamT: L0.m['_bt' + off], _beamLen: L0.m['_bl' + off] });
         // Løse mineralbiter stopper ikke strålen, den går rett gjennom dem.
         // Småstein av gråstein treffes og fordamper.
         const hit = game.sys.world.raycast(o.x, o.y, d.x, d.y, L.range, (x) => x !== b && !x.ghost && (x.kind !== 'ore' || RF.isStone(x)));
@@ -385,8 +400,9 @@
         const prev = !fresh && L.m._beamLen != null ? L.m._beamLen : want;
         const len = want > prev ? Math.min(want, prev + Math.max(4, prev) * dt * 4) : want;
         L.m._beamLen = len;
+        if (off) { L0.m['_bt' + off] = L.m._beamT; L0.m['_bl' + off] = len; }
         const shown = hit && len < want - 0.5 ? null : hit;
-        this.beams.push({ lx, ly, a, len, hit: shown, color: L.color, w: (0.35 + L.tier * 0.12) * Math.sqrt(b.s) });
+        this.beams.push({ lx, ly, a, len, hit: shown, color: L.color, w: (0.35 + L.tier * 0.12) * Math.sqrt(b.s) * (mode === 'wide' ? 0.6 : 0.85) });
         this.laser.on = true;
         if (!hit) continue;
         if (!this.laser.hit) this.laser.hit = hit;
@@ -422,6 +438,7 @@
         const tooHard = RF.Vox.beam(t, hit, d, L.power, L.tier, dt, game);
         game._myBeam = false;
         if (tooHard) hardMat = tooHard; else bit = true;
+      }
       }
       // Varsle bare når ingen av laserne biter.
       if (hardMat && !bit && (!game._hardWarn || game.time - game._hardWarn > 5)) {

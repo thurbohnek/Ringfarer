@@ -942,6 +942,10 @@
         RF.Audio.boom(0.8 * RF.Audio.near(b.x, b.y, 1200));
         game.credits += this.T.bounty;
         game.msg(`${this.name} destroyed. Bounty +${this.T.bounty} cr`, RF.HUD_COLORS.ok);
+        if (RF.Career) {
+          RF.Career.stat('pirates'); RF.Career.addXp(this.T.bounty / 20); RF.Career.addRep(this.sys.def.id, 3);
+          RF.Career.story.event('pirate', this.sys.def.id);
+        }
         this.leave(game);
         return;
       }
