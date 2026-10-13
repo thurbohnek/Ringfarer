@@ -152,6 +152,29 @@
     void pl;
   };
 
+  // --- Siste innflyging ---
+  // Landingsplassen driver i vinden (sterkere ved høy tyngdekraft). Man
+  // holder skipet over plassen med tastene eller styrespaken i 2,2 sekunder.
+  P.startFinal = (L) => ({ x: G.rand(-70, 70), y: G.rand(-60, 60), vx: 0, vy: 0, t: 0, ok: 0, windA: Math.random() * 6.28, windS: 30 + 30 * L.port.g, done: false });
+  P.updateFinal = (L, dt, inp, game) => {
+    const F = L.final;
+    F.t += dt;
+    // Styring: piltaster/WASD flytter skipet, styrespaken peker dit man vil.
+    let ax = (inp.turn || 0) + (inp.strafe || 0), ay = (inp.brake ? 1 : 0) - (inp.thrust ? 1 : 0);
+    if (inp.aim != null && game.touchUI) { ax = Math.cos(inp.aim); ay = Math.sin(inp.aim); }
+    // Skipet beveger seg i forhold til plassen: plassen flyttes motsatt.
+    const gust = Math.sin(F.t * 0.9) + 0.5 * Math.sin(F.t * 2.3 + 1);
+    F.vx += (-ax * 150 + Math.cos(F.windA) * F.windS * gust) * dt;
+    F.vy += (-ay * 150 + Math.sin(F.windA) * F.windS * gust) * dt;
+    F.vx *= 1 - Math.min(1, dt * 1.6); F.vy *= 1 - Math.min(1, dt * 1.6);
+    F.x = G.clamp(F.x + F.vx * dt, -170, 170); F.y = G.clamp(F.y + F.vy * dt, -170, 170);
+    const on = Math.hypot(F.x, F.y) < 24;
+    F.ok = on ? F.ok + dt : Math.max(0, F.ok - dt * 0.5);
+    if (F.ok >= 2.2) { F.done = true; return 'ok'; }
+    if (F.t > 14) { F.done = true; return 'hard'; }
+    return null;
+  };
+
   // --- Turen gjennom atmosfæren (tegnes over alt, i skjermkoordinater) ---
   const ease = (k) => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
   const bump = (d, a, b) => (d <= a || d >= b ? 0 : Math.sin(((d - a) / (b - a)) * Math.PI));
@@ -208,10 +231,13 @@
     }
     // Bakken og havna: landingsplass med lys som vokser fram.
     const gr = G.clamp((d - 0.78) / 0.22, 0, 1);
+    const FN = L.final && !L.final.done ? L.final : null;
     if (gr > 0) {
       ctx.globalAlpha = alpha * gr;
       ctx.fillStyle = pl.type === 'gas' ? '#c9b48a' : pl.type === 'lava' ? '#2a1a14' : '#36503a';
       ctx.fillRect(0, 0, w, h);
+      ctx.save();
+      if (FN) ctx.translate(FN.x, FN.y);
       const pr = m * (0.18 + 0.32 * gr);
       ctx.fillStyle = '#5a5e64';
       ctx.beginPath(); ctx.arc(cx, cy, pr, 0, Math.PI * 2); ctx.fill();
@@ -229,6 +255,29 @@
         ctx.fillStyle = r() < 0.7 ? 'rgba(255,217,160,0.8)' : 'rgba(159,216,255,0.8)';
         ctx.fillRect(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 2, 2);
       }
+      // Landingsmerket midt på plassen: dit skipet skal.
+      if (FN) {
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#ffc35a'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, 24, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,195,90,0.15)'; ctx.fill();
+        ctx.font = '700 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffc35a';
+        ctx.fillText('H', cx, cy + 8);
+      }
+      ctx.restore();
+    }
+    // Siste innflyging: hjelpetekst og en ring som fylles mens man holder seg over plassen.
+    if (FN) {
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(cx, cy, 34, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = Math.hypot(FN.x, FN.y) < 24 ? '#5be3a6' : '#ffc35a';
+      ctx.beginPath(); ctx.arc(cx, cy, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, FN.ok / 2.2)); ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.font = '600 14px system-ui, sans-serif'; ctx.fillStyle = '#e8f0ff';
+      ctx.fillText('FINAL APPROACH: keep the ship over the pad', cx, h - 90);
+      ctx.font = '12px system-ui, sans-serif'; ctx.fillStyle = 'rgba(232,240,255,0.7)';
+      ctx.fillText(game.touchUI ? 'Drag the stick toward the pad. The wind pushes you off.' : 'W A S D or arrow keys move the ship. The wind pushes you off.', cx, h - 70);
     }
     // Plasma rundt skipet ved innkomsten.
     const pz = bump(d, 0.22, 0.72);

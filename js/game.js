@@ -440,6 +440,18 @@
         b.vx += Math.cos(L.port.a) * 30 * k * dt; b.vy += Math.sin(L.port.a) * 30 * k * dt;
         b.w *= 0.9;
       }
+      // Siste stykket styrer man selv: hold skipet over landingsplassen
+      // (store skip går ned med skyttel og slipper dette).
+      if (!L.final && L.t >= L.dur - 0.9 && b.radius <= 30) L.final = RF.Planets.startFinal(L);
+      if (L.final && !L.final.done) {
+        L.t = L.dur - 0.9;
+        const res = RF.Planets.updateFinal(L, dt, Input.state(), game);
+        if (res === 'hard') {
+          for (let i = 0; i < 3; i++) { const m = G.pick(ship.s.layout); ship.damageAt(m.lx, m.ly, 12, game); }
+          game.msg('Hard landing! The hull took some damage', RF.HUD_COLORS.danger);
+          Audio.thud(0.8);
+        } else if (res === 'ok') game.msg('Smooth landing', RF.HUD_COLORS.ok);
+      }
       if (L.t >= L.dur) {
         game.landing = null;
         dock(true, L.port);
