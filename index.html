@@ -7,7 +7,7 @@
 <title>Ringfarer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;600;700&family=Saira+Stencil+One&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;600;700&family=Saira+Stencil+One&family=Share+Tech+Mono&family=Exo+2:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -464,6 +464,142 @@
   .row.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .vol-row .grow { flex: 1; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } #touch .ib.hint { animation: none; outline: 2px solid var(--paint); } }
+
+  /* Mobil: markedet som kompakte rader (navn og knapper på én linje, tall under). */
+  @media (max-width: 560px) {
+    .tab-body tr { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 8px; padding: 8px 2px; }
+    .tab-body td:first-child { grid-column: 1 / 3; align-self: center; }
+    .tab-body td.acts { grid-column: 3 / 4; grid-row: 1; justify-content: flex-end; flex-wrap: nowrap; }
+    .tab-body td.acts .btn { padding: 6px 8px; font-size: 12px; }
+    .tab-body td[data-l] { font-size: 13px; }
+    .tab-body td[data-l]::before { display: inline; margin-right: 4px; font-size: 9.5px; }
+    .station .wallet .muted { display: none; }
+    .station .wallet { flex-direction: row; align-items: center; padding: 6px 8px; }
+    .station h2 { font-size: 22px; }
+    .station .chips { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+    .station .chip { padding: 5px 6px 6px; }
+    .station .chip span { font-size: 8.5px; }
+    .station .chip b { font-size: 11px; }
+  }
+  /* ================= Tema v2: mørkt romglass =================
+     Erstatter stålplater, nagler og varselstriper med rolige glassflater,
+     én aksentfarge (cyan) og gull bare for penger. Overstyrer reglene over. */
+  :root {
+    --void: #05080f; --bg1: #0a1120; --bg2: #0e1829; --line: rgba(120, 180, 255, 0.14); --line2: rgba(120, 180, 255, 0.28);
+    --text: #e8f0ff; --muted: #8fa3bf; --paint: #4fd1ff; --paint-dark: #1b6f8f; --gold: #ffc35a;
+    --gate: #4fd1ff; --danger: #ff5d6c; --ok: #5be3a6;
+    --body: "Inter", system-ui, sans-serif; --stencil: "Exo 2", "Inter", sans-serif; --mono: "Share Tech Mono", ui-monospace, monospace;
+  }
+  body { font: 15px/1.5 var(--body); }
+  #panel { background: radial-gradient(ellipse at 50% 30%, rgba(10, 20, 40, 0.55), rgba(3, 5, 10, 0.88)); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  #panel[data-panel="title"] { background: linear-gradient(90deg, rgba(3, 6, 12, 0.94) 0%, rgba(3, 6, 12, 0.55) 60%, rgba(3, 6, 12, 0.05) 100%); backdrop-filter: none; }
+  .plate { background: linear-gradient(180deg, rgba(16, 26, 44, 0.96), rgba(9, 15, 27, 0.97)); border: 1px solid var(--line2); border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+  .card { clip-path: none; border-radius: 16px; padding: 22px; }
+  .hazard { display: none; }
+  h1 { font: 700 clamp(40px, min(10vw, 9vh), 76px)/1 var(--stencil); letter-spacing: 0.06em; color: #f2f7ff;
+    text-shadow: 0 0 40px rgba(79, 209, 255, 0.35); }
+  h1::after { width: 64px; height: 3px; margin-top: 14px; border-radius: 2px; background: linear-gradient(90deg, var(--paint), transparent); }
+  h2 { font: 600 24px/1.15 var(--stencil); letter-spacing: 0.02em; text-shadow: none; }
+  h3 { font: 600 11px/1 var(--body); letter-spacing: 0.14em; color: var(--muted); }
+  .eyebrow { font: 600 11px/1 var(--body); letter-spacing: 0.16em; color: var(--paint); }
+  .lede { color: #b9c8de; text-shadow: none; }
+  .btn { font: 600 14px/1 var(--body); letter-spacing: 0.02em; text-transform: none; border-radius: 10px; padding: 11px 16px;
+    color: var(--text); background: rgba(120, 180, 255, 0.08); border: 1px solid var(--line2); box-shadow: none; text-shadow: none; }
+  .btn:hover:not(:disabled) { background: rgba(120, 180, 255, 0.16); }
+  .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+  .btn.primary { color: #03141c; background: linear-gradient(180deg, #7fe0ff, #33b8e8); border-color: transparent; text-shadow: none; }
+  .btn.primary:hover:not(:disabled) { background: linear-gradient(180deg, #a2eaff, #4cc7f2); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 7px 11px; font-size: 13px; border-radius: 8px; }
+  .btn:focus-visible { outline: 2px solid var(--paint); outline-offset: 2px; }
+  /* Startskjermen: midtstilt, rolig. */
+  .title-card { gap: 16px; }
+  .menu { gap: 10px; }
+  .menu-item { border-radius: 12px; border: 1px solid var(--line); border-left: 1px solid var(--line); background: rgba(14, 24, 42, 0.78);
+    padding: 14px 16px 14px 56px; position: relative; transition: border-color 0.15s, background 0.15s; }
+  .menu-item::before { content: ""; position: absolute; left: 16px; top: 50%; width: 24px; height: 24px; margin-top: -12px; background: var(--paint);
+    -webkit-mask: var(--ico) center / contain no-repeat; mask: var(--ico) center / contain no-repeat; opacity: 0.9; }
+  .menu-item b { font: 600 16px/1.1 var(--stencil); letter-spacing: 0.04em; text-transform: none; }
+  .menu-item span { font-size: 13px; }
+  .menu-item:hover, .menu-item:focus-visible { border-color: var(--paint); background: rgba(24, 44, 72, 0.85); transform: none; }
+  .menu-item.primary { border-color: rgba(79, 209, 255, 0.55); background: linear-gradient(90deg, rgba(79, 209, 255, 0.16), rgba(14, 24, 42, 0.78)); }
+  .menu-item.primary b { color: #bdefff; }
+  .news { border-radius: 12px; border: 1px solid var(--line); border-left: 3px solid var(--paint); background: rgba(10, 18, 32, 0.8); }
+  .news h3 { color: #bdefff; }
+  /* Stasjonen: faner som en rad med ikoner øverst, innhold under. */
+  .station { width: min(1040px, 100%); gap: 12px; }
+  .st-head { align-items: flex-end; }
+  .station h2 { font-size: 26px; }
+  .wallet { border-radius: 12px; background: rgba(255, 195, 90, 0.08); border: 1px solid rgba(255, 195, 90, 0.3); box-shadow: none; }
+  .wallet .num { color: var(--gold); text-shadow: none; }
+  .chips { gap: 8px; }
+  .chip { border-radius: 10px; background: rgba(120, 180, 255, 0.06); border: 1px solid var(--line); }
+  .chip span { font: 600 10px/1 var(--body); letter-spacing: 0.1em; }
+  .chip i { height: 2px; background: var(--paint); border-radius: 2px; }
+  .st-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+  .tabs { flex-direction: row; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; flex-direction: row; gap: 8px; padding: 9px 14px; border-radius: 999px; font: 600 13px/1 var(--body); letter-spacing: 0.02em; text-transform: none;
+    color: var(--muted); background: rgba(120, 180, 255, 0.05); border: 1px solid var(--line); box-shadow: none; }
+  .tab:hover { color: var(--text); background: rgba(120, 180, 255, 0.1); }
+  .tab.on { color: #03141c; background: var(--paint); border-color: var(--paint); }
+  .tab-body { border-radius: 14px; background: rgba(4, 8, 16, 0.55); border: 1px solid var(--line); box-shadow: none; }
+  .st-foot .btn { min-width: 180px; }
+  .ico { stroke-width: 1.7; }
+  .mission, .upgrades li { border-radius: 12px; background: rgba(120, 180, 255, 0.05); border: 1px solid var(--line); box-shadow: none; }
+  .tag { border-radius: 6px; background: rgba(120, 180, 255, 0.12); border: 0; letter-spacing: 0.08em; font-family: var(--body); }
+  .tag.ok { background: rgba(91, 227, 166, 0.16); color: #a9f3d2; }
+  .tag.warn { background: rgba(255, 195, 90, 0.16); color: #ffd99a; }
+  .reward { color: var(--gold); }
+  th { font: 600 11px/1 var(--body); letter-spacing: 0.1em; border-bottom: 1px solid var(--line2); }
+  td { border-bottom: 1px solid var(--line); }
+  .catchips { background: rgba(6, 11, 20, 0.96); border-bottom: 1px solid var(--line); }
+  .catchip { border-radius: 999px; border: 1px solid var(--line); background: rgba(120, 180, 255, 0.05); font-family: var(--body); text-transform: none; letter-spacing: 0.02em; }
+  .catchip.on { color: #03141c; background: var(--paint); border-color: var(--paint); }
+  kbd { border-radius: 6px; border: 1px solid var(--line2); border-bottom-width: 2px; background: rgba(120, 180, 255, 0.08); }
+  details.tip { border-radius: 10px; border: 1px solid var(--line); border-left: 1px solid var(--line); background: rgba(120, 180, 255, 0.04); }
+  details.tip[open] { border-color: var(--line2); }
+  details.tip summary { font: 600 14px/1.2 var(--body); text-transform: none; letter-spacing: 0.01em; }
+  .guide-tip { border-radius: 10px; background: rgba(79, 209, 255, 0.1); border-left: 3px solid var(--paint); }
+  .guide-tip b { color: #bdefff; }
+  .toast { border-radius: 12px; background: rgba(10, 18, 32, 0.97); border: 1px solid var(--line2); }
+  .dest { border-radius: 12px; background: rgba(120, 180, 255, 0.05); border: 1px solid var(--line); box-shadow: none; }
+  .dest-name { font: 600 20px/1.1 var(--stencil); }
+  .glyph { stroke: var(--paint); }
+  .stats dt { color: var(--muted); }
+  .quick li::marker { color: var(--paint); }
+  .quick b { color: #bdefff; }
+  #update-note { border-radius: 10px; background: rgba(10, 18, 32, 0.95); border-left-color: var(--paint); }
+  .btn.cam-follow { border-radius: 999px; }
+  .map-view canvas { border-radius: 12px; border: 1px solid var(--line); }
+  .map-sys .sys { border-radius: 10px; border: 1px solid var(--line); background: rgba(120, 180, 255, 0.04); }
+  .yard-card .yc-facts div, .yc-facts div { border-radius: 6px; background: rgba(120, 180, 255, 0.05); border: 1px solid var(--line); }
+  .pal { border-radius: 10px; border: 1px solid var(--line); background: rgba(120, 180, 255, 0.05); }
+  .pal.on { border-color: var(--paint); box-shadow: 0 0 0 1px var(--paint); }
+  .pips i.on { background: var(--paint); box-shadow: 0 0 6px rgba(79, 209, 255, 0.5); }
+  .st-level .lvl-bar i { background: linear-gradient(90deg, #4fd1ff, #5be3a6); }
+  /* Touch-knapper i samme stil. */
+  #touch .ib, #touch .tile { background: rgba(10, 18, 32, 0.62); border: 1px solid rgba(120, 180, 255, 0.22); color: #dbe9ff; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  #touch .ib.on, #touch .tile.on { background: var(--paint); color: #03141c; border-color: var(--paint); }
+  #touch .fire { background: radial-gradient(circle at 40% 35%, rgba(255, 120, 110, 0.85), rgba(150, 30, 45, 0.85)); border: 1px solid rgba(255, 150, 150, 0.4); }
+  #touch .ctx { color: #03141c; background: linear-gradient(180deg, #7fe0ff, #33b8e8); border: 0; }
+  #tc-drawer { border-radius: 16px; }
+  #stick .ghost { border-color: rgba(79, 209, 255, 0.3); }
+  #stick .base { border-color: rgba(79, 209, 255, 0.55); }
+  #stick .knob { background: radial-gradient(circle at 35% 35%, #9fd8ff, #2b5f80 60%, #0b1d2b); border-color: rgba(0, 0, 0, 0.6); }
+  @keyframes hint { 0%, 100% { box-shadow: 0 0 0 0 rgba(79, 209, 255, 0.9); } 50% { box-shadow: 0 0 0 9px rgba(79, 209, 255, 0); } }
+  @media (max-width: 720px) {
+    .st-main { grid-template-rows: auto minmax(0, 1fr); }
+    .tabs { display: flex; }
+    .tab { flex-direction: row; padding: 8px 12px; font-size: 12px; border-bottom-width: 1px; }
+    .tab.on { border-bottom-color: var(--paint); background: var(--paint); }
+  }
+  @media (max-height: 560px) and (min-width: 600px) {
+    .st-main { grid-template-columns: minmax(0, 1fr); }
+    .tab { padding: 6px 10px; }
+    .tab span { display: inline; }
+  }
 </style>
 </head>
 <body>

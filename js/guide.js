@@ -111,12 +111,12 @@
     const pulse = 0.5 + 0.5 * Math.sin(game.time * 3);
     ctx.save();
     ctx.globalAlpha = Math.min(1, game.guide.t * 3);
-    ctx.fillStyle = 'rgba(8,9,11,0.62)';
+    ctx.fillStyle = 'rgba(8,14,26,0.66)';
     ctx.fillRect(x, y, W, H);
-    ctx.fillStyle = `rgba(227,160,58,${0.7 + 0.3 * pulse})`;
+    ctx.fillStyle = `rgba(79,209,255,${0.7 + 0.3 * pulse})`;
     ctx.fillRect(x, y, 3, H);
     ctx.font = '700 10px "Saira Condensed", "Arial Narrow", sans-serif';
-    ctx.fillStyle = '#e3a03a';
+    ctx.fillStyle = '#4fd1ff';
     ctx.fillText(`NEXT STEP ${game.guide.step + 1}/${STEPS.length}`, x + 10, y + 13);
     ctx.font = '700 13px "Saira Condensed", "Arial Narrow", sans-serif';
     ctx.fillStyle = '#e6dfcd';

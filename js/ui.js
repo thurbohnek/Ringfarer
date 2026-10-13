@@ -172,10 +172,10 @@
           <p class="lede">Fit out your own mining ship. Drill, blast and tunnel through asteroids, tow comets on a cable,
           send out drones and travel through the ancient ring gate. Everything runs on real physics, and your ship can lose parts when it gets hit.</p>
           <nav class="menu">
-            <button class="menu-item primary" data-act="test" data-autofocus><b>Test everything</b><span>Fully equipped ship, unlimited credits</span></button>
-            ${cont ? '<button class="menu-item" data-act="continue"><b>Continue</b><span>Pick up where you left off</span></button>' : ''}
-            <button class="menu-item" data-act="new"><b>New career</b><span>Start small with a Skiff MK-I</span></button>
-            <button class="menu-item" data-act="help"><b>Controls</b><span>Keys, touch and tips</span></button>
+            <button class="menu-item primary" data-act="test" data-autofocus style='--ico:${icoUrl(MENU_ICO.flask)}'><b>Test everything</b><span>Fully equipped ship, unlimited credits</span></button>
+            ${cont ? `<button class="menu-item" data-act="continue" style='--ico:${icoUrl(MENU_ICO.play)}'><b>Continue</b><span>Pick up where you left off</span></button>` : ''}
+            <button class="menu-item" data-act="new" style='--ico:${icoUrl(MENU_ICO.plus)}'><b>New career</b><span>Start small with a Skiff MK-I</span></button>
+            <button class="menu-item" data-act="help" style='--ico:${icoUrl(MENU_ICO.help)}'><b>How to play</b><span>Keys, touch and tips</span></button>
           </nav>
           ${newsHtml}
           <p class="version num">Version ${esc(RF.VERSION)} · <button class="linkbtn" data-act="news">All updates</button></p>
@@ -553,14 +553,22 @@
 
   // Små ikoner til fanene.
   const ICONS = {
-    marked: 'M4 7h16l-1.5 11h-13z M8 7V5h8v2 M9 11v4 M15 11v4',
-    verksted: 'M14 4a4 4 0 0 0-3.8 5.2L4 15.4 6.6 18l6.2-6.2A4 4 0 0 0 18 8l-2.5 2.5-2-2L16 6a4 4 0 0 0-2-2z',
-    utstyr: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M19 5l-2 2 M7 17l-2 2',
-    verft: 'M3 13l4-6h10l4 6-4 5H7z M9 10h6 M8 13h8',
-    droner: 'M8 12h8 M12 9v6 M5 6a2 2 0 1 0 0 .1 M19 6a2 2 0 1 0 0 .1 M5 18a2 2 0 1 0 0 .1 M19 18a2 2 0 1 0 0 .1 M7 8l3 3 M17 8l-3 3 M7 16l3-3 M17 16l-3-3',
-    oppdrag: 'M7 4h10v16H7z M9 8h6 M9 12h6 M9 16h4',
-    stasjon: 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M5 5l3 3 M19 19l-3-3 M19 5l-3 3 M5 19l3-3',
-    planet: 'M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z M2 15c4-1 16-5 20-7',
+    marked: 'M4 19h16 M7 16v-4 M12 16V8 M17 16v-6 M5 9l5-4 4 3 5-4',
+    verksted: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z',
+    utstyr: 'M8 8h8v8H8z M4 10h4 M4 14h4 M16 10h4 M16 14h4 M10 4v4 M14 4v4 M10 16v4 M14 16v4',
+    verft: 'M12 3c3 2 5 6 5 10l-2 3H9l-2-3c0-4 2-8 5-10z M12 9.5v.01 M9 16l-2 4 M15 16l2 4',
+    droner: 'M12 10v4 M10 12h4 M6 6l4 4 M18 6l-4 4 M6 18l4-4 M18 18l-4-4 M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0 M18 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0',
+    oppdrag: 'M9 4h6v3H9z M6 6h12v15H6z M9 11h6 M9 15h4',
+    stasjon: 'M12 13v8 M8 21h8 M12 11v.01 M8.5 7.5a5 5 0 0 0 0 7 M15.5 7.5a5 5 0 0 1 0 7 M5.6 4.6a9 9 0 0 0 0 12.8 M18.4 4.6a9 9 0 0 1 0 12.8',
+    planet: 'M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z M2 16c5-1 15-6 20-9',
+    mannskap: 'M9 8a3 3 0 1 0 0-.01 M3 20c0-3 3-5 6-5s6 2 6 5 M17 7.5a2.5 2.5 0 1 0 0-.01 M16.5 14c2.5 0 4.5 2 4.5 5',
+    flate: 'M3 13l7-3-2 7z M12 6l8-3-3 8z M12 17l8-3-2 7z',
+  };
+  // Ikon som CSS-maske (brukes på startskjermens menyvalg).
+  const icoUrl = (d) => `url(&quot;data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`).replace(/'/g, '%27')}&quot;)`;
+  const MENU_ICO = {
+    play: 'M8 5l11 7-11 7z', plus: 'M12 5v14 M5 12h14', flask: 'M9 3h6 M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3 M7.5 15h9',
+    help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7 M12 17v.01',
   };
   const icon = (id) => `<svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="${ICONS[id]}"/></svg>`;
 

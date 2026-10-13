@@ -7,7 +7,7 @@
   const G = RF.G;
 
   const C = {
-    text: '#e6dfcd', muted: '#958d7b', gate: '#6cc4e0', amber: '#e3a03a', danger: '#e2553d', ok: '#95c46a',
+    text: '#e8f0ff', muted: '#8fa3bf', gate: '#4fd1ff', amber: '#ffc35a', danger: '#ff5d6c', ok: '#5be3a6',
     naq: '#6fe0bd', phosphor: '#9fdc8a',
   };
   const F = {
@@ -68,11 +68,11 @@
   // Lett, gjennomsiktig flate med tynn kant (i stedet for tunge stålplater).
   function glass(ctx, x, y, w, h) {
     ctx.save();
-    ctx.fillStyle = 'rgba(8,9,11,0.58)';
+    ctx.fillStyle = 'rgba(8,14,26,0.62)';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(x, y, w, h, 6); else ctx.rect(x, y, w, h);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(230,223,205,0.12)';
+    ctx.strokeStyle = 'rgba(120,180,255,0.2)';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
